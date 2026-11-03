@@ -1,0 +1,565 @@
+/* Raven: one deliberate gesture per charged word, painted sprites from
+   /fx/raven/*.png. Layers per word: a back haze, the sprite actors, a front
+   detail (ember, glint, rest shadow). Everything sits above, beside or BEHIND
+   the phrase (the .fx-layer is under the text). Scoped to .fx[data-fx='raven'];
+   keyframes prefixed raven-. The effect always animates (the user's call), so
+   every animation is !important like bio.css. */
+
+.fx[data-fx='raven'] {
+  --rv-violet: var(--fx-a2, var(--t-glow));
+  --rv-rose: var(--fx-a1, var(--t-accent));
+  --rv-pale: color-mix(in oklab, var(--fx-light, var(--t-ink)) 62%, var(--t-ink));
+  --rv-grey: color-mix(in oklab, var(--fx-fog, var(--t-muted)) 42%, var(--t-ink));
+  --rv-hot: color-mix(in oklab, var(--rv-rose) 78%, var(--t-ink));
+  --rv-shadow: drop-shadow(0 0.12em 0.14em color-mix(in oklab, black 62%, transparent));
+  /* the sprites are black on a dark world: a lifted body and a violet-rose rim keep them readable */
+  --rv-rim: drop-shadow(0 0 0.025em color-mix(in oklab, var(--rv-rose) 70%, white)) drop-shadow(0 0 0.06em color-mix(in oklab, var(--rv-rose) 90%, transparent)) drop-shadow(0 0 0.28em color-mix(in oklab, var(--rv-violet) 80%, transparent));
+}
+
+.fx[data-fx='raven'] .fx-text {
+  font-weight: 600;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.fx[data-fx='raven'] .raven-stage {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.fx[data-fx='raven'] .raven-sp {
+  position: absolute;
+  display: block;
+  max-width: none;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* ---- back light ------------------------------------------------------------ */
+.fx[data-fx='raven'] .raven-haze {
+  position: absolute;
+  inset: -0.35em -0.55em;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--rv-violet) 34%, transparent), transparent);
+  filter: blur(0.22em);
+  opacity: 0.4;
+  animation: raven-haze 6s var(--fx-ease-sine, ease-in-out) infinite alternate !important;
+}
+
+.fx[data-fx='raven'] .raven-haze-kiss {
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--rv-rose) 38%, transparent), transparent);
+  animation: raven-haze-flush 6.4s var(--fx-ease-sine, ease-in-out) infinite !important;
+}
+
+.fx[data-fx='raven'] .raven-haze-feather {
+  animation: raven-haze-rest 7.2s var(--fx-ease-sine, ease-in-out) infinite !important;
+}
+
+@keyframes raven-haze {
+  from {
+    opacity: 0.22;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 0.55;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes raven-haze-flush {
+  0%,
+  34% {
+    opacity: 0.18;
+  }
+  44%,
+  76% {
+    opacity: 0.62;
+  }
+  96%,
+  100% {
+    opacity: 0.18;
+  }
+}
+
+@keyframes raven-haze-rest {
+  0%,
+  50% {
+    opacity: 0.2;
+  }
+  64%,
+  86% {
+    opacity: 0.58;
+  }
+  100% {
+    opacity: 0.2;
+  }
+}
+
+/* ==== "cigarette smoke": an ember, wisps curling up lazily ==================== */
+.fx[data-fx='raven']:has([data-word='smoke']) .fx-text {
+  background-image: linear-gradient(100deg, var(--rv-grey) 0%, var(--rv-pale) 22%, var(--rv-hot) 46%, var(--rv-grey) 68%, var(--rv-pale) 86%, var(--rv-grey) 100%);
+  background-size: 320% 100%;
+  background-position: 0% 0;
+  animation: raven-drift-fill 11s var(--fx-ease-sine, ease-in-out) infinite alternate !important;
+}
+
+@keyframes raven-drift-fill {
+  from {
+    background-position: 0% 0;
+  }
+  to {
+    background-position: 100% 0;
+  }
+}
+
+.fx[data-fx='raven'] .raven-ember {
+  position: absolute;
+  left: 100%;
+  top: 0.08em;
+  width: 0.5em;
+  height: 0.5em;
+  margin-left: 0.05em;
+}
+
+.fx[data-fx='raven'] .raven-ember-core {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in oklab, var(--rv-rose) 40%, white) 0%,
+    color-mix(in oklab, var(--rv-rose) 80%, transparent) 30%,
+    transparent 70%
+  );
+  animation: raven-ember 7.1s ease-in-out infinite !important;
+}
+
+@keyframes raven-ember {
+  0%,
+  100% {
+    opacity: 0.28;
+    transform: scale(0.7);
+  }
+  14% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  30% {
+    opacity: 0.6;
+    transform: scale(0.9);
+  }
+  44% {
+    opacity: 0.9;
+    transform: scale(1.05);
+  }
+  66% {
+    opacity: 0.35;
+    transform: scale(0.75);
+  }
+}
+
+.fx[data-fx='raven'] .raven-wisp {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  animation: raven-curl 7.1s cubic-bezier(0.3, 0.1, 0.4, 1) var(--d, 0s) infinite !important;
+}
+
+.fx[data-fx='raven'] .raven-wisp-sp {
+  left: -1.4em;
+  top: -2.5em;
+  width: 2.8em;
+  opacity: 0.95;
+  filter: brightness(1.9) drop-shadow(0 0 0.25em color-mix(in oklab, var(--rv-violet) 55%, transparent));
+}
+
+@keyframes raven-curl {
+  0% {
+    opacity: 0;
+    transform: translate(var(--x, 0), 0.5em) rotate(0deg) scale(calc(0.5 * var(--k, 1)));
+  }
+  14% {
+    opacity: 0.8;
+  }
+  58% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--x, 0) + var(--dx, 0.4em)), -1em) rotate(var(--r, 20deg)) scale(calc(1.45 * var(--k, 1)));
+  }
+}
+
+/* ==== "show you": the kiss presses on, and smears ============================= */
+.fx[data-fx='raven']:has([data-word='kiss']) .fx-text {
+  background-image: linear-gradient(90deg, var(--rv-hot) 0%, var(--rv-hot) 38%, var(--rv-grey) 62%, var(--rv-grey) 100%);
+  background-size: 260% 100%;
+  background-position: 100% 0;
+  animation: raven-flush 6.4s var(--fx-ease-sine, ease-in-out) infinite !important;
+}
+
+@keyframes raven-flush {
+  0%,
+  36% {
+    background-position: 100% 0;
+  }
+  46%,
+  76% {
+    background-position: 0% 0;
+  }
+  96%,
+  100% {
+    background-position: 100% 0;
+  }
+}
+
+.fx[data-fx='raven'] .raven-kiss {
+  position: absolute;
+  left: 100%;
+  top: 100%;
+  width: 0;
+  height: 0;
+  margin: 0.2em 0 0 -0.7em;
+}
+
+/* a rose pool under the black print, so black lipstick reads on a black world */
+.fx[data-fx='raven'] .raven-kiss::before {
+  content: '';
+  position: absolute;
+  left: -1.7em;
+  top: -1.2em;
+  width: 3.4em;
+  height: 2.4em;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--rv-rose) 55%, transparent), transparent);
+  opacity: 0;
+  animation: raven-pool 6.4s ease-out infinite !important;
+}
+
+@keyframes raven-pool {
+  0%,
+  38% {
+    opacity: 0;
+  }
+  44%,
+  78% {
+    opacity: 0.9;
+  }
+  95%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.fx[data-fx='raven'] .raven-print,
+.fx[data-fx='raven'] .raven-smear {
+  left: -1.3em;
+  top: -1.3em;
+  width: 2.6em;
+  opacity: 0;
+  transform-origin: 50% 55%;
+}
+
+.fx[data-fx='raven'] .raven-print {
+  filter: var(--rv-rim) var(--rv-shadow);
+  animation: raven-press 6.4s ease-out infinite !important;
+}
+
+/* the smear: a blurred, skewed ghost of the print left a hair behind it */
+.fx[data-fx='raven'] .raven-smear {
+  filter: blur(0.05em) brightness(1.2) drop-shadow(0 0 0.12em color-mix(in oklab, var(--rv-rose) 60%, transparent));
+  animation: raven-smudge 6.4s ease-out infinite !important;
+}
+
+@keyframes raven-press {
+  0%,
+  30% {
+    opacity: 0;
+    transform: translate(0.35em, -0.55em) rotate(-26deg) scale(1.4);
+  }
+  36% {
+    opacity: 0.5;
+    transform: translate(0.12em, -0.2em) rotate(-18deg) scale(1.22);
+  }
+  40% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(-12deg) scale(1.02, 0.88);
+  }
+  44% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(-12deg) scale(1.04, 1);
+  }
+  50%,
+  80% {
+    opacity: 0.94;
+    transform: translate(0, 0) rotate(-12deg) scale(1);
+  }
+  95%,
+  100% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(-12deg) scale(1.02);
+  }
+}
+
+@keyframes raven-smudge {
+  0%,
+  41% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(-12deg) scale(1);
+  }
+  47% {
+    opacity: 0.42;
+    transform: translate(0.1em, 0.12em) rotate(-9deg) skewX(-9deg) scale(1.06, 1.03);
+  }
+  80% {
+    opacity: 0.32;
+    transform: translate(0.1em, 0.12em) rotate(-9deg) skewX(-9deg) scale(1.06, 1.03);
+  }
+  95%,
+  100% {
+    opacity: 0;
+    transform: translate(0.1em, 0.12em) rotate(-9deg) skewX(-9deg) scale(1.06, 1.03);
+  }
+}
+
+/* the glint at the moment of contact: a four-point sparkle */
+.fx[data-fx='raven'] .raven-glint {
+  position: absolute;
+  left: 0.5em;
+  top: -1.1em;
+  width: 0.7em;
+  height: 0.7em;
+  background: color-mix(in oklab, var(--rv-rose) 30%, white);
+  clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
+  opacity: 0;
+  animation: raven-glint 6.4s ease-out infinite !important;
+}
+
+@keyframes raven-glint {
+  0%,
+  41% {
+    opacity: 0;
+    transform: scale(0.2) rotate(0deg);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1) rotate(20deg);
+  }
+  56%,
+  100% {
+    opacity: 0;
+    transform: scale(0.4) rotate(50deg);
+  }
+}
+
+/* ==== "soft she gets": the feather sways down and settles ===================== */
+.fx[data-fx='raven']:has([data-word='feather']) .fx-text {
+  background-image: linear-gradient(95deg, var(--rv-grey) 0%, var(--rv-grey) 30%, var(--rv-pale) 52%, var(--rv-hot) 70%, var(--rv-hot) 100%);
+  background-size: 280% 100%;
+  background-position: 100% 0;
+  animation: raven-soften 7.2s var(--fx-ease-sine, ease-in-out) infinite !important;
+}
+
+@keyframes raven-soften {
+  0%,
+  44% {
+    background-position: 100% 0;
+  }
+  66%,
+  86% {
+    background-position: 0% 0;
+  }
+  100% {
+    background-position: 100% 0;
+  }
+}
+
+.fx[data-fx='raven'] .raven-drift {
+  position: absolute;
+  left: 62%;
+  top: 100%;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  animation: raven-descend 7.2s linear infinite !important;
+}
+
+.fx[data-fx='raven'] .raven-settle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  width: 0;
+  height: 0;
+  animation: raven-sway 7.2s ease-in-out infinite !important;
+}
+
+.fx[data-fx='raven'] .raven-feather-sp {
+  left: -1.4em;
+  top: -1.4em;
+  width: 2.8em;
+  filter: var(--rv-rim) var(--rv-shadow);
+}
+
+/* the fall: ease down through the line's height, one soft bounce, then rest */
+@keyframes raven-descend {
+  0% {
+    opacity: 0;
+    transform: translate(-0.45em, -1.5em);
+  }
+  8% {
+    opacity: 1;
+  }
+  22% {
+    transform: translate(0.35em, -0.9em);
+    animation-timing-function: ease-in-out;
+  }
+  40% {
+    transform: translate(-0.25em, -0.1em);
+    animation-timing-function: ease-in-out;
+  }
+  58% {
+    transform: translate(0.15em, 0.7em);
+    animation-timing-function: ease-in;
+  }
+  64% {
+    transform: translate(0.12em, 0.84em);
+  }
+  68%,
+  88% {
+    opacity: 1;
+    transform: translate(0.12em, 0.8em);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0.12em, 0.8em);
+  }
+}
+
+/* the sway damps (38, 30, 22, 14 degrees) then she lies down at -72deg */
+@keyframes raven-sway {
+  0% {
+    transform: rotate(-38deg);
+  }
+  12% {
+    transform: rotate(34deg);
+  }
+  24% {
+    transform: rotate(-28deg);
+  }
+  36% {
+    transform: rotate(22deg);
+  }
+  48% {
+    transform: rotate(-14deg);
+  }
+  58% {
+    transform: rotate(-40deg);
+  }
+  66%,
+  100% {
+    transform: rotate(-72deg);
+  }
+}
+
+.fx[data-fx='raven'] .raven-rest-shadow {
+  position: absolute;
+  left: 62%;
+  top: 100%;
+  width: 2em;
+  height: 0.34em;
+  margin: 0.8em 0 0 -0.9em;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in oklab, black 55%, transparent), transparent);
+  filter: blur(0.04em);
+  opacity: 0;
+  transform: rotate(-4deg);
+  animation: raven-rest-shadow 7.2s ease-out infinite !important;
+}
+
+@keyframes raven-rest-shadow {
+  0%,
+  56% {
+    opacity: 0;
+  }
+  68%,
+  88% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ==== fallback: a guitar pick tossed and caught =============================== */
+.fx[data-fx='raven']:has([data-word='pick']) .fx-text {
+  background-image: linear-gradient(100deg, var(--rv-hot) 0%, var(--rv-pale) 40%, var(--rv-hot) 70%, var(--rv-grey) 100%);
+  background-size: 260% 100%;
+  animation: raven-drift-fill 8s var(--fx-ease-sine, ease-in-out) infinite alternate !important;
+}
+
+.fx[data-fx='raven'] .raven-toss {
+  position: absolute;
+  left: 100%;
+  top: -0.4em;
+  width: 0;
+  height: 0;
+  animation: raven-toss 5.4s ease-in-out infinite !important;
+}
+
+.fx[data-fx='raven'] .raven-flip {
+  display: block;
+  width: 0;
+  height: 0;
+  animation: raven-spin 5.4s ease-in-out infinite !important;
+}
+
+.fx[data-fx='raven'] .raven-pick-sp {
+  left: -0.95em;
+  top: -1.1em;
+  width: 1.9em;
+  filter: var(--rv-rim) var(--rv-shadow);
+}
+
+@keyframes raven-toss {
+  0%,
+  16% {
+    transform: translate(-0.3em, 0) scale(1, 1);
+  }
+  20% {
+    transform: translate(-0.3em, 0.04em) scale(1.06, 0.9);
+  }
+  44% {
+    transform: translate(-0.1em, -0.95em) scale(1.1);
+  }
+  66% {
+    transform: translate(-0.3em, 0.02em) scale(1.08, 0.88);
+  }
+  72%,
+  100% {
+    transform: translate(-0.3em, 0) scale(1, 1);
+  }
+}
+
+@keyframes raven-spin {
+  0%,
+  18% {
+    transform: perspective(14em) rotateZ(-16deg) rotateY(0deg);
+  }
+  66% {
+    transform: perspective(14em) rotateZ(344deg) rotateY(900deg);
+  }
+  74%,
+  100% {
+    transform: perspective(14em) rotateZ(344deg) rotateY(1080deg);
+  }
+}

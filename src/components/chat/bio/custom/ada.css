@@ -1,0 +1,750 @@
+/* Ada: one deliberate gesture per charged word, painted sprites from
+   /fx/ada/*.png. Layers per word: a back haze, the sprite actors, a front
+   detail (ring, glint, streaks). Everything sits above, beside or BEHIND the
+   phrase (the .fx-layer is under the text). Scoped to .fx[data-fx='ada'];
+   keyframes prefixed ada-. The effect always animates (the user's call), so
+   every animation is !important like bio.css. */
+
+.fx[data-fx='ada'] {
+  --ad-brass: color-mix(in oklab, var(--t-accent) 62%, var(--t-ink));
+  --ad-copper: var(--t-accent);
+  --ad-shine: color-mix(in oklab, var(--fx-light, var(--t-glow)) 45%, var(--t-accent));
+  --ad-hot: color-mix(in oklab, var(--t-accent) 78%, red);
+  --ad-teal: var(--fx-a2, var(--t-glow));
+  --ad-shadow: drop-shadow(0 0.1em 0.12em color-mix(in oklab, var(--t-ink) 45%, transparent));
+}
+
+.fx[data-fx='ada'] .fx-text {
+  display: inline-block;
+  font-weight: 650;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0.035em 0 color-mix(in oklab, var(--t-ink) 20%, transparent));
+}
+
+.fx[data-fx='ada'] .ada-stage {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.fx[data-fx='ada'] .ada-sp {
+  position: absolute;
+  display: block;
+  max-width: none;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* ---- back light ------------------------------------------------------------ */
+.fx[data-fx='ada'] .ada-haze {
+  position: absolute;
+  inset: -0.3em -0.5em;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--fx-light, var(--t-glow)) 70%, transparent), transparent);
+  filter: blur(0.2em);
+  opacity: 0.35;
+  animation: ada-haze 5.5s var(--fx-ease-sine, ease-in-out) infinite alternate !important;
+}
+
+@keyframes ada-haze {
+  from {
+    opacity: 0.2;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 0.5;
+    transform: scale(1.03);
+  }
+}
+
+/* ==== "problem": the wrench lands with weight ================================= */
+.fx[data-fx='ada']:has([data-word='wrench']) .fx-text {
+  background-image: linear-gradient(100deg, var(--ad-brass) 0%, var(--ad-copper) 30%, var(--ad-shine) 46%, var(--ad-copper) 62%, var(--ad-brass) 100%);
+  background-size: 300% 100%;
+  background-position: 100% 0;
+  animation: ada-thud 5.6s ease-out infinite !important;
+}
+
+/* the word takes the blow at 38%: it dips, a bright band runs across it */
+@keyframes ada-thud {
+  0%,
+  36% {
+    background-position: 100% 0;
+    transform: translateY(0);
+  }
+  38% {
+    transform: translateY(0.05em) scale(1, 0.96);
+  }
+  42% {
+    transform: translateY(-0.015em);
+  }
+  46% {
+    transform: translateY(0);
+  }
+  58% {
+    background-position: 0% 0;
+  }
+  100% {
+    background-position: 0% 0;
+    transform: translateY(0);
+  }
+}
+
+.fx[data-fx='ada'] .ada-haze-wrench {
+  animation: ada-haze-hit 5.6s ease-out infinite !important;
+}
+
+@keyframes ada-haze-hit {
+  0%,
+  36% {
+    opacity: 0.12;
+  }
+  40% {
+    opacity: 0.7;
+  }
+  70%,
+  100% {
+    opacity: 0.18;
+  }
+}
+
+.fx[data-fx='ada'] .ada-fly {
+  position: absolute;
+  left: 100%;
+  top: -0.3em;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  animation: ada-fly 5.6s linear infinite !important;
+}
+
+.fx[data-fx='ada'] .ada-tumble {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  width: 0;
+  height: 0;
+  animation: ada-tumble 5.6s ease-in infinite !important;
+}
+
+.fx[data-fx='ada'] .ada-wrench-sp {
+  left: -1.15em;
+  top: -0.6em;
+  width: 2.3em;
+  filter: var(--ad-shadow);
+}
+
+/* the throw: in from the right and above, down onto its resting spot, one small
+   bounce, then still until the reset fade */
+@keyframes ada-fly {
+  0% {
+    opacity: 0;
+    transform: translate(1.9em, -1.7em);
+  }
+  4% {
+    opacity: 1;
+  }
+  20% {
+    transform: translate(1em, -1.15em);
+    animation-timing-function: ease-in;
+  }
+  38% {
+    transform: translate(-0.1em, 0.06em);
+    animation-timing-function: ease-out;
+  }
+  44% {
+    transform: translate(-0.16em, -0.2em);
+    animation-timing-function: ease-in;
+  }
+  50% {
+    transform: translate(-0.2em, 0);
+  }
+  54%,
+  90% {
+    opacity: 1;
+    transform: translate(-0.2em, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-0.2em, 0);
+  }
+}
+
+/* two and a half turns on the way, then a damped wobble to its resting angle */
+@keyframes ada-tumble {
+  0% {
+    transform: rotate(-30deg);
+  }
+  38% {
+    transform: rotate(870deg);
+  }
+  44% {
+    transform: rotate(884deg);
+  }
+  50% {
+    transform: rotate(866deg);
+  }
+  56%,
+  100% {
+    transform: rotate(871deg);
+  }
+}
+
+.fx[data-fx='ada'] .ada-impact {
+  position: absolute;
+  left: 100%;
+  top: 0.2em;
+  width: 0;
+  height: 0;
+}
+
+.fx[data-fx='ada'] .ada-ring {
+  position: absolute;
+  left: -0.6em;
+  top: -0.6em;
+  display: block;
+  width: 1.2em;
+  height: 1.2em;
+  border-radius: 50%;
+  border: 0.06em solid color-mix(in oklab, var(--ad-shine) 70%, white);
+  opacity: 0;
+  animation: ada-ring 5.6s ease-out infinite !important;
+}
+
+@keyframes ada-ring {
+  0%,
+  37% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  40% {
+    opacity: 0.85;
+    transform: scale(0.5);
+  }
+  54%,
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+.fx[data-fx='ada'] .ada-glint {
+  position: absolute;
+  left: -0.3em;
+  top: -0.55em;
+  display: block;
+  width: 0.6em;
+  height: 0.6em;
+  background: color-mix(in oklab, var(--ad-shine) 40%, white);
+  clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
+  opacity: 0;
+  animation: ada-glint 5.6s ease-out infinite !important;
+}
+
+@keyframes ada-glint {
+  0%,
+  37% {
+    opacity: 0;
+    transform: scale(0.2) rotate(0deg);
+  }
+  41% {
+    opacity: 1;
+    transform: scale(1.1) rotate(25deg);
+  }
+  52%,
+  100% {
+    opacity: 0;
+    transform: scale(0.4) rotate(60deg);
+  }
+}
+
+/* ==== "engine room heat": gears turn, steam vents, the word runs hot ========== */
+.fx[data-fx='ada']:has([data-word='engine']) .fx-text {
+  background-image: linear-gradient(100deg, var(--ad-brass) 0%, var(--ad-copper) 25%, var(--ad-hot) 45%, var(--ad-shine) 55%, var(--ad-copper) 75%, var(--ad-brass) 100%);
+  background-size: 320% 100%;
+  background-position: 100% 0;
+  animation: ada-heat 6.4s var(--fx-ease-sine, ease-in-out) infinite !important;
+}
+
+/* heat gathers while the steam builds, flares at the vent, then cools */
+@keyframes ada-heat {
+  0% {
+    background-position: 100% 0;
+  }
+  34% {
+    background-position: 20% 0;
+  }
+  52% {
+    background-position: 0% 0;
+  }
+  100% {
+    background-position: 100% 0;
+  }
+}
+
+.fx[data-fx='ada'] .ada-haze-engine {
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--ad-hot) 45%, transparent), transparent);
+  animation: ada-haze-heat 6.4s var(--fx-ease-sine, ease-in-out) infinite !important;
+}
+
+@keyframes ada-haze-heat {
+  0%,
+  100% {
+    opacity: 0.12;
+  }
+  38% {
+    opacity: 0.5;
+  }
+}
+
+.fx[data-fx='ada'] .ada-gears {
+  position: absolute;
+  left: -0.1em;
+  top: -1.55em;
+  width: 0;
+  height: 0;
+}
+
+.fx[data-fx='ada'] .ada-gear {
+  filter: var(--ad-shadow);
+}
+
+.fx[data-fx='ada'] .ada-gear-big {
+  left: 0;
+  top: 0;
+  width: 1.5em;
+  animation: ada-cw 10s linear infinite !important;
+}
+
+/* both gears are the same 18-tooth sprite, so they mesh at 0.71 of a width apart
+   and turn at the same rate the other way; the second starts half a pitch (10deg) round */
+.fx[data-fx='ada'] .ada-gear-small {
+  left: 1.065em;
+  top: 0;
+  width: 1.5em;
+  animation: ada-ccw 10s linear infinite !important;
+}
+
+@keyframes ada-cw {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ada-ccw {
+  from {
+    transform: rotate(10deg);
+  }
+  to {
+    transform: rotate(-350deg);
+  }
+}
+
+.fx[data-fx='ada'] .ada-vent {
+  position: absolute;
+  left: 100%;
+  top: 0.1em;
+  width: 0;
+  height: 0;
+}
+
+.fx[data-fx='ada'] .ada-puff {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  animation: ada-puff 6.4s ease-out var(--d, 0s) infinite !important;
+}
+
+.fx[data-fx='ada'] .ada-steam-sp {
+  position: absolute;
+  left: -0.8em;
+  top: -0.8em;
+  display: block;
+  width: 1.6em;
+  height: 1.6em;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 32%, color-mix(in oklab, white 85%, var(--ad-teal)) 0%, transparent 46%),
+    radial-gradient(circle at 62% 60%, color-mix(in oklab, var(--ad-teal) 70%, var(--t-muted)) 0%, transparent 52%),
+    radial-gradient(circle, color-mix(in oklab, var(--ad-teal) 80%, white) 0%, color-mix(in oklab, var(--ad-teal) 55%, transparent) 55%, transparent 72%);
+  filter: blur(0.05em) drop-shadow(0 0.06em 0.1em color-mix(in oklab, var(--t-ink) 22%, transparent));
+}
+
+@keyframes ada-puff {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(calc(0.3 * var(--k, 1)));
+  }
+  5% {
+    opacity: 0.9;
+  }
+  22% {
+    opacity: 0.6;
+  }
+  38%,
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx, 0.4em), var(--dy, -1.2em)) scale(calc(1.5 * var(--k, 1)));
+  }
+}
+
+/* ==== "welding": a torch draws a seam, then a spark burst ===================== */
+.fx[data-fx='ada']:has([data-word='weld']) .fx-text {
+  background-image: linear-gradient(100deg, var(--ad-brass) 0%, var(--ad-brass) 38%, var(--ad-shine) 48%, var(--ad-copper) 58%, var(--ad-brass) 68%, var(--ad-brass) 100%);
+  background-size: 320% 100%;
+  background-position: 100% 0;
+  animation: ada-torch-lit 4.8s linear infinite !important;
+}
+
+/* the bright band follows the torch along the word, then drains away */
+@keyframes ada-torch-lit {
+  0%,
+  8% {
+    background-position: 100% 0;
+  }
+  54% {
+    background-position: 0% 0;
+  }
+  100% {
+    background-position: 0% 0;
+  }
+}
+
+.fx[data-fx='ada'] .ada-haze-weld {
+  background: radial-gradient(closest-side, color-mix(in oklab, white 55%, var(--ad-shine)), transparent);
+  animation: ada-haze-flash 4.8s ease-out infinite !important;
+}
+
+@keyframes ada-haze-flash {
+  0%,
+  50% {
+    opacity: 0.08;
+  }
+  56% {
+    opacity: 0.75;
+  }
+  80%,
+  100% {
+    opacity: 0.1;
+  }
+}
+
+.fx[data-fx='ada'] .ada-seam {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  display: block;
+  height: 0.12em;
+  margin-top: -0.14em;
+}
+
+.fx[data-fx='ada'] .ada-seam-trail,
+.fx[data-fx='ada'] .ada-seam-head {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  display: block;
+  height: 100%;
+  border-radius: 0.06em;
+}
+
+.fx[data-fx='ada'] .ada-seam-trail {
+  background: linear-gradient(90deg, var(--ad-brass), var(--ad-hot) 60%, var(--ad-shine));
+  box-shadow: 0 0 0.18em color-mix(in oklab, var(--ad-hot) 70%, transparent);
+  clip-path: inset(0 100% 0 0);
+  animation: ada-draw 4.8s linear infinite !important;
+}
+
+/* a short bright window riding the leading edge of the seam */
+.fx[data-fx='ada'] .ada-seam-head {
+  background: color-mix(in oklab, white 85%, var(--ad-shine));
+  box-shadow: 0 0 0.24em 0.06em color-mix(in oklab, white 60%, var(--ad-shine));
+  clip-path: inset(0 100% 0 0);
+  animation: ada-head 4.8s linear infinite !important;
+}
+
+@keyframes ada-draw {
+  0%,
+  8% {
+    opacity: 1;
+    clip-path: inset(0 100% 0 0);
+  }
+  54% {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+  70% {
+    opacity: 0.8;
+    clip-path: inset(0 0 0 0);
+  }
+  92%,
+  100% {
+    opacity: 0;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes ada-head {
+  0%,
+  8% {
+    opacity: 1;
+    clip-path: inset(0 99% 0 0);
+  }
+  54% {
+    opacity: 1;
+    clip-path: inset(0 0 0 94%);
+  }
+  58%,
+  100% {
+    opacity: 0;
+    clip-path: inset(0 0 0 94%);
+  }
+}
+
+.fx[data-fx='ada'] .ada-burst {
+  position: absolute;
+  left: 100%;
+  top: 100%;
+  width: 0;
+  height: 0;
+  margin-top: -0.1em;
+}
+
+.fx[data-fx='ada'] .ada-spark-sp {
+  left: -0.95em;
+  top: -0.95em;
+  width: 1.9em;
+  opacity: 0;
+  filter: drop-shadow(0 0 0.2em color-mix(in oklab, var(--ad-hot) 80%, transparent));
+  animation: ada-spark-pop 4.8s ease-out infinite !important;
+}
+
+@keyframes ada-spark-pop {
+  0%,
+  53% {
+    opacity: 0;
+    transform: scale(0.15) rotate(-20deg);
+  }
+  57% {
+    opacity: 1;
+    transform: scale(1.2) rotate(8deg);
+  }
+  72% {
+    opacity: 0.7;
+    transform: scale(0.9) rotate(14deg);
+  }
+  86%,
+  100% {
+    opacity: 0;
+    transform: scale(0.6) rotate(18deg);
+  }
+}
+
+.fx[data-fx='ada'] .ada-streak {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform: rotate(var(--a, 0deg));
+}
+
+.fx[data-fx='ada'] .ada-streak-bar {
+  position: absolute;
+  left: 0;
+  top: -0.025em;
+  display: block;
+  width: 0.26em;
+  height: 0.05em;
+  border-radius: 0.05em;
+  background: color-mix(in oklab, white 85%, var(--ad-shine));
+  box-shadow:
+    0 0 0.08em 0.02em white,
+    0 0 0.22em 0.06em color-mix(in oklab, var(--ad-hot) 75%, transparent);
+  opacity: 0;
+  transform-origin: 0 50%;
+  animation: ada-streak 4.8s ease-out var(--sd, 0s) infinite !important;
+}
+
+@keyframes ada-streak {
+  0%,
+  54% {
+    opacity: 0;
+    transform: translateX(0) scaleX(0.3);
+  }
+  57% {
+    opacity: 1;
+    transform: translateX(calc(var(--r, 0.8em) * 0.2)) scaleX(1.6);
+  }
+  74% {
+    opacity: 0.6;
+    transform: translateX(calc(var(--r, 0.8em) * 0.8)) scaleX(0.8);
+  }
+  82%,
+  100% {
+    opacity: 0;
+    transform: translateX(var(--r, 0.8em)) scaleX(0.3);
+  }
+}
+
+/* ==== "steady hands": a tremor, the goggles drop, then perfectly still ======== */
+.fx[data-fx='ada']:has([data-word='goggles']) .fx-text {
+  background-image: linear-gradient(100deg, var(--ad-brass) 0%, var(--ad-copper) 28%, var(--ad-shine) 44%, var(--ad-copper) 60%, var(--ad-brass) 100%);
+  background-size: 300% 100%;
+  background-position: 100% 0;
+  animation: ada-steady 6.2s linear infinite !important;
+}
+
+/* a nervous shake for the first third, which stops dead when the goggles land */
+@keyframes ada-steady {
+  0% {
+    transform: translate(0.012em, 0);
+  }
+  4% {
+    transform: translate(-0.012em, 0.01em);
+  }
+  8% {
+    transform: translate(0.01em, -0.01em);
+  }
+  12% {
+    transform: translate(-0.014em, 0);
+  }
+  16% {
+    transform: translate(0.012em, 0.01em);
+  }
+  20% {
+    transform: translate(-0.01em, -0.008em);
+  }
+  24% {
+    transform: translate(0.008em, 0);
+  }
+  28% {
+    transform: translate(0, 0);
+  }
+  44% {
+    transform: translate(0, 0);
+    background-position: 100% 0;
+  }
+  62% {
+    background-position: 0% 0;
+  }
+  100% {
+    transform: translate(0, 0);
+    background-position: 0% 0;
+  }
+}
+
+.fx[data-fx='ada'] .ada-haze-goggles {
+  animation: ada-haze-steady 6.2s ease-in-out infinite !important;
+}
+
+@keyframes ada-haze-steady {
+  0%,
+  30% {
+    opacity: 0.12;
+  }
+  46%,
+  84% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0.12;
+  }
+}
+
+.fx[data-fx='ada'] .ada-lens {
+  position: absolute;
+  left: 50%;
+  top: -0.2em;
+  width: 0;
+  height: 0;
+  animation: ada-lens-fade 6.2s linear infinite !important;
+}
+
+.fx[data-fx='ada'] .ada-flipdown {
+  position: absolute;
+  left: -1.3em;
+  top: -1.2em;
+  display: block;
+  width: 2.6em;
+  height: 1.2em;
+  transform-origin: 50% 100%;
+  animation: ada-flip 6.2s ease-out infinite !important;
+}
+
+.fx[data-fx='ada'] .ada-goggles-sp {
+  left: 0;
+  top: 0;
+  width: 100%;
+  filter: var(--ad-shadow);
+}
+
+/* pushed up and tipped back, then flipped down with one overshoot to a level 0deg */
+@keyframes ada-flip {
+  0%,
+  30% {
+    transform: perspective(12em) translateY(-0.35em) rotateX(-72deg);
+  }
+  38% {
+    transform: perspective(12em) translateY(0) rotateX(14deg);
+  }
+  43% {
+    transform: perspective(12em) translateY(0) rotateX(-5deg);
+  }
+  48%,
+  100% {
+    transform: perspective(12em) translateY(0) rotateX(0deg);
+  }
+}
+
+@keyframes ada-lens-fade {
+  0% {
+    opacity: 0;
+  }
+  8%,
+  88% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* the glint: a bright diagonal band, clipped to the goggles' own shape */
+.fx[data-fx='ada'] .ada-lens-glint {
+  position: absolute;
+  inset: 0;
+  display: block;
+  -webkit-mask-image: url('/fx/ada/goggles.png');
+  mask-image: url('/fx/ada/goggles.png');
+  -webkit-mask-size: 100% auto;
+  mask-size: 100% auto;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  background: linear-gradient(105deg, transparent 38%, color-mix(in oklab, white 90%, var(--ad-shine)) 50%, transparent 62%);
+  background-size: 300% 100%;
+  background-position: 100% 0;
+  animation: ada-glint-sweep 6.2s ease-in-out infinite !important;
+}
+
+@keyframes ada-glint-sweep {
+  0%,
+  47% {
+    background-position: 100% 0;
+  }
+  62%,
+  100% {
+    background-position: 0% 0;
+  }
+}

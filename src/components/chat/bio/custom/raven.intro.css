@@ -1,0 +1,88 @@
+/* Raven's opening cinematic: the layer is painted over the whole frame by the
+   host (absolute, inset 0, no pointer events, clipped). Everything moves by
+   Web Animations in raven.intro.tsx; this file holds the static look.
+   Scoped under .raven-intro. */
+
+.raven-intro {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  color: var(--t-glow);
+}
+
+.raven-intro .raven-dim {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, color-mix(in oklab, black 40%, transparent) 0%, color-mix(in oklab, black 92%, transparent) 100%);
+  opacity: 0;
+}
+
+.raven-intro .raven-slash-wrap {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+}
+
+.raven-intro .raven-slash line {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.raven-intro .raven-slash-glow {
+  stroke-width: 14;
+  filter: blur(7px);
+  opacity: 0.7;
+}
+
+.raven-intro .raven-slash-core {
+  stroke-width: 1.6;
+  filter: drop-shadow(0 0 3px white);
+}
+
+.raven-intro .raven-flash {
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  margin: -130px 0 0 -130px;
+  border-radius: 50%;
+  background: radial-gradient(circle, white 0%, color-mix(in oklab, var(--t-glow) 70%, transparent) 32%, transparent 68%);
+  opacity: 0;
+  mix-blend-mode: screen;
+}
+
+.raven-intro .raven-stage3d {
+  position: absolute;
+  inset: 0;
+  perspective: 900px;
+  perspective-origin: 50% 45%;
+}
+
+.raven-intro .raven-scythe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  transform-style: preserve-3d;
+  will-change: transform, opacity, filter;
+}
+
+.raven-intro .raven-scythe-img {
+  position: absolute;
+  display: block;
+  max-width: none;
+  height: auto;
+  filter: brightness(1.35) contrast(1.1) drop-shadow(0 0 10px color-mix(in oklab, var(--t-glow) 75%, transparent)) drop-shadow(0 18px 18px color-mix(in oklab, black 70%, transparent));
+}
+
+.raven-intro .raven-feather {
+  position: absolute;
+  display: block;
+  max-width: none;
+  height: auto;
+  opacity: 0;
+  filter: brightness(1.7) drop-shadow(0 0 4px color-mix(in oklab, var(--t-accent) 80%, white)) drop-shadow(0 0 12px color-mix(in oklab, var(--t-glow) 60%, transparent));
+}
