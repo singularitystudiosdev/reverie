@@ -88,7 +88,6 @@ export interface Message {
   cards?: CardItem[];
   src?: string;           // video kind: the clip
   poster?: string;        // video kind: the still shown until it plays
-  caption?: string;       // video kind: the line under the bubble
   aspect?: number;        // video kind: width / height, 9:16
   at: number;             // epoch ms
 }
