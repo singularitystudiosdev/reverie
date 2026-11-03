@@ -3,9 +3,12 @@
   (radius-20, 16px body), the grouped card message, her video message (a
   rounded 9:16 clip: poster until played, muted, playsInline, tap to pause,
   no caption line under it in v4), and the typing bubble.
-  - Arrival is an event, not an entrance: a message that lands after mount
-    rises and fades in (base band, enter easing); the history present at
-    mount renders still. Reduced motion: a fade only.
+  - Arrival is an event, not an entrance: a text bubble that lands after mount
+    springs in (scale .92 to 1 from its own side, a slight rise); a clip or
+    card group fades up; the history present at mount renders still. The typing
+    bubble leaves the flow as it fades so her reply takes its slot (a
+    crossfade, no jump). A tap squishes a bubble gently. Reduced motion: a
+    fade only, no squish.
   - Spacing groups a run of one sender (4px) and opens up between senders.
   - Auto-scroll: the newest message stays in view (instant on mount and under
     reduced motion, smooth otherwise), and a resize (the keyboard opening)
@@ -22,8 +25,14 @@ import { dur, ease } from '../../lib/motion';
 import { CardGroup } from './CardGroup';
 import { TypingDots } from './TypingDots';
 
-/** How far an arriving bubble rises as it fades in (a spacing token). */
-const rise = 'var(--spacing-8)';
+/** Local motion numbers: the rise in px (transform only), the entering scale, the press squish. */
+const motionSpec = {
+  rise: 8,
+  scaleFrom: 0.92,
+  press: 0.97,
+  pressVideo: 0.98,
+  spring: { type: 'spring', stiffness: 380, damping: 28, mass: 0.8 },
+} as const;
 
 export function MessageList(props: { character: Character; messages: Message[]; typing: boolean }): JSX.Element {
   const { character, messages, typing } = props;
@@ -35,8 +44,19 @@ export function MessageList(props: { character: Character; messages: Message[]; 
   // Messages already here at mount never animate.
   const [history] = useState(() => new Set(messages.map((m) => m.id)));
 
-  const from = reduce ? { opacity: 0 } : { opacity: 0, y: rise };
+  // Text bubbles spring in from their own side; clips and cards fade up.
+  const fadeUp = reduce ? { opacity: 0 } : { opacity: 0, y: motionSpec.rise };
+  const springFrom = (mine: boolean) =>
+    reduce ? { opacity: 0 } : { opacity: 0, y: motionSpec.rise, scale: motionSpec.scaleFrom, originX: mine ? 1 : 0, originY: 1 };
   const arrive: TargetAndTransition = {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: reduce
+      ? { duration: dur.quick, ease: ease.enter }
+      : { default: motionSpec.spring, opacity: { duration: dur.base, ease: ease.enter } },
+  };
+  const arriveFade: TargetAndTransition = {
     opacity: 1,
     y: 0,
     transition: { duration: dur.base, ease: ease.enter },
@@ -80,35 +100,38 @@ export function MessageList(props: { character: Character; messages: Message[]; 
       data-slot="message-list"
       className="safe-x min-h-0 flex-1 overflow-y-auto py-16 [mask-image:linear-gradient(to_bottom,transparent,black_var(--spacing-32),black_calc(100%-var(--gutter)),transparent)]"
     >
-      <ol className="flex min-h-full flex-col justify-end">
+      <ol className="relative flex min-h-full flex-col justify-end">
         {messages.map((m, i) => {
           const prev = messages[i - 1];
           const mine = m.from === 'me';
+          const plain = !((m.kind === 'cards' && m.cards?.length) || (m.kind === 'video' && m.src));
+          const fresh = !history.has(m.id);
           return (
             <motion.li
               key={m.id}
-              initial={history.has(m.id) ? false : from}
-              animate={arrive}
+              initial={fresh ? (plain ? springFrom(mine) : fadeUp) : false}
+              animate={plain ? arrive : arriveFade}
               className={clsx(
                 'flex',
                 mine ? 'justify-end' : 'justify-start',
                 !prev ? '' : prev.from === m.from ? 'mt-4' : 'mt-12'
               )}
             >
-              <MessageBody message={m} character={character} />
+              <MessageBody message={m} character={character} fresh={fresh} reduce={reduce} />
             </motion.li>
           );
         })}
-        <AnimatePresence initial={false}>
+        {/* popLayout: the dots leave the flow as they fade, so her reply lands in the same slot (a crossfade, no jump). */}
+        <AnimatePresence initial={false} mode="popLayout">
           {typing ? (
             <motion.li
               key="typing"
-              initial={from}
+              initial={springFrom(false)}
               animate={arrive}
               exit={leave}
               className={clsx('flex justify-start', messages.length ? 'mt-12' : '')}
             >
-              <span className="inline-flex rounded-20 bg-surface px-16 py-12">
+              <span className="inline-flex rounded-20 bg-surface px-16 py-12" data-slot="typing-bubble">
                 <span className="flex h-[var(--text-body--line-height)] items-center">
                   <TypingDots size="md" />
                 </span>
@@ -124,17 +147,20 @@ export function MessageList(props: { character: Character; messages: Message[]; 
   );
 }
 
-function MessageBody(props: { message: Message; character: Character }): JSX.Element {
-  const { message, character } = props;
+function MessageBody(props: { message: Message; character: Character; fresh: boolean; reduce: boolean }): JSX.Element {
+  const { message, character, fresh, reduce } = props;
   if (message.kind === 'cards' && message.cards?.length) {
-    return <CardGroup cards={message.cards} from={character.name} />;
+    return <CardGroup cards={message.cards} from={character.name} animateIn={fresh} />;
   }
   if (message.kind === 'video' && message.src) {
-    return <VideoBubble message={message} name={character.name} />;
+    return <VideoBubble message={message} name={character.name} reduce={reduce} />;
   }
   const mine = message.from === 'me';
   return (
-    <p
+    <motion.p
+      whileTap={reduce ? undefined : { scale: motionSpec.press }}
+      transition={{ duration: dur.quick, ease: ease.continuous }}
+      style={{ originX: mine ? 1 : 0, originY: 0.5 }}
       className={clsx(
         'max-w-[var(--bubble-max)] rounded-20 px-16 py-12 text-body [overflow-wrap:anywhere]',
         mine ? 'bg-me text-on-me' : 'bg-surface text-ink'
@@ -142,7 +168,7 @@ function MessageBody(props: { message: Message; character: Character }): JSX.Ele
     >
       {mine ? <span className="sr-only">You: </span> : <span className="sr-only">{character.name}: </span>}
       {message.text}
-    </p>
+    </motion.p>
   );
 }
 
@@ -153,8 +179,8 @@ function MessageBody(props: { message: Message; character: Character }): JSX.Ele
  * (so reduced motion always gets the poster and a play button). The bubble is
  * the video alone: v4 removed the caption line that used to sit under it.
  */
-function VideoBubble(props: { message: Message; name: string }): JSX.Element {
-  const { message, name } = props;
+function VideoBubble(props: { message: Message; name: string; reduce: boolean }): JSX.Element {
+  const { message, name, reduce } = props;
   const video = useRef<HTMLVideoElement>(null);
   const [started, setStarted] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -180,8 +206,11 @@ function VideoBubble(props: { message: Message; name: string }): JSX.Element {
   const label = playing ? `Pause ${name}'s video message` : `Play ${name}'s video message`;
 
   return (
-    <div
+    <motion.div
       data-slot="video-message"
+      whileTap={reduce ? undefined : { scale: motionSpec.pressVideo }}
+      transition={{ duration: dur.quick, ease: ease.continuous }}
+      style={{ originX: 0, originY: 0.5 }}
       className="w-224 overflow-hidden rounded-20 border border-hairline bg-surface shadow-8"
     >
       <button
@@ -235,6 +264,6 @@ function VideoBubble(props: { message: Message; name: string }): JSX.Element {
           </span>
         </span>
       </button>
-    </div>
+    </motion.div>
   );
 }

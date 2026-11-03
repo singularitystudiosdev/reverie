@@ -5,26 +5,46 @@
   a muted meta line. Rows are list rows inside one card, never cards.
 */
 import { clsx } from 'clsx';
+import { motion, useReducedMotion, type Variants } from 'motion/react';
 import { useEffect, useRef, useState, type JSX } from 'react';
 import { artSize } from '../../data/characters';
 import type { CardItem } from '../../data/types';
+import { dur, ease } from '../../lib/motion';
 
-export function CardGroup(props: { cards: CardItem[]; from: string }): JSX.Element {
+/** Local motion numbers: row stagger (s), rise (px), press squish. */
+const motionSpec = { stagger: 0.06, rise: 8, press: 0.985 } as const;
+
+export function CardGroup(props: { cards: CardItem[]; from: string; animateIn?: boolean }): JSX.Element {
+  const reduce = useReducedMotion() ?? false;
+  const list: Variants = {
+    hidden: {},
+    shown: { transition: { staggerChildren: reduce ? 0 : motionSpec.stagger } },
+  };
   return (
-    <ul
+    <motion.ul
+      variants={list}
+      initial={props.animateIn ? 'hidden' : false}
+      animate="shown"
+      whileTap={reduce ? undefined : { scale: motionSpec.press }}
+      transition={{ duration: dur.quick, ease: ease.continuous }}
+      style={{ originX: 0, originY: 0.5 }}
       aria-label={`${props.cards.length} ideas from ${props.from}`}
       data-slot="card-group"
       className="flex w-[var(--bubble-max)] flex-col rounded-20 bg-surface p-8 text-ink"
     >
       {props.cards.map((card) => (
-        <CardRow key={card.title} card={card} />
+        <CardRow key={card.title} card={card} reduce={reduce} />
       ))}
-    </ul>
+    </motion.ul>
   );
 }
 
-function CardRow(props: { card: CardItem }): JSX.Element {
-  const { card } = props;
+function CardRow(props: { card: CardItem; reduce: boolean }): JSX.Element {
+  const { card, reduce } = props;
+  const row: Variants = {
+    hidden: reduce ? { opacity: 0 } : { opacity: 0, y: motionSpec.rise },
+    shown: { opacity: 1, y: 0, transition: { duration: dur.base, ease: ease.enter } },
+  };
   const [state, setState] = useState<'loading' | 'ready' | 'missing'>('loading');
   const img = useRef<HTMLImageElement>(null);
 
@@ -34,7 +54,7 @@ function CardRow(props: { card: CardItem }): JSX.Element {
   }, [card.image]);
 
   return (
-    <li className="flex items-center gap-12 p-8">
+    <motion.li variants={row} className="flex items-center gap-12 p-8">
       <span className="relative size-[var(--thumb)] shrink-0 overflow-hidden rounded-12 bg-surface-strong">
         {card.image && state !== 'missing' ? (
           <img
@@ -65,6 +85,6 @@ function CardRow(props: { card: CardItem }): JSX.Element {
         <span className="truncate text-caption">{card.subtitle}</span>
         <span className="truncate text-caption text-muted">{card.meta}</span>
       </span>
-    </li>
+    </motion.li>
   );
 }
