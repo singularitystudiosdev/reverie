@@ -198,18 +198,22 @@
   }
 }
 
-/* Layout variants (they partition every viewport with the plain phone fill).
-   - frame: the phone mockup on a desktop or tablet: at least 600px wide (M3
-     "medium") AND 640px tall, so the 9:16 phone is never under 320px wide.
-   - land: anything landscape and shorter than that: a phone on its side, or
-     a desktop window that is short or zoomed to 200%. It fills the screen in
-     its own layout: the tab bar becomes a rail at the left and Explore splits
-     into two columns, so the short height goes to content. */
-@custom-variant frame (@media (width >= 600px) and (height >= 640px));
-@custom-variant land (@media (orientation: landscape) and (height < 640px));
+/* Layout variants.
+   - frame: every viewport EXCEPT a portrait phone (under 600px wide). The app
+     is an exact 9:16 rounded rectangle centered on the stage, in any window
+     shape (desktop, tablet, a phone on its side, a short or zoomed window).
+   - land: retired. The frame is always portrait now, so there is no landscape
+     layout. Kept as a variant that never matches so the classes that still
+     name it (Explore, MatchOverlay, ProfileSheet) compile to nothing; delete
+     it with the last of those classes. */
+@custom-variant frame (@media (width >= 600px), (orientation: landscape));
+@custom-variant land (@media (width < 0px));
 /* A short portrait screen, measured on the nearest size container (the Explore section
-   is one), not the window: the desktop frame is short whenever the window is. */
+   is one), not the window: the 9:16 frame is short whenever the window is. */
 @custom-variant short (@container (height < 720px) and (aspect-ratio < 1));
+/* The tab bar's own width: a landscape phone makes a frame under 280px wide, where
+   the tabs stack icon over label instead of sitting side by side. */
+@custom-variant narrow (@container (width < 280px));
 
 :root {
   /* Avatars (round crops) and thumbnails */
@@ -249,26 +253,40 @@
      sheets use a surface with alpha >= 0.86 instead. */
   --blur-ui: 12px;
 
+  /* Liquid glass (glass.css): the one material of the few floating controls
+     (tab bar, chat menu button, the swipe X and check). Glass only here: a
+     backdrop filter re-runs every frame over the live canvas. */
+  --glass-blur: 12px;
+  --glass-saturate: 1.8;
+  --glass-brightness: 1.08;
+  --glass-tint: 18%;                        /* surface-strong share in the pane */
+  --glass-lens-mix: 28%;                    /* accent share in the lens */
+  --glass-accent-mix: 36%;                  /* accent share in the accent variant */
+  --glass-rim-top: rgba(255, 255, 255, 0.7);
+  --glass-rim-hairline: rgba(255, 255, 255, 0.24);
+  --glass-rim-bottom-mix: 16%;              /* ink share in the lower edge */
+  --glass-lens-rim: rgba(255, 255, 255, 0.85);
+  --glass-shadow: rgba(8, 6, 12, 0.22);
+  --glass-sheen: rgba(255, 255, 255, 0.5);
+  --glass-sheen-shift: 14%;                 /* how far the sheen slides on hover and press */
+  --glass-halo-mix: 60%;                    /* canvas share in the halo behind text and icons */
+  --glass-solid-mix: 82%;                   /* surface-strong share when transparency is reduced */
+  --glass-press-mix: 44%;                   /* accent share while a glass button is pressed */
+  --glass-rim: 1px;
+  --glass-halo-blur: 6px;
+  --glass-sheen-image: radial-gradient(120% 90% at 18% 0%, var(--glass-sheen), transparent 60%);
+  --glass-lens-sheen: linear-gradient(to bottom, var(--glass-sheen), transparent 55%);
+
   /* Scrim under sheets, drawer and the match moment (judgment: Fluent Smoke
      opacity is unpublished) */
   --scrim: rgba(8, 6, 12, 0.5);
 
-  /* Frame. Phone (< 600px): the app fills the viewport, safe areas from env().
-     Desktop (>= 600px): a 9:16 phone mockup, see the media block below. */
+  /* Frame. Portrait phone (< 600px): the app fills the viewport, safe areas
+     from env(). Everywhere else: an exact 9:16 rounded rectangle, see the media
+     block below. No bezel, no status bar. */
   --frame-h: 100dvh;
   --frame-w: 100dvw;
   --frame-gutter: 24px;
-  --frame-max-h: 932px;
-  --frame-bezel: 10px;
-  --frame-bezel-color: var(--color-neutral-90);
-  /* A faint light edge outside the bezel so the device still reads on the
-     near-black stages of the dark themes. */
-  --frame-edge: 1px;
-  --frame-edge-color: rgba(255, 255, 255, 0.14);
-  --shadow-device:
-    0 0 0 var(--frame-bezel) var(--frame-bezel-color),
-    0 0 0 calc(var(--frame-bezel) + var(--frame-edge)) var(--frame-edge-color),
-    var(--shadow-64);
   --statusbar-h: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
@@ -281,16 +299,11 @@
   --tabbar-gap: 12px;
   --tabbar-h: calc(var(--tabbar-pill-h) + var(--tabbar-gap) * 2 + var(--safe-bottom));
 
-  /* The pure left inset (the notch side in landscape). Layers that cover the
-     nav rail (drawer, sheet) pad with this; screens pad with --safe-left,
-     which on a landscape phone also clears the rail. */
+  /* The pure left inset (the notch side on a phone). The drawer pads with it. */
   --notch-left: env(safe-area-inset-left, 0px);
   /* A zero inset, for a layout that already padded for the safe area and
      resets --safe-left / --safe-right for its children. */
   --inset-none: 0px;
-  /* Landscape phone: the tab bar is a vertical rail at the left edge. */
-  --rail-item: 64px;
-  --rail-w: calc(var(--rail-item) + var(--tabbar-pad) * 2);
   /* Width caps for the drawer and the profile sheet on wide, short screens */
   --drawer-max: 400px;
   --sheet-max-w: 480px;
@@ -302,26 +315,19 @@
   }
 }
 
-/* Same condition as the `frame:` variant above. */
-@media (width >= 600px) and (height >= 640px) {
+/* Same condition as the `frame:` variant above. The frame is as tall as the
+   window allows (24px gutter all round) and exactly 9:16: when the window is
+   wider than tall the height wins, when it is narrower the width does. */
+@media (width >= 600px), (orientation: landscape) {
   :root {
-    --frame-h: min(100dvh - var(--frame-gutter) * 2 - var(--frame-bezel) * 2, var(--frame-max-h));
+    --frame-h: min(100dvh - var(--frame-gutter) * 2, (100dvw - var(--frame-gutter) * 2) * 16 / 9);
     --frame-w: calc(var(--frame-h) * 9 / 16);
-    /* Fake iOS status bar height, and a home-indicator strip at the bottom */
-    --statusbar-h: 48px;
-    --safe-bottom: 8px;
+    /* No device chrome inside the frame: no status bar, no home indicator,
+       no notch. Safe areas belong to real phones only. */
+    --statusbar-h: 0px;
+    --safe-bottom: 0px;
     --safe-left: 0px;
     --safe-right: 0px;
     --notch-left: 0px;
-  }
-}
-
-/* Same condition as the `land:` variant above: the rail replaces the bottom
-   bar, so screens pad their left past it and their bottom only clears the
-   home indicator. */
-@media (orientation: landscape) and (height < 640px) {
-  :root {
-    --safe-left: calc(var(--notch-left) + var(--tabbar-gap) * 2 + var(--rail-w));
-    --tabbar-h: calc(var(--tabbar-gap) + var(--safe-bottom));
   }
 }

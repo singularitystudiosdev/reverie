@@ -1,8 +1,9 @@
 /*
-  One conversation, after the reference image: header (hamburger, her avatar
-  + name pill, Profile pill), messages (bubbles, the grouped card message,
-  the typing bubble), the composer pill, and the chats drawer. The floating
-  tab bar stays visible below (the composer pads with --tabbar-h).
+  One conversation, after the reference image: header (a liquid-glass
+  hamburger at the left, her avatar + name pill centered and tappable to open
+  her profile), messages (bubbles, the grouped card message, the typing
+  bubble), the composer pill, and the chats drawer (the only list of chats).
+  The floating tab bar stays visible below (the composer pads with --tabbar-h).
   Focus theme: her theme + her scene plate; the UI over her world stays quiet.
 
   Atmosphere wiring (RTPC model; refs only, never per-frame state):
@@ -30,7 +31,7 @@ export function ChatView(props: { characterId: string }): JSX.Element {
   const character = useCharacter(characterId);
   const { setTheme, setParam, pulse } = useFrameTheme();
   const menuRef = useRef<HTMLButtonElement>(null);
-  const titleRef = useRef<HTMLHeadingElement>(null);
+  const titleRef = useRef<HTMLButtonElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
 
   const messages = state.conversations[characterId]?.messages ?? [];
@@ -86,7 +87,7 @@ export function ChatView(props: { characterId: string }): JSX.Element {
   }, [drawerOpen, isOpen]);
 
   // Focus moves into the chat as it opens: the drawer pick lands on the
-  // hamburger; anything else (a row in the leaving list) on her name.
+  // hamburger; anything else (the Chats tab, the match modal) on her name.
   useEffect(() => {
     if (takeDrawerFocus()) {
       menuRef.current?.focus({ preventScroll: true });
@@ -118,7 +119,7 @@ export function ChatView(props: { characterId: string }): JSX.Element {
           onClick={actions.closeChat}
           className="min-h-[var(--target)] rounded-full bg-accent px-24 text-label text-on-accent"
         >
-          Back to Chats
+          Back to Explore
         </button>
       </section>
     );

@@ -48,12 +48,6 @@ export const spring = {
 /** No movement at all: what every moving animation becomes under reduced motion. */
 export const instant: Transition = { duration: 0 };
 
-/** Chats list rows stagger in once on first mount. */
-export const stagger = {
-  step: 0.04,
-  maxRows: 8,
-} as const;
-
 /**
  * How long she "types" before a reply lands (randomised between the two).
  * At least 1200ms so the atmosphere's typing response is visible (RTPC rules).
@@ -89,8 +83,30 @@ export const pulseStrength = {
   affinityMessagesForMax: 40,
 } as const;
 
-/** The chat push moves the outgoing list this far to the left. */
-export const pushBackX = '-25%';
-
 /** The match-moment avatar pops in from this scale (playful spring). */
 export const matchPopFrom = 0.6;
+
+/**
+ * The chance a right swipe is an INSTANT match (her opener is already in the
+ * chat and the "You Matched!" modal shows). Otherwise she types and her opener
+ * lands after `typingDelayMs`. The `?instant=1|0` URL hook overrides the roll.
+ */
+export const instantMatchChance = 0.2;
+
+/** The locked Chats tab: a short horizontal nudge, then a hint bubble. */
+export const lockedTab = {
+  nudgeX: 6,
+  nudgeS: dur.quick,
+  hintMs: 2000 /* deliberate */,
+} as const;
+
+/**
+ * The tab bar's liquid lens: it stretches along its direction of travel by
+ * its own speed (px/s), up to `maxStretch`, and squashes a little across it.
+ */
+export const lens = {
+  speedForMax: 1800,
+  maxStretch: 0.32,
+  squash: 0.35,
+  pressScale: 0.96,
+} as const;

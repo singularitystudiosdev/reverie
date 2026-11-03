@@ -1,0 +1,117 @@
+/* glass.css: ONE "liquid glass" material for the few floating controls (the
+   tab bar, the chat header's round menu button, the swipe X and check). After
+   Apple's Liquid Glass: a clear, refractive pane that bends what is behind it,
+   with a bright specular rim, not a flat frosted blur.
+
+   - .liquid-glass         the pane. Blur + saturate + brighten the live
+                           atmosphere behind; where the browser can run an SVG
+                           filter as a backdrop filter (Chromium), the
+                           backdrop is also refracted (#lg-refract, defined
+                           once by LiquidGlassDefs). A faint tint of the theme's
+                           surface, a specular rim from inset shadows, and a
+                           sheen that slides a little on hover and press.
+   - .liquid-glass-lens    the active-tab indicator: a brighter, accent-tinted
+                           lens with a stronger rim. It sits INSIDE a pane (a
+                           backdrop filter inside a backdrop filter sees only
+                           its parent), so it is a tint, not a second blur.
+   - .liquid-glass--accent an accent-tinted pane, for the like (check) button.
+
+   Text and icons on glass use the theme ink with a soft halo of the canvas
+   colour, so they stay legible over light and dark worlds alike. Budget:
+   glass ONLY on those few controls, never on bubbles, rows, sheets or cards.
+   Rules live in @layer components so a Tailwind utility (absolute, size-*)
+   always wins over them. Every number is a token (tokens.css, --glass-*). */
+
+@layer components {
+  .liquid-glass,
+  .liquid-glass-lens {
+    --glass-rim-bottom: color-mix(in oklab, var(--t-ink) var(--glass-rim-bottom-mix), transparent);
+    --glass-halo: color-mix(in oklab, var(--t-canvas) var(--glass-halo-mix), transparent);
+  }
+
+  .liquid-glass {
+    --glass-sheen-x: 0%;
+    position: relative;
+    isolation: isolate;
+    overflow: clip;
+    color: var(--t-ink);
+    background-color: color-mix(in oklab, var(--t-surface-strong) var(--glass-tint), transparent);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate))
+      brightness(var(--glass-brightness));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate))
+      brightness(var(--glass-brightness));
+    box-shadow:
+      inset 0 var(--glass-rim) 0 0 var(--glass-rim-top),
+      inset 0 calc(var(--glass-rim) * -1) 0 0 var(--glass-rim-bottom),
+      inset 0 0 0 var(--glass-rim) var(--glass-rim-hairline),
+      var(--shadow-8);
+    text-shadow: 0 0 var(--glass-halo-blur) var(--glass-halo);
+  }
+
+  .liquid-glass svg {
+    filter: drop-shadow(0 0 var(--glass-halo-blur) var(--glass-halo));
+  }
+
+  /* The sheen: a soft highlight at the top left that slides with the pointer
+     state. Under the content (z-index -1 inside the isolated pane), transform only. */
+  .liquid-glass::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background-image: var(--glass-sheen-image);
+    transform: translateX(var(--glass-sheen-x));
+    transition: transform var(--duration-250) var(--ease-standard);
+  }
+
+  .liquid-glass:is(button, a, [role='button']):is(:hover, :focus-visible) {
+    --glass-sheen-x: var(--glass-sheen-shift);
+  }
+
+  /* Pressed: the pane turns into a lens (brighter, accent-tinted). */
+  .liquid-glass:is(button, a, [role='button']):active {
+    --glass-sheen-x: calc(var(--glass-sheen-shift) * 1.5);
+    background-color: color-mix(in oklab, var(--t-accent) var(--glass-press-mix), transparent);
+  }
+
+  .liquid-glass--accent {
+    background-color: color-mix(in oklab, var(--t-accent) var(--glass-accent-mix), transparent);
+  }
+
+  .liquid-glass-lens {
+    color: var(--t-ink);
+    background-color: color-mix(in oklab, var(--t-accent) var(--glass-lens-mix), transparent);
+    background-image: var(--glass-lens-sheen);
+    box-shadow:
+      inset 0 var(--glass-rim) 0 0 var(--glass-lens-rim),
+      inset 0 calc(var(--glass-rim) * -1) 0 0 var(--glass-rim-bottom),
+      inset 0 0 0 var(--glass-rim) var(--glass-rim-hairline),
+      var(--shadow-4);
+  }
+
+  /* Refraction: Chromium runs an SVG filter as a backdrop filter. The
+     -webkit-hyphens test keeps Safari (which does not) on the plain blur. */
+  @supports (backdrop-filter: url(#lg-refract)) and (not (-webkit-hyphens: none)) {
+    .liquid-glass {
+      backdrop-filter: url(#lg-refract) blur(var(--glass-blur)) saturate(var(--glass-saturate))
+        brightness(var(--glass-brightness));
+    }
+  }
+
+  /* Reduce transparency: a solid surface, no backdrop filter. */
+  @media (prefers-reduced-transparency: reduce) {
+    .liquid-glass {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+      background-color: color-mix(in oklab, var(--t-surface-strong) var(--glass-solid-mix), transparent);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .liquid-glass::before {
+      transition: none;
+    }
+  }
+}

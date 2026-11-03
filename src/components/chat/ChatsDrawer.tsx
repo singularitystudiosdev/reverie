@@ -1,8 +1,10 @@
 /*
   Chats drawer: the hamburger in the chat header slides the chat list in from
   the LEFT over a scrim, for quick switching (state.drawerOpen / setDrawer).
-  - Compact rows: avatar sm, name, preview, time, unread; the open chat is
-    marked (aria-current + the selected state layer).
+  - The only list of chats (there is no Chats screen): compact rows with
+    avatar sm, name, preview, time, unread; the open chat is marked
+    (aria-current + the selected state layer). With one chat the list says how
+    to get more (one sentence, one Explore action).
   - Closes on a pick, the scrim, the close button or Escape. Focus moves in
     (to the open chat's row) and returns to the hamburger on close; Tab stays
     inside while open. aria-expanded lives on the hamburger (ChatHeader).
@@ -138,7 +140,7 @@ function DrawerPanel(props: {
       tabIndex={-1}
       onKeyDown={trapTab}
       data-slot="chats-drawer"
-      className="absolute inset-y-0 left-0 right-48 flex flex-col rounded-r-20 border-r border-hairline surface-solid pt-[var(--statusbar-h)] pb-[var(--safe-bottom)] pl-[var(--notch-left)] text-ink land:max-w-[var(--drawer-max)]"
+      className="absolute inset-y-0 left-0 right-48 flex flex-col rounded-r-20 border-r border-hairline surface-solid pt-[var(--statusbar-h)] pb-[var(--safe-bottom)] pl-[var(--notch-left)] text-ink"
       initial={reduce ? { opacity: 0 } : { x: '-100%' }}
       animate={reduce ? { opacity: 1, transition: { duration: dur.quick } } : { x: 0, transition: { duration: dur.base, ease: ease.enter } }}
       exit={
@@ -173,57 +175,71 @@ function DrawerPanel(props: {
           </button>
         </div>
       ) : (
-        <ul className="min-h-0 flex-1 overflow-y-auto px-8 pb-16">
-          {entries.map(({ character, convo, last }) => {
-            const current = character.id === currentId;
-            const typing = Boolean(state.typing[character.id]);
-            return (
-              <li key={character.id}>
-                <button
-                  type="button"
-                  aria-current={current ? 'page' : undefined}
-                  onClick={() => onPick(character.id)}
-                  className={clsx(
-                    stateLayer,
-                    current && stateLayerSelected,
-                    'relative flex min-h-[var(--target-touch)] w-full items-center gap-12 rounded-20 p-8 text-left'
-                  )}
-                >
-                  <Avatar character={character} size="sm" />
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="flex items-baseline gap-8">
-                      <span className="min-w-0 flex-1 truncate text-label">{character.name}</span>
-                      {last ? (
-                        <time dateTime={isoTime(last.at)} className="shrink-0 text-caption text-muted tabular-nums">
-                          {relativeTime(last.at, now)}
-                        </time>
-                      ) : null}
+        <div className="min-h-0 flex-1 overflow-y-auto pb-16">
+          <ul className="px-8">
+            {entries.map(({ character, convo, last }) => {
+              const current = character.id === currentId;
+              const typing = Boolean(state.typing[character.id]);
+              return (
+                <li key={character.id}>
+                  <button
+                    type="button"
+                    aria-current={current ? 'page' : undefined}
+                    onClick={() => onPick(character.id)}
+                    className={clsx(
+                      stateLayer,
+                      current && stateLayerSelected,
+                      'relative flex min-h-[var(--target-touch)] w-full items-center gap-12 rounded-20 p-8 text-left'
+                    )}
+                  >
+                    <Avatar character={character} size="sm" />
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="flex items-baseline gap-8">
+                        <span className="min-w-0 flex-1 truncate text-label">{character.name}</span>
+                        {last ? (
+                          <time dateTime={isoTime(last.at)} className="shrink-0 text-caption text-muted tabular-nums">
+                            {relativeTime(last.at, now)}
+                          </time>
+                        ) : null}
+                      </span>
+                      <span className="flex items-center gap-8">
+                        {typing ? (
+                          <span className="flex min-w-0 flex-1 items-center gap-8 text-label font-normal text-muted">
+                            <TypingDots size="sm" />
+                            <span>typing</span>
+                          </span>
+                        ) : (
+                          <span
+                            className={clsx(
+                              'min-w-0 flex-1 truncate text-label',
+                              convo.unread > 0 ? 'text-ink' : 'font-normal text-muted'
+                            )}
+                          >
+                            {previewText(last, character.name)}
+                          </span>
+                        )}
+                        <UnreadBadge count={convo.unread} />
+                      </span>
                     </span>
-                    <span className="flex items-center gap-8">
-                      {typing ? (
-                        <span className="flex min-w-0 flex-1 items-center gap-8 text-label font-normal text-muted">
-                          <TypingDots size="sm" />
-                          <span>typing</span>
-                        </span>
-                      ) : (
-                        <span
-                          className={clsx(
-                            'min-w-0 flex-1 truncate text-label',
-                            convo.unread > 0 ? 'text-ink' : 'font-normal text-muted'
-                          )}
-                        >
-                          {previewText(last, character.name)}
-                        </span>
-                      )}
-                      <UnreadBadge count={convo.unread} />
-                    </span>
-                  </span>
-                  {current ? <span className="sr-only">, open now</span> : null}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+                    {current ? <span className="sr-only">, open now</span> : null}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {entries.length === 1 ? (
+            <div className="flex flex-col items-center gap-12 px-16 pt-24 text-center">
+              <p className="text-label font-normal text-muted">Swipe right on more people to start new chats.</p>
+              <button
+                type="button"
+                onClick={() => actions.setTab('explore')}
+                className="min-h-[var(--target)] rounded-full bg-accent px-24 text-label text-on-accent"
+              >
+                Explore
+              </button>
+            </div>
+          ) : null}
+        </div>
       )}
     </motion.div>
   );
