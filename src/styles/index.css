@@ -110,7 +110,15 @@ html {
 }
 
 /* Focus ring: 2px solid accent, 2px offset, keyboard focus only
-   (design-web focus-ring.css). Never animated. */
+   (design-web focus-ring.css). Never animated. The colour is declared where
+   --t-accent is written (the frame), so it resolves to the CURRENT theme's
+   accent (themes.ts guarantees accent >= 3:1 on canvas). On :root it would
+   freeze at the base rose. The html fallback covers focus outside the frame. */
+html,
+[data-frame] {
+  --focus-ring-color: var(--t-accent);
+}
+
 :focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);

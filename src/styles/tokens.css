@@ -228,10 +228,12 @@
   --measure: 80ch;
   --sheet-max-h: 88%;
 
-  /* Focus ring: 2px solid accent, offset 2px (design-web focus-ring.css) */
+  /* Focus ring: 2px solid accent, offset 2px (design-web focus-ring.css).
+     The colour is NOT set here: a var() declared on :root resolves against
+     the root's --t-accent, so every theme would inherit the base rose.
+     index.css re-declares --focus-ring-color on [data-frame]. */
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;
-  --focus-ring-color: var(--t-accent);
 
   /* Blur budget (RTPC rules): backdrop-filter ONLY on the chat header pills,
      the composer and the tab bar, never above this. Bubbles, rows, cards and
