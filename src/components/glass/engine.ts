@@ -47,11 +47,15 @@ function clamp(value: number, min: number, max: number): number {
 function referenceBackdropsSupported(): boolean {
   // The same condition as the @supports block in glass.css. WebKit accepts the
   // grammar and then paints nothing (WebKit bug 245510), so it is excluded by
-  // its -webkit-hyphens support; Chromium is the engine verified to render it.
+  // its -webkit-hyphens support. Firefox parses it too, but WebRender has no
+  // feDisplacementMap/feImage, so it drops the whole backdrop chain (blur
+  // included) and leaves a flat tint; it is excluded by its -moz-appearance
+  // support. Chromium is the engine verified to render it.
   return (
     typeof CSS !== 'undefined' &&
     CSS.supports('backdrop-filter', 'url(#lg-refract)') &&
-    !CSS.supports('-webkit-hyphens', 'none')
+    !CSS.supports('-webkit-hyphens', 'none') &&
+    !CSS.supports('-moz-appearance', 'none')
   );
 }
 

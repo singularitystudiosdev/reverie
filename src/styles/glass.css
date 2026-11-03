@@ -136,9 +136,10 @@
 
   /* Refraction: only panes the engine has mapped carry data-glass-refract, so
      an unsupported engine (or an element whose profile failed to read) keeps
-     the blur pane above, with the same geometry. WebKit is excluded on purpose
-     (see the header); the -webkit-hyphens test is the capability check. */
-  @supports (backdrop-filter: url(#lg-refract)) and (not (-webkit-hyphens: none)) {
+     the blur pane above, with the same geometry. WebKit and Firefox are excluded
+     on purpose (see the header and engine.ts): -webkit-hyphens and
+     -moz-appearance are the capability checks. */
+  @supports (backdrop-filter: url(#lg-refract)) and (not (-webkit-hyphens: none)) and (not (-moz-appearance: none)) {
     .liquid-glass[data-glass-refract] {
       /* The map paints the rim now; the CSS hairline only catches the very
          edge, so it is dimmer than on the fallback pane (which has no map). */
