@@ -17,6 +17,13 @@
   - Motion: in on the base band (enter easing), out on the quick band. The hero
     eases in with a slight scale, then the bio fades up after it. Reduced
     motion: fades only, no scale or rise; a drag still follows the finger.
+  - v6 rendered FX (components/fx): when her clips exist (public/fx/<id>), the
+    intro plays once over the whole frame then her ambient loop takes over
+    (Discord's two layers), with her frame decoration beneath them. They are
+    drawn on the frame's single overlay canvas, so they sit above the sheet and
+    the scrim without owning a canvas or a WebGL context here. Avatar rings are
+    hidden while the sheet is open. Without clips nothing renders and AnimatedBio
+    keeps its v5 CSS cinematic.
 */
 import {
   AnimatePresence,
@@ -31,9 +38,13 @@ import { useEffect, useId, useRef, type JSX, type PointerEvent as ReactPointerEv
 import { trapTab } from './chat/focus';
 import { AnimatedBio } from './chat/AnimatedBio';
 import type { Character } from '../data/types';
-import { dur, ease, spring, useReducedMotion } from '../lib/motion';
+import { dur, durMs, ease, spring, useReducedMotion } from '../lib/motion';
 import { useApp, useCharacter } from '../state/store';
 import { Portrait } from './Portrait';
+import { FxSurface } from './fx/FxSurface';
+import { suspendBase } from './fx/renderer';
+import { useCharacterFx } from './fx/useCharacterFx';
+import type { FxLayer } from './fx/types';
 
 export function ProfileSheet(): JSX.Element {
   const { state } = useApp();
@@ -51,6 +62,16 @@ function Sheet(props: { character: Character }): JSX.Element {
   const returnTo = useRef<HTMLElement | null>(null);
   const controls = useDragControls();
   const nameId = useId();
+
+  // Rendered FX: intro then loop on one surface, her frame art on another.
+  const fx = useCharacterFx(character.id);
+  const sequence = [fx.has.intro ? fx.fx?.intro : undefined, fx.has.loop ? fx.fx?.loop : undefined].filter(
+    (l): l is FxLayer => l !== undefined
+  );
+  const frameLayer = fx.has.frame ? fx.fx?.frame : undefined;
+
+  // The avatar rings in the header sit under this sheet, not over it.
+  useEffect(() => suspendBase(), []);
 
   const close = () => actions.openProfile(null);
 
@@ -194,6 +215,9 @@ function Sheet(props: { character: Character }): JSX.Element {
           </motion.div>
         </motion.div>
       </div>
+
+      {frameLayer ? <FxSurface layers={[frameLayer]} fadeOutMs={durMs.quick} /> : null}
+      {sequence.length > 0 ? <FxSurface layers={sequence} fadeOutMs={durMs.quick} /> : null}
     </motion.div>
   );
 }

@@ -43,6 +43,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX, type R
 import { createPortal } from 'react-dom';
 import { Avatar } from '../Avatar';
 import type { Message } from '../../data/types';
+import { FxRing } from '../fx/FxSurface';
 import { dur, ease, instant, rowStagger, spring, useReducedMotion } from '../../lib/motion';
 import { isoTime, relativeTime } from '../../lib/time';
 import { useApp } from '../../state/store';
@@ -297,7 +298,10 @@ function DrawerPanel(props: {
                         transition={reduce ? instant : spring.snappy}
                       />
                     ) : null}
-                    <Avatar character={character} size="sm" />
+                    <span className="relative flex shrink-0">
+                      <Avatar character={character} size="sm" />
+                      <FxRing character={character} />
+                    </span>
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="flex items-baseline gap-8">
                         <span className="min-w-0 flex-1 truncate text-label">{character.name}</span>
