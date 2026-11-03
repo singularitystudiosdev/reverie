@@ -1,8 +1,8 @@
 /*
   The conversation: her bubbles left on her surface, mine right on `me`
   (radius-20, 16px body), the grouped card message, her video message (a
-  rounded 9:16 clip: poster until played, muted, playsInline, tap to pause),
-  and the typing bubble.
+  rounded 9:16 clip: poster until played, muted, playsInline, tap to pause,
+  no caption line under it in v4), and the typing bubble.
   - Arrival is an event, not an entrance: a message that lands after mount
     rises and fades in (base band, enter easing); the history present at
     mount renders still. Reduced motion: a fade only.
@@ -150,7 +150,8 @@ function MessageBody(props: { message: Message; character: Character }): JSX.Ele
  * Her clip: a 9:16 video message, about 220px wide, radius-20. The poster is
  * what shows until the user presses play; the clip is muted and playsInline
  * with no controls chrome. Tap the frame to play or pause. It never autoplays
- * (so reduced motion always gets the poster and a play button).
+ * (so reduced motion always gets the poster and a play button). The bubble is
+ * the video alone: v4 removed the caption line that used to sit under it.
  */
 function VideoBubble(props: { message: Message; name: string }): JSX.Element {
   const { message, name } = props;

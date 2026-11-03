@@ -10,11 +10,12 @@ import {
   type ReactNode,
 } from 'react';
 import { characters, getCharacter } from '../data/characters';
-import { getClipCaption, getReply } from '../data/replies';
+import { getReply } from '../data/replies';
 import { deckOrder } from '../data/seed';
 import type { Character, Conversation, Message, StyleFilter } from '../data/types';
 import { makeId } from '../lib/id';
 import {
+  BUILD_TAG,
   clipDelayMs,
   instantMatchChance,
   matchDelayMs,
@@ -110,7 +111,8 @@ function openerMessage(id: string): Message | null {
   return c ? { id: makeId('her'), from: 'her', kind: 'text', text: c.opener, at: Date.now() } : null;
 }
 
-/** Her clip, the video message she sends once after the user's first message. */
+/** Her clip, the video message she sends once after the user's first message.
+ *  v4: no caption line under the bubble; the message is the video only. */
 function clipMessage(c: Character): Message {
   return {
     id: makeId('her'),
@@ -118,7 +120,6 @@ function clipMessage(c: Character): Message {
     kind: 'video',
     src: c.clip,
     poster: c.clipPoster,
-    caption: getClipCaption(c.id),
     aspect: 9 / 16,
     at: Date.now(),
   };
@@ -190,7 +191,7 @@ function load(): Loaded {
       typeof p.lastChatId === 'string' && matchIds.includes(p.lastChatId)
         ? p.lastChatId
         : toasts[0] ?? (matchIds[0] ?? null);
-    const hasMatchedBefore = p.hasMatchedBefore === true || matchIds.length > 0;
+    const hasMatchedBefore = p.hasMatchedBefore === true || matchIds.length > 0 || pendingMatches.length > 0;
     const sentClipIds = isStringArray(p.sentClipIds) ? p.sentClipIds.filter((id) => getCharacter(id)) : [];
     return {
       matchIds,
@@ -236,7 +237,12 @@ function readInstantOverride(): boolean | null {
 function readMatchDelayOverride(): number | null {
   if (typeof window === 'undefined') return null;
   try {
-    const n = Number(new URLSearchParams(window.location.search).get('matchDelay'));
+    const raw = new URLSearchParams(window.location.search).get('matchDelay');
+    // `get` returns null when the parameter is absent. `Number(null)` is 0, so
+    // parsing it directly pinned EVERY wait to 0ms and every like matched on the
+    // next tick. Treat absent/blank as "no override" and only then parse.
+    if (raw === null || raw.trim() === '') return null;
+    const n = Number(raw);
     return Number.isFinite(n) && n >= 0 ? n : null;
   } catch {
     return null;
@@ -252,7 +258,28 @@ function rollInstant(hasMatchedBefore: boolean): boolean {
 }
 
 function rollDelay(): number {
-  return matchDelayOverride ?? matchDelayMs.min + Math.random() * (matchDelayMs.max - matchDelayMs.min);
+  if (matchDelayOverride !== null) return matchDelayOverride;
+  const rolled = matchDelayMs.min + Math.random() * (matchDelayMs.max - matchDelayMs.min);
+  // Never under the floor: a pending like must actually wait.
+  return Math.min(matchDelayMs.max, Math.max(matchDelayMs.min, rolled));
+}
+
+let buildLogged = false;
+
+/**
+ * Stamp the frame (`data-build`) and log the build once per page, so the user
+ * can tell a fresh bundle from the one their tab still has cached. The frame
+ * component may also set the attribute from `BUILD_TAG`; this is the fallback
+ * that makes the stamp true without touching files outside this unit.
+ */
+function stampBuild(): void {
+  if (typeof document === 'undefined') return;
+  const frame = document.querySelector('[data-frame]');
+  if (frame instanceof HTMLElement) frame.dataset.build = BUILD_TAG;
+  if (!buildLogged) {
+    buildLogged = true;
+    console.info(`[reverie] build ${BUILD_TAG}`);
+  }
 }
 
 function initState(): AppState {
@@ -501,6 +528,16 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
     stateRef.current = state;
   }, [state]);
 
+  // A like updates `hasMatchedBefore` only after React commits, so two likes in
+  // the same tick would both see the first-ever value and both match instantly.
+  // This ref flips synchronously inside like().
+  const hasLikedRef = useRef(state.hasMatchedBefore);
+
+  // Stamp the frame and log the build once for this page.
+  useEffect(() => {
+    stampBuild();
+  }, []);
+
   // Replies in flight per character: typing stays on until the last one lands.
   const pending = useRef<Record<string, number>>({});
   // Pending-match resolve timers, one per character.
@@ -547,9 +584,15 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
     });
   }, []);
 
+  // Resolve once per character: a timer that fires while the reducer is still
+  // committing must not deliver a second opener.
+  const resolving = useRef<Set<string>>(new Set());
+
   /** A pending match's timer fired: the chat opens with her typing her opener. */
   const resolveMatch = useCallback(
     (id: string) => {
+      if (resolving.current.has(id)) return;
+      resolving.current.add(id);
       const already = Boolean(stateRef.current.conversations[id]);
       dispatch({ type: 'resolve', id });
       if (already) return;
@@ -667,7 +710,9 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
     if (!c) return;
     const current = stateRef.current;
     if (current.conversations[id] || current.pendingMatches.some((p) => p.characterId === id)) return;
-    const instant = rollInstant(current.hasMatchedBefore);
+    const matchedBefore = hasLikedRef.current || current.hasMatchedBefore;
+    hasLikedRef.current = true;
+    const instant = rollInstant(matchedBefore);
     const opener: Message = { id: makeId('her'), from: 'her', kind: 'text', text: c.opener, at: Date.now() };
     dispatch({
       type: 'like',

@@ -1,9 +1,10 @@
 /*
-  Explore: the swipe deck. A title, the top card with the next one behind it
-  (her animated portrait, see Portrait), and two round liquid glass buttons
-  (X passes, check likes), the only two actions. Drag the card, tap the
-  buttons, or press Left / Right. There are no filters: the card takes the
-  height the style chips used to hold.
+  Explore: the swipe deck. No visible title (v4): an sr-only heading still names
+  the section, so the card takes the space the heading held. The top card with
+  the next one behind it (her animated portrait, see Portrait), and two round
+  liquid glass buttons (X passes, check likes), the only two actions. Drag the
+  card, tap the buttons, or press Left / Right. There are no filters: the card
+  takes the height the style chips and the title used to hold.
 
   Atmosphere (RTPC): the top card's world is the frame's theme. While the top
   card is dragged, `drag` follows its offset over the commit threshold and the
@@ -147,16 +148,14 @@ export function Explore(): JSX.Element {
         state.pendingMatchId && 'opacity-0'
       )}
     >
-      <header className="safe-x pt-16 pb-8 short:pt-8 short:pb-0">
-        <h1 id="explore-title" className="font-display text-title text-ink">
-          Explore
-        </h1>
-      </header>
+      <h1 id="explore-title" className="sr-only">
+        Explore
+      </h1>
 
       {top ? (
         <>
           <motion.div
-            className="safe-x min-h-0 flex-1 pt-12 pb-[var(--deck-peek)] short:pt-8"
+            className="safe-x min-h-0 flex-1 pt-16 pb-[var(--deck-peek)] short:pt-8"
             initial={rise ? { opacity: 0, y: deckConfig.riseY } : false}
             animate={{
               opacity: 1,

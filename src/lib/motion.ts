@@ -87,6 +87,13 @@ export const pulseStrength = {
 export const matchPopFrom = 0.6;
 
 /**
+ * The build stamp for this round. It is written to `data-build` on the app frame
+ * (and logged once at startup) so a stale bundle is obvious; the frame component
+ * can import this constant instead of hard-coding its own copy.
+ */
+export const BUILD_TAG = 'v4';
+
+/**
  * The chance a right swipe is an INSTANT match (her opener is already in the
  * chat and the "You Matched!" modal shows). Otherwise the like becomes a
  * pending match that resolves after `matchDelayMs`. The very first like ever
