@@ -12,12 +12,6 @@
     properties. No hex lives in a component.
   - bio.css owns the motion. By request it ignores prefers-reduced-motion: the
     word effects always play (bio.css overrides the global clamp).
-  - v6: when her rendered FX exist (components/fx, public/fx/<id>/words.mp4),
-    her own tagged words are plain `data-w` text and <FxWords> draws each word's
-    atlas cell from one video on the frame's single overlay canvas. Without
-    them (no config, no clip, no WebGL2) the v5 CSS components below render, so
-    a character with no rendered FX looks exactly as before. Her v5 opening
-    cinematic likewise yields to the rendered intro that ProfileSheet plays.
 */
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type JSX } from 'react';
 import { createPortal } from 'react-dom';
@@ -25,8 +19,6 @@ import type { CharacterStyle } from '../../data/types';
 import { useFrameTheme } from '../../theme/ThemeProvider';
 import { atmosphereTints, getTheme } from '../../theme/themes';
 import '../../styles/bio.css';
-import { FxWords } from '../fx/FxWords';
-import { useCharacterFx } from '../fx/useCharacterFx';
 import { BioFx } from './bio';
 import { isCharacterFxId, parseBio } from './bio/kinds';
 
@@ -56,14 +48,7 @@ export function AnimatedBio(props: { text: string; style: CharacterStyle }): JSX
     for (const s of segments) if (s.type === 'fx' && isCharacterFxId(s.kind)) return s.kind;
     return null;
   }, [segments]);
-  const fx = useCharacterFx(ownerId);
-  const [wordsFailed, setWordsFailed] = useState(false);
-  // The rendered atlas, when her clip is really there; 'hold' while it is probed
-  // (her words show in plain accent, so nothing flashes from CSS to video).
-  const atlas = fx.has.words && !wordsFailed ? fx.fx?.words : undefined;
-  const hold = fx.status === 'pending';
-  // The v5 cinematic only when the rendered intro is not coming.
-  const Intro = hold || fx.has.intro ? null : introFor(ownerId);
+  const Intro = introFor(ownerId);
   const bioRef = useRef<HTMLParagraphElement>(null);
   const [hosts, setHosts] = useState<{ bio: HTMLElement; frame: HTMLElement } | null>(null);
   useEffect(() => {
@@ -92,27 +77,9 @@ export function AnimatedBio(props: { text: string; style: CharacterStyle }): JSX
         className="bio relative isolate max-w-[var(--measure)] text-body"
         style={vars}
       >
-        {atlas ? <FxWords layer={atlas} onStatus={(st) => st === 'failed' && setWordsFailed(true)} /> : null}
-        {segments.map((seg, i) => {
-          if (seg.type !== 'fx') return <span key={i}>{seg.text}</span>;
-          const own = seg.kind === ownerId;
-          const key = seg.text.toLowerCase();
-          if (own && atlas?.cells[key]) {
-            return (
-              <span key={i} className="fxw" data-fx={seg.kind} data-w={key}>
-                {seg.text}
-              </span>
-            );
-          }
-          if (own && hold) {
-            return (
-              <span key={i} className="fxw">
-                {seg.text}
-              </span>
-            );
-          }
-          return <BioFx key={i} kind={seg.kind} text={seg.text} />;
-        })}
+        {segments.map((seg, i) =>
+          seg.type === 'fx' ? <BioFx key={i} kind={seg.kind} text={seg.text} /> : <span key={i}>{seg.text}</span>
+        )}
       </p>
       {Intro && hosts
         ? createPortal(
