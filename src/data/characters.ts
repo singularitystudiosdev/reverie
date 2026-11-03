@@ -152,7 +152,7 @@ export const characters: Character[] = [
     style: 'Anime',
     theme: 'neon',
     tagline: "I hacked your heart rate monitor. You're nervous.",
-    bio: "Nova already knows your heart rate, and she has {neon:noticed} it climbing. She pushes her visor up, leans in over the glow of the arcade, and tells you to {nova:stay jacked in} until sunrise. Be careful: she never sleeps before dawn, and she {neon:always wins} the slow games.",
+    bio: "Nova already knows your heart rate, and she has {nova:noticed} it climbing. She pushes her visor up, leans in over the glow of the arcade, and tells you to {nova:stay jacked in} until sunrise. Be careful: she never sleeps before dawn, and she {nova:always wins} the slow games.",
     interests: ['Synthwave', 'Ramen at 3am', 'Arcades'],
     opener: "Connection established. Your firewall is cute, by the way.",
     avatarPosition: '72% 33%',

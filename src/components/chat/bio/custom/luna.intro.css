@@ -1,0 +1,350 @@
+/* Luna's opening cinematic. One ~2.65s timeline driven by the component's
+   measured numbers (--x0/--x1, --y0..--y2, --leap-at/--leap-for, --flare).
+   All animations are !important: the intro always plays. Keyframes are
+   prefixed luna-in-. */
+
+.luna-in {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  --in-gold: var(--t-accent);
+  --in-lav: var(--t-glow);
+  --in-pale: color-mix(in oklab, var(--t-ink) 70%, var(--t-accent));
+}
+
+.luna-in img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+.luna-in-wash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 50% 40%,
+    color-mix(in oklab, var(--t-canvas) 10%, transparent),
+    color-mix(in oklab, var(--t-canvas) 62%, transparent) 90%
+  );
+  opacity: 0;
+  animation: luna-in-wash 2.65s ease-in-out both !important;
+}
+
+/* ---- the constellation ------------------------------------------------- */
+
+/* lines and stars live in one group so the figure dims out together */
+.luna-in-fig {
+  position: absolute;
+  inset: 0;
+  animation: luna-in-fig-life 2.65s linear both !important;
+}
+
+.luna-in-lines {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.luna-in-line,
+.luna-in-line-glow {
+  fill: none;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: luna-in-draw var(--l) linear var(--d) both !important;
+}
+
+.luna-in-line {
+  stroke: var(--in-pale);
+  stroke-width: 1.6px;
+}
+
+.luna-in-line-glow {
+  stroke: color-mix(in oklab, var(--in-gold) 80%, transparent);
+  stroke-width: 5px;
+  filter: blur(2.5px);
+}
+
+.luna-in-star {
+  position: absolute;
+  width: var(--star);
+  height: var(--star);
+  margin: calc(var(--star) / -2) 0 0 calc(var(--star) / -2);
+  opacity: 0;
+  filter: drop-shadow(0 0 6px color-mix(in oklab, var(--in-gold) 80%, transparent));
+  animation:
+    luna-in-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) var(--d) both,
+    luna-in-flare 0.82s cubic-bezier(0.16, 1, 0.3, 1) var(--flare) !important;
+}
+
+.luna-in-star img {
+  animation: luna-in-twinkle 0.9s ease-in-out calc(var(--d) + 0.5s + var(--k) * 0.12s) infinite alternate !important;
+}
+
+/* ---- the moon, with a sparkle trail behind it ---------------------------- */
+
+.luna-in-moon-x,
+.luna-in-moon-y,
+.luna-in-moon-r {
+  position: absolute;
+  display: block;
+}
+
+.luna-in-moon-x {
+  left: 0;
+  top: 0;
+  width: calc(124px - var(--k) * 24px);
+  height: calc(124px - var(--k) * 24px);
+  margin: 0 0 0 calc(-0.5 * (124px - var(--k) * 24px));
+  opacity: 0;
+  animation:
+    luna-in-moon-x 2.1s cubic-bezier(0.45, 0, 0.55, 1) calc(0.1s + var(--k) * 0.075s) both,
+    luna-in-moon-fade 2.1s linear calc(0.1s + var(--k) * 0.075s) both !important;
+}
+
+.luna-in-moon-y,
+.luna-in-moon-r {
+  inset: 0;
+}
+
+.luna-in-moon-y {
+  animation: luna-in-moon-y 2.1s cubic-bezier(0.45, 0, 0.55, 1) calc(0.1s + var(--k) * 0.075s) both !important;
+}
+
+.luna-in-moon-r {
+  animation: luna-in-moon-r 2.1s cubic-bezier(0.45, 0, 0.55, 1) calc(0.1s + var(--k) * 0.075s) both !important;
+  filter: drop-shadow(0 0 14px color-mix(in oklab, var(--in-gold) 55%, transparent));
+}
+
+/* ---- the cat: crouch, pounce in an arc, leave ---------------------------- */
+
+.luna-in-cat-x,
+.luna-in-cat-y,
+.luna-in-cat-r,
+.luna-in-cat-s {
+  position: absolute;
+  display: block;
+}
+
+.luna-in-cat-x {
+  left: 0;
+  top: 0;
+  width: var(--cat);
+  height: var(--cat);
+  animation: luna-in-cat-x var(--leap-for) linear var(--leap-at) both !important;
+  translate: var(--x0) 0;
+}
+
+.luna-in-cat-y,
+.luna-in-cat-r,
+.luna-in-cat-s {
+  inset: 0;
+}
+
+.luna-in-cat-y {
+  animation: luna-in-cat-y var(--leap-for) linear var(--leap-at) both !important;
+  translate: 0 var(--y0);
+}
+
+.luna-in-cat-r {
+  animation: luna-in-cat-r var(--leap-for) cubic-bezier(0.4, 0, 0.6, 1) var(--leap-at) both !important;
+}
+
+.luna-in-cat-s {
+  transform-origin: 50% 100%;
+  filter: drop-shadow(0 8px 10px color-mix(in oklab, var(--t-canvas) 80%, transparent))
+    drop-shadow(0 0 12px color-mix(in oklab, var(--in-gold) 30%, transparent));
+  animation:
+    luna-in-cat-crouch var(--leap-at) cubic-bezier(0.16, 1, 0.3, 1) backwards,
+    luna-in-cat-stretch var(--leap-for) linear var(--leap-at) forwards !important;
+}
+
+@keyframes luna-in-wash {
+  0% {
+    opacity: 0;
+  }
+  22% {
+    opacity: 0.8;
+  }
+  70% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes luna-in-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* the figure holds, then dims out together at the end */
+@keyframes luna-in-fig-life {
+  0%,
+  74% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes luna-in-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0) rotate(-60deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.55) rotate(8deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes luna-in-flare {
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 6px color-mix(in oklab, var(--in-gold) 80%, transparent));
+  }
+  28% {
+    transform: scale(1.7);
+    filter: drop-shadow(0 0 16px var(--in-gold)) brightness(1.5);
+  }
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 6px color-mix(in oklab, var(--in-gold) 80%, transparent));
+  }
+}
+
+@keyframes luna-in-twinkle {
+  from {
+    opacity: 0.78;
+    transform: scale(0.94) rotate(-4deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.08) rotate(4deg);
+  }
+}
+
+@keyframes luna-in-moon-x {
+  0% {
+    transform: translateX(-130px);
+  }
+  100% {
+    transform: translateX(calc(var(--w) + 130px));
+  }
+}
+
+@keyframes luna-in-moon-y {
+  0% {
+    transform: translateY(calc(var(--h) * 0.2));
+  }
+  50% {
+    transform: translateY(calc(var(--h) * 0.05));
+  }
+  100% {
+    transform: translateY(calc(var(--h) * 0.16));
+  }
+}
+
+@keyframes luna-in-moon-r {
+  0% {
+    transform: rotate(-28deg);
+  }
+  100% {
+    transform: rotate(32deg);
+  }
+}
+
+@keyframes luna-in-moon-fade {
+  0%,
+  6% {
+    opacity: 0;
+  }
+  18%,
+  86% {
+    opacity: calc(1 - var(--k) * 0.22);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes luna-in-cat-x {
+  from {
+    translate: var(--x0) 0;
+  }
+  to {
+    translate: var(--x1) 0;
+  }
+}
+
+/* up and over (ease out), then down (ease in) */
+@keyframes luna-in-cat-y {
+  0% {
+    translate: 0 var(--y0);
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.4, 1);
+  }
+  46% {
+    translate: 0 var(--y1);
+    animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
+  }
+  100% {
+    translate: 0 var(--y2);
+  }
+}
+
+@keyframes luna-in-cat-r {
+  0% {
+    transform: rotate(-38deg);
+  }
+  46% {
+    transform: rotate(-2deg);
+  }
+  100% {
+    transform: rotate(46deg);
+  }
+}
+
+/* anticipation: sink and widen before the spring */
+@keyframes luna-in-cat-crouch {
+  0% {
+    transform: scale(1, 1);
+  }
+  55% {
+    transform: scale(1.14, 0.8);
+  }
+  80% {
+    transform: scale(1.14, 0.8);
+  }
+  100% {
+    transform: scale(0.9, 1.18);
+  }
+}
+
+@keyframes luna-in-cat-stretch {
+  0% {
+    transform: scale(0.9, 1.18);
+  }
+  18% {
+    transform: scale(0.94, 1.1);
+  }
+  60% {
+    transform: scale(1, 1);
+  }
+  100% {
+    transform: scale(1.06, 0.94);
+  }
+}

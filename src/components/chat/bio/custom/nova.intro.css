@@ -1,0 +1,275 @@
+/* Nova's opening cinematic. One 2.35s timeline: a hard glitch hit at 0s, a
+   decode with the colour fringe holding until about 1.7s, then a snap and a
+   second, smaller glitch as everything settles. All animations are
+   !important: the intro always plays. Keyframes are prefixed nova-in-. */
+
+.nova-in {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  --in-cyan: var(--t-accent);
+  --in-mag: var(--t-glow);
+  --in-hot: color-mix(in oklab, var(--t-ink) 88%, var(--t-accent));
+}
+
+.nova-in-host {
+  position: absolute;
+  inset: 0;
+}
+
+/* the colour fringe at the frame edges: cyan one side, magenta the other */
+.nova-in-vig {
+  position: absolute;
+  inset: 0;
+  box-shadow:
+    inset 22px 0 70px -26px color-mix(in oklab, var(--in-cyan) 70%, transparent),
+    inset -22px 0 70px -26px color-mix(in oklab, var(--in-mag) 70%, transparent),
+    inset 0 0 120px color-mix(in oklab, var(--t-canvas) 70%, transparent);
+  opacity: 0;
+  animation: nova-in-vig 2.35s steps(1, end) both !important;
+}
+
+.nova-in-scan {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(to bottom, transparent 0 2px, color-mix(in oklab, var(--t-canvas) 52%, transparent) 2px 3px);
+  opacity: 0;
+  animation: nova-in-scan 2.35s linear both !important;
+}
+
+.nova-in-tear {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--top);
+  height: var(--h);
+  background: color-mix(in oklab, var(--in-cyan) 30%, transparent);
+  border-block: 1px solid color-mix(in oklab, var(--in-cyan) 70%, transparent);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: nova-in-tear var(--t) steps(1, end) var(--d) both !important;
+}
+
+.nova-in-tear[data-m='1'] {
+  background: color-mix(in oklab, var(--in-mag) 30%, transparent);
+  border-color: color-mix(in oklab, var(--in-mag) 70%, transparent);
+}
+
+.nova-in-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 22%;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in oklab, var(--in-cyan) 22%, transparent) 60%,
+    color-mix(in oklab, var(--in-hot) 55%, transparent) 96%,
+    transparent
+  );
+  opacity: 0;
+  transform: translateY(-110%);
+  animation:
+    nova-in-band 0.8s cubic-bezier(0.5, 0, 0.3, 1) 0.1s both,
+    nova-in-band 0.5s cubic-bezier(0.5, 0, 0.3, 1) 1.72s both !important;
+}
+
+.nova-in-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 50% 45%,
+    color-mix(in oklab, var(--in-hot) 80%, transparent),
+    color-mix(in oklab, var(--in-cyan) 40%, transparent) 70%
+  );
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation:
+    nova-in-flash 0.28s cubic-bezier(0.16, 1, 0.3, 1) both,
+    nova-in-flash-2 0.3s cubic-bezier(0.16, 1, 0.3, 1) 1.74s both !important;
+}
+
+/* the bio clone while it decodes: an RGB split that jitters, then snaps shut.
+   `translate` composes with the transform the component uses to track the bio. */
+.nova-in-text {
+  filter: drop-shadow(-2px 0 0 var(--in-cyan)) drop-shadow(2px 0 0 var(--in-mag));
+  animation: nova-in-text 2.35s linear both !important;
+}
+
+@keyframes nova-in-vig {
+  0% {
+    opacity: 0;
+  }
+  1% {
+    opacity: 1;
+  }
+  6% {
+    opacity: 0.3;
+  }
+  9% {
+    opacity: 0.95;
+  }
+  16%,
+  70% {
+    opacity: 0.55;
+  }
+  73% {
+    opacity: 0.9;
+  }
+  76% {
+    opacity: 0.4;
+  }
+  80% {
+    opacity: 0.8;
+  }
+  92% {
+    opacity: 0.25;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes nova-in-scan {
+  0% {
+    opacity: 0;
+  }
+  4% {
+    opacity: 0.6;
+  }
+  72% {
+    opacity: 0.32;
+  }
+  96% {
+    opacity: 0.12;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes nova-in-tear {
+  0% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  8% {
+    opacity: 0.9;
+    transform: translateX(var(--dx));
+  }
+  22% {
+    opacity: 0.8;
+    transform: translateX(calc(var(--dx) * -0.6));
+  }
+  36% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.7;
+    transform: translateX(calc(var(--dx) * 0.9));
+  }
+  64% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes nova-in-band {
+  0% {
+    opacity: 0;
+    transform: translateY(-110%);
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(470%);
+  }
+}
+
+@keyframes nova-in-flash {
+  0% {
+    opacity: 0.65;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes nova-in-flash-2 {
+  0% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes nova-in-text {
+  0% {
+    translate: 0 0;
+    filter: drop-shadow(-7px 0 0 var(--in-cyan)) drop-shadow(7px 0 0 var(--in-mag));
+    animation-timing-function: steps(1, end);
+  }
+  3% {
+    translate: 6px 0;
+  }
+  6% {
+    translate: -8px 0;
+    filter: drop-shadow(-9px 0 0 var(--in-cyan)) drop-shadow(9px 0 0 var(--in-mag));
+  }
+  9% {
+    translate: 4px 0;
+    filter: drop-shadow(-5px 0 0 var(--in-cyan)) drop-shadow(5px 0 0 var(--in-mag));
+  }
+  13% {
+    translate: -3px 0;
+  }
+  18%,
+  38% {
+    translate: 0 0;
+    filter: drop-shadow(-3px 0 0 var(--in-cyan)) drop-shadow(3px 0 0 var(--in-mag))
+      drop-shadow(0 0 6px color-mix(in oklab, var(--in-cyan) 55%, transparent));
+  }
+  40% {
+    translate: 5px 0;
+    filter: drop-shadow(-6px 0 0 var(--in-cyan)) drop-shadow(6px 0 0 var(--in-mag));
+  }
+  42%,
+  56% {
+    translate: 0 0;
+    filter: drop-shadow(-2.5px 0 0 var(--in-cyan)) drop-shadow(2.5px 0 0 var(--in-mag))
+      drop-shadow(0 0 6px color-mix(in oklab, var(--in-cyan) 55%, transparent));
+  }
+  58% {
+    translate: -4px 0;
+    filter: drop-shadow(-5px 0 0 var(--in-cyan)) drop-shadow(5px 0 0 var(--in-mag));
+  }
+  60%,
+  72% {
+    translate: 0 0;
+    filter: drop-shadow(-2px 0 0 var(--in-cyan)) drop-shadow(2px 0 0 var(--in-mag))
+      drop-shadow(0 0 6px color-mix(in oklab, var(--in-cyan) 55%, transparent));
+  }
+  73.5% {
+    translate: -6px 0;
+    filter: drop-shadow(-8px 0 0 var(--in-cyan)) drop-shadow(8px 0 0 var(--in-mag));
+  }
+  75.5% {
+    translate: 4px 0;
+    filter: drop-shadow(-4px 0 0 var(--in-cyan)) drop-shadow(4px 0 0 var(--in-mag));
+  }
+  78%,
+  100% {
+    translate: 0 0;
+    filter: drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent);
+  }
+}

@@ -1,0 +1,1412 @@
+/* Nova: one bespoke effect per charged word. Words are told apart by the
+   .nova-m-* marker the component puts in the layer (:has), so each word can
+   own its fill. Motion is transform, opacity, filter, background-position and
+   clip-path only. Animations are !important like the rest of bio.css: the
+   bio's word effects always play. Keyframes are prefixed nova-.
+
+   noticed         nb  6.4s   ECG trace + heart that heats from cyan to magenta
+   stay jacked in  nj  7s     plug winds back, slams in, power runs the letters
+   always wins     nw  6s     token toss, three flips, edge landing, spin down
+   fallback        nova-glitch 7s */
+
+.fx[data-fx='nova'] {
+  --nova-cyan: var(--t-accent);
+  --nova-mag: var(--t-glow);
+  --nova-hot: color-mix(in oklab, var(--t-ink) 88%, var(--nova-cyan));
+  --nova-dim: color-mix(in oklab, var(--nova-cyan) 58%, var(--t-canvas));
+  --nova-lit: color-mix(in oklab, var(--nova-cyan) 70%, var(--t-ink));
+  --nova-pink: color-mix(in oklab, var(--nova-mag) 62%, var(--t-ink));
+  --nova-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --nova-ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --nova-ease-io: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.fx[data-fx='nova'] .fx-text {
+  display: inline-block;
+  color: var(--nova-lit);
+  text-shadow:
+    0 0 0.1em var(--nova-cyan),
+    0 0 0.42em color-mix(in oklab, var(--nova-cyan) 70%, transparent),
+    0 0 0.85em color-mix(in oklab, var(--nova-mag) 62%, transparent);
+}
+
+.fx[data-fx='nova'] .nova-s {
+  display: block;
+  max-width: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* the three gradient-filled words trade text-shadow for a drop-shadow filter
+   (a shadow would smear through a background-clipped fill) */
+.fx[data-fx='nova']:has(.nova-m-jack) .fx-text,
+.fx[data-fx='nova']:has(.nova-m-wins) .fx-text {
+  text-shadow: none;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  background-repeat: no-repeat;
+}
+
+/* ======================================================================
+   noticed: a heart-rate that climbs
+   ====================================================================== */
+
+.fx[data-fx='nova']:has(.nova-m-noticed) .fx-text {
+  animation: nova-nb-text 6.4s linear infinite !important;
+}
+
+.fx[data-fx='nova'] .nova-ecg {
+  position: absolute;
+  left: -9%;
+  top: 0.1em;
+  width: 118%;
+  height: 1.3em;
+  clip-path: inset(-40% 100% -40% 0);
+  animation: nova-nb-draw 6.4s linear infinite !important;
+}
+
+.fx[data-fx='nova'] .nova-ecg svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 0.18em var(--nova-cyan));
+}
+
+.fx[data-fx='nova'] .nova-ecg-line {
+  stroke: var(--nova-hot);
+  stroke-width: 1.2px;
+}
+
+.fx[data-fx='nova'] .nova-ecg-glow {
+  stroke: color-mix(in oklab, var(--nova-mag) 70%, transparent);
+  stroke-width: 3px;
+}
+
+/* the bright scan edge that leads the trace, riding a rail the width of the trace */
+.fx[data-fx='nova'] .nova-ecg-rail {
+  position: absolute;
+  inset: 0;
+  animation: nova-nb-rail 6.4s linear infinite !important;
+}
+
+.fx[data-fx='nova'] .nova-ecg-edge {
+  position: absolute;
+  left: 100%;
+  top: -10%;
+  bottom: -10%;
+  width: 2px;
+  background: linear-gradient(to bottom, transparent, var(--nova-hot) 30%, var(--nova-hot) 70%, transparent);
+  box-shadow: 0 0 0.4em var(--nova-cyan);
+}
+
+.fx[data-fx='nova'] .nova-heart {
+  position: absolute;
+  left: 100%;
+  top: -2em;
+  width: 2.3em;
+  height: 2.2em;
+  margin-left: -1.5em;
+  opacity: 0;
+  transform-origin: 50% 80%;
+  animation: nova-nb-heart 6.4s linear infinite !important;
+}
+
+.fx[data-fx='nova'] .nova-heart-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform-origin: 50% 55%;
+  animation:
+    nova-nb-beat 6.4s linear infinite,
+    nova-nb-heat 6.4s linear infinite !important;
+}
+
+.fx[data-fx='nova'] .nova-heart-ring {
+  position: absolute;
+  inset: 12% 8%;
+  border: 1.5px solid var(--nova-hot);
+  border-radius: 50%;
+  opacity: 0;
+  animation: nova-nb-ring 6.4s linear infinite !important;
+}
+
+@keyframes nova-nb-draw {
+  0%,
+  4% {
+    opacity: 1;
+    clip-path: inset(-40% 100% -40% 0);
+  }
+  66% {
+    opacity: 1;
+    clip-path: inset(-40% 0% -40% 0);
+  }
+  88% {
+    opacity: 1;
+    clip-path: inset(-40% 0% -40% 0);
+  }
+  96% {
+    opacity: 0;
+    clip-path: inset(-40% 0% -40% 0);
+  }
+  100% {
+    opacity: 0;
+    clip-path: inset(-40% 100% -40% 0);
+  }
+}
+
+@keyframes nova-nb-rail {
+  0%,
+  4% {
+    opacity: 1;
+    transform: translateX(-100%);
+  }
+  66% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  67% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes nova-nb-heart {
+  0%,
+  1.5% {
+    opacity: 0;
+    transform: translateY(0.3em) scale(0.4);
+  }
+  5% {
+    opacity: 1;
+    transform: translateY(0) scale(1.08);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  7% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  88% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  95%,
+  100% {
+    opacity: 0;
+    transform: translateY(-0.2em) scale(0.8);
+  }
+}
+
+@keyframes nova-nb-text {
+  0%,
+  100% {
+    filter: brightness(1) drop-shadow(0 0 0 transparent);
+  }
+  12% {
+    filter: brightness(1) drop-shadow(0 0 0 transparent);
+  }
+  12.7% {
+    filter: brightness(1.25) drop-shadow(0 0 0.3em var(--nova-mag));
+  }
+  15.9% {
+    filter: brightness(1) drop-shadow(0 0 0 transparent);
+  }
+  26.9% {
+    filter: brightness(1) drop-shadow(0 0 0 transparent);
+  }
+  27.6% {
+    filter: brightness(1.3) drop-shadow(0 0 0.3em var(--nova-mag));
+  }
+  30.8% {
+    filter: brightness(1) drop-shadow(0 0 0 transparent);
+  }
+  40.5% {
+    filter: brightness(1) drop-shadow(0 0 0 transparent);
+  }
+  41.2% {
+    filter: brightness(1.35) drop-shadow(0 0 0.3em var(--nova-mag));
+  }
+  44.4% {
+    filter: brightness(1) drop-shadow(0 0 0 transparent);
+  }
+  52.9% {
+    filter: brightness(1) drop-shadow(0 0 0 transparent);
+  }
+  53.6% {
+    filter: brightness(1.4) drop-shadow(0 0 0.3em var(--nova-mag));
+  }
+  56.8% {
+    filter: brightness(1) drop-shadow(0 0 0 transparent);
+  }
+}
+
+@keyframes nova-nb-beat {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  8.5% {
+    transform: scale(1);
+  }
+  9% {
+    transform: scale(1.22);
+  }
+  10.5% {
+    transform: scale(0.97);
+  }
+  11.6% {
+    transform: scale(1.1);
+  }
+  13.4% {
+    transform: scale(1);
+  }
+  18.4% {
+    transform: scale(1);
+  }
+  18.9% {
+    transform: scale(1.22);
+  }
+  20.4% {
+    transform: scale(0.97);
+  }
+  21.5% {
+    transform: scale(1.1);
+  }
+  23.3% {
+    transform: scale(1);
+  }
+  27.1% {
+    transform: scale(1);
+  }
+  27.6% {
+    transform: scale(1.22);
+  }
+  29.1% {
+    transform: scale(0.97);
+  }
+  30.2% {
+    transform: scale(1.1);
+  }
+  32% {
+    transform: scale(1);
+  }
+  34.5% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.22);
+  }
+  36.5% {
+    transform: scale(0.97);
+  }
+  37.6% {
+    transform: scale(1.1);
+  }
+  39.4% {
+    transform: scale(1);
+  }
+  41.3% {
+    transform: scale(1);
+  }
+  41.8% {
+    transform: scale(1.22);
+  }
+  43.3% {
+    transform: scale(0.97);
+  }
+  44.4% {
+    transform: scale(1.1);
+  }
+  46.2% {
+    transform: scale(1);
+  }
+  47.5% {
+    transform: scale(1);
+  }
+  48% {
+    transform: scale(1.22);
+  }
+  49.5% {
+    transform: scale(0.97);
+  }
+  50.6% {
+    transform: scale(1.1);
+  }
+  52.4% {
+    transform: scale(1);
+  }
+  53.1% {
+    transform: scale(1);
+  }
+  53.6% {
+    transform: scale(1.22);
+  }
+  55.1% {
+    transform: scale(0.97);
+  }
+  56.2% {
+    transform: scale(1.1);
+  }
+  58% {
+    transform: scale(1);
+  }
+  58.1% {
+    transform: scale(1);
+  }
+  58.6% {
+    transform: scale(1.22);
+  }
+  60.1% {
+    transform: scale(0.97);
+  }
+  61.2% {
+    transform: scale(1.1);
+  }
+  63% {
+    transform: scale(1);
+  }
+}
+@keyframes nova-nb-heat {
+  0% {
+    filter: hue-rotate(0deg) drop-shadow(0 0 0.35em color-mix(in oklab, var(--nova-cyan) 70%, transparent));
+  }
+  9% {
+    filter: hue-rotate(16deg) drop-shadow(0 0 0.35em color-mix(in oklab, var(--nova-cyan) 78%, transparent));
+  }
+  18.9% {
+    filter: hue-rotate(32deg) drop-shadow(0 0 0.4em color-mix(in oklab, var(--nova-cyan) 78%, transparent));
+  }
+  27.6% {
+    filter: hue-rotate(48deg) drop-shadow(0 0 0.45em color-mix(in oklab, var(--nova-cyan) 78%, transparent));
+  }
+  35% {
+    filter: hue-rotate(64deg) drop-shadow(0 0 0.5em color-mix(in oklab, var(--nova-cyan) 78%, transparent));
+  }
+  41.8% {
+    filter: hue-rotate(80deg) drop-shadow(0 0 0.55em color-mix(in oklab, var(--nova-mag) 78%, transparent));
+  }
+  48% {
+    filter: hue-rotate(96deg) drop-shadow(0 0 0.6em color-mix(in oklab, var(--nova-mag) 78%, transparent));
+  }
+  53.6% {
+    filter: hue-rotate(112deg) drop-shadow(0 0 0.65em color-mix(in oklab, var(--nova-mag) 78%, transparent));
+  }
+  58.6% {
+    filter: hue-rotate(128deg) drop-shadow(0 0 0.7em color-mix(in oklab, var(--nova-mag) 78%, transparent));
+  }
+  100% {
+    filter: hue-rotate(128deg) drop-shadow(0 0 0.6em color-mix(in oklab, var(--nova-mag) 78%, transparent));
+  }
+}
+
+@keyframes nova-nb-ring {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  8.8% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  9% {
+    opacity: 0.75;
+    transform: scale(0.8);
+  }
+  13.5% {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+  18.7% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  18.9% {
+    opacity: 0.75;
+    transform: scale(0.8);
+  }
+  23.4% {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+  27.4% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  27.6% {
+    opacity: 0.75;
+    transform: scale(0.8);
+  }
+  32.1% {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+  34.8% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  35% {
+    opacity: 0.75;
+    transform: scale(0.8);
+  }
+  39.5% {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+  41.6% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  41.8% {
+    opacity: 0.75;
+    transform: scale(0.8);
+  }
+  46.3% {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+  47.8% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  48% {
+    opacity: 0.75;
+    transform: scale(0.8);
+  }
+  52.5% {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+  53.4% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  53.6% {
+    opacity: 0.75;
+    transform: scale(0.8);
+  }
+  58.1% {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+  58.4% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  58.6% {
+    opacity: 0.75;
+    transform: scale(0.8);
+  }
+  63.1% {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+}
+
+/* ======================================================================
+   stay jacked in: the plug seats, the power runs through the word
+   ====================================================================== */
+
+.fx[data-fx='nova']:has(.nova-m-jack) .fx-text {
+  background-image: linear-gradient(
+    270deg,
+    var(--nova-pink) 0%,
+    var(--nova-lit) 24%,
+    var(--nova-lit) 38%,
+    var(--nova-hot) 45%,
+    var(--nova-dim) 53%,
+    var(--nova-dim) 100%
+  );
+  background-size: 300% 100%;
+  background-position: 0% 0;
+  filter: drop-shadow(0 0 0.12em color-mix(in oklab, var(--nova-cyan) 30%, transparent)) drop-shadow(0 0 0 transparent);
+  animation:
+    nova-nj-fill 7s linear infinite,
+    nova-nj-jolt 7s linear infinite !important;
+}
+
+/* the port: a point on the word's top-right edge everything below hangs from */
+.fx[data-fx='nova'] .nova-port {
+  position: absolute;
+  left: 94%;
+  top: 16%;
+  width: 0;
+  height: 0;
+}
+
+.fx[data-fx='nova'] .nova-port-ring {
+  position: absolute;
+  left: -0.55em;
+  top: -0.55em;
+  width: 1.1em;
+  height: 1.1em;
+  border: 1.5px solid var(--nova-hot);
+  border-radius: 50%;
+  box-shadow: 0 0 0.5em var(--nova-mag);
+  opacity: 0;
+  animation: nova-nj-ring 7s linear infinite !important;
+}
+
+.fx[data-fx='nova'] .nova-port-core {
+  position: absolute;
+  left: -0.15em;
+  top: -0.15em;
+  width: 0.3em;
+  height: 0.3em;
+  border-radius: 50%;
+  background: var(--nova-pink);
+  box-shadow:
+    0 0 0.5em var(--nova-mag),
+    0 0 1.1em var(--nova-mag);
+  opacity: 0;
+  animation: nova-nj-core 7s linear infinite !important;
+}
+
+.fx[data-fx='nova'] .nova-port-glyph {
+  position: absolute;
+  left: -1.2em;
+  top: -1.2em;
+  width: 2.4em;
+  height: 2.4em;
+  object-fit: contain;
+  opacity: 0;
+  animation: nova-nj-glyph 7s linear infinite !important;
+}
+
+.fx[data-fx='nova'] .nova-spark {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0.55em;
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 1px;
+  background: linear-gradient(to right, var(--nova-hot), var(--nova-cyan) 55%, transparent);
+  transform-origin: 0 50%;
+  opacity: 0;
+  animation: nova-nj-spark 7s linear infinite !important;
+}
+
+.fx[data-fx='nova'] .nova-spark[data-m='1'] {
+  background: linear-gradient(to right, var(--nova-hot), var(--nova-mag) 55%, transparent);
+}
+
+.fx[data-fx='nova'] .nova-plug {
+  position: absolute;
+  left: 94%;
+  top: 16%;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  animation: nova-nj-plug 7s linear infinite !important;
+}
+
+.fx[data-fx='nova'] .nova-plug-img {
+  position: absolute;
+  left: -0.14em;
+  bottom: -0.36em;
+  width: 2.7em;
+  height: 2.7em;
+  object-fit: contain;
+  filter: drop-shadow(0 0.1em 0.25em color-mix(in oklab, var(--t-canvas) 85%, transparent));
+}
+
+@keyframes nova-nj-fill {
+  0%,
+  59.5% {
+    background-position: 0% 0;
+    filter: drop-shadow(0 0 0.12em color-mix(in oklab, var(--nova-cyan) 30%, transparent)) drop-shadow(0 0 0 transparent);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  70%,
+  87% {
+    background-position: 100% 0;
+    filter: drop-shadow(0 0 0.3em color-mix(in oklab, var(--nova-cyan) 80%, transparent))
+      drop-shadow(0 0 0.8em color-mix(in oklab, var(--nova-mag) 55%, transparent));
+  }
+  88.2% {
+    background-position: 60% 0;
+  }
+  89% {
+    background-position: 100% 0;
+  }
+  90.4% {
+    background-position: 30% 0;
+  }
+  91.2% {
+    background-position: 90% 0;
+  }
+  93.5%,
+  100% {
+    background-position: 0% 0;
+    filter: drop-shadow(0 0 0.12em color-mix(in oklab, var(--nova-cyan) 30%, transparent)) drop-shadow(0 0 0 transparent);
+  }
+}
+
+@keyframes nova-nj-jolt {
+  0%,
+  59%,
+  62.4%,
+  100% {
+    transform: translateX(0);
+  }
+  59.5% {
+    transform: translateX(0.05em);
+  }
+  60.2% {
+    transform: translateX(-0.05em);
+  }
+  61.1% {
+    transform: translateX(0.03em);
+  }
+}
+
+@keyframes nova-nj-plug {
+  0%,
+  5% {
+    opacity: 0;
+    transform: translate(1.1em, -1.1em) rotate(4deg);
+  }
+  9% {
+    opacity: 1;
+    transform: translate(1em, -1em) rotate(3deg);
+    animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(0.34em, -0.34em) rotate(0.5deg);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  55.5% {
+    opacity: 1;
+    transform: translate(0.55em, -0.55em) rotate(2deg);
+    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+  }
+  58.8% {
+    opacity: 1;
+    transform: translate(-0.06em, 0.06em) rotate(0deg);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  62%,
+  88% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0deg);
+    animation-timing-function: cubic-bezier(0.7, 0, 0.84, 0);
+  }
+  92% {
+    opacity: 1;
+    transform: translate(0.5em, -0.5em) rotate(2deg);
+  }
+  94.5%,
+  100% {
+    opacity: 0;
+    transform: translate(1.3em, -1.3em) rotate(4deg);
+  }
+}
+
+@keyframes nova-nj-ring {
+  0%,
+  5% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  9%,
+  58.7% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  59% {
+    opacity: 1;
+    transform: scale(0.6);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  70% {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+@keyframes nova-nj-core {
+  0%,
+  5% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  9%,
+  58.7% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  59.5% {
+    opacity: 1;
+    transform: scale(1.9);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  63%,
+  88% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  93% {
+    opacity: 0.3;
+  }
+  95%,
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+@keyframes nova-nj-glyph {
+  0%,
+  58.8% {
+    opacity: 0;
+    transform: scale(0.5) rotate(0deg);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  62% {
+    opacity: 0.6;
+    transform: scale(1) rotate(24deg);
+  }
+  72%,
+  88% {
+    opacity: 0.38;
+    transform: scale(1.05) rotate(55deg);
+  }
+  93%,
+  100% {
+    opacity: 0;
+    transform: scale(1.1) rotate(80deg);
+  }
+}
+
+@keyframes nova-nj-spark {
+  0%,
+  58.8% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateX(0.05em) scaleX(0.2);
+  }
+  59.3% {
+    opacity: 1;
+    transform: rotate(var(--a)) translateX(0.1em) scaleX(0.5);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  63% {
+    opacity: 0.9;
+    transform: rotate(var(--a)) translateX(var(--l)) scaleX(1);
+  }
+  67%,
+  100% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateX(calc(var(--l) * 1.7)) scaleX(0.2);
+  }
+}
+
+/* ======================================================================
+   always wins: a token tossed, flipped, landed on its edge and spun down
+   ====================================================================== */
+
+.fx[data-fx='nova']:has(.nova-m-wins) .fx-text {
+  background-image:
+    linear-gradient(100deg, transparent 38%, var(--nova-hot) 50%, transparent 62%),
+    linear-gradient(100deg, var(--nova-lit), var(--nova-pink));
+  background-size:
+    300% 100%,
+    100% 100%;
+  background-position:
+    100% 0,
+    0 0;
+  filter: brightness(1) drop-shadow(0 0 0.3em color-mix(in oklab, var(--nova-cyan) 60%, transparent))
+    drop-shadow(0 0 0.7em color-mix(in oklab, var(--nova-mag) 45%, transparent));
+  animation: nova-nw-fill 6s linear infinite !important;
+}
+
+.fx[data-fx='nova'] .nova-toss {
+  position: absolute;
+  left: 34%;
+  top: 0;
+  width: 0;
+  height: 0;
+}
+
+.fx[data-fx='nova'] .nova-token-x {
+  position: absolute;
+  left: -1.2em;
+  top: -2.1em;
+  width: 2.4em;
+  height: 2.4em;
+  opacity: 0;
+  animation: nova-nw-x 6s linear infinite !important;
+}
+
+.fx[data-fx='nova'] .nova-token-lift {
+  position: absolute;
+  inset: 0;
+  perspective: 16em;
+  animation: nova-nw-y 6s linear infinite !important;
+}
+
+.fx[data-fx='nova'] .nova-token-spin {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  animation: nova-nw-spin 6s linear infinite !important;
+}
+
+.fx[data-fx='nova'] .nova-token-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 0.12em 0.2em color-mix(in oklab, var(--t-canvas) 80%, transparent))
+    drop-shadow(0 0 0.35em color-mix(in oklab, var(--nova-mag) 45%, transparent));
+}
+
+.fx[data-fx='nova'] .nova-token-shadow {
+  position: absolute;
+  left: -0.8em;
+  top: -0.14em;
+  width: 1.6em;
+  height: 0.3em;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--nova-cyan) 75%, transparent), transparent);
+  opacity: 0;
+  animation: nova-nw-shadow 6s linear infinite !important;
+}
+
+.fx[data-fx='nova'] .nova-land-ring {
+  position: absolute;
+  left: -0.8em;
+  top: -0.22em;
+  width: 1.6em;
+  height: 0.44em;
+  border: 1.5px solid var(--nova-hot);
+  border-radius: 50%;
+  opacity: 0;
+  animation: nova-nw-ring 6s linear infinite !important;
+}
+
+.fx[data-fx='nova'] .nova-pix {
+  position: absolute;
+  left: -0.1em;
+  top: -0.75em;
+  width: 0.2em;
+  height: 0.2em;
+  background: var(--nova-cyan);
+  box-shadow: 0 0 0.4em var(--nova-cyan);
+  opacity: 0;
+  animation: nova-nw-pix 6s linear infinite !important;
+}
+
+.fx[data-fx='nova'] .nova-pix[data-m='1'] {
+  background: var(--nova-mag);
+  box-shadow: 0 0 0.4em var(--nova-mag);
+}
+
+@keyframes nova-nw-fill {
+  0%,
+  23.5% {
+    background-position:
+      100% 0,
+      0 0;
+    filter: brightness(1) drop-shadow(0 0 0.3em color-mix(in oklab, var(--nova-cyan) 60%, transparent))
+      drop-shadow(0 0 0.7em color-mix(in oklab, var(--nova-mag) 45%, transparent));
+  }
+  25% {
+    filter: brightness(1.3) drop-shadow(0 0 0.5em var(--nova-hot)) drop-shadow(0 0 0.9em var(--nova-mag));
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  31% {
+    background-position:
+      0% 0,
+      0 0;
+    filter: brightness(1) drop-shadow(0 0 0.3em color-mix(in oklab, var(--nova-cyan) 60%, transparent))
+      drop-shadow(0 0 0.7em color-mix(in oklab, var(--nova-mag) 45%, transparent));
+    animation-timing-function: steps(1, end);
+  }
+  31.2%,
+  54.5% {
+    background-position:
+      100% 0,
+      0 0;
+  }
+  56% {
+    filter: brightness(1.45) drop-shadow(0 0 0.55em var(--nova-hot)) drop-shadow(0 0 1em var(--nova-mag));
+    animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+  }
+  66% {
+    background-position:
+      0% 0,
+      0 0;
+    filter: brightness(1) drop-shadow(0 0 0.3em color-mix(in oklab, var(--nova-cyan) 60%, transparent))
+      drop-shadow(0 0 0.7em color-mix(in oklab, var(--nova-mag) 45%, transparent));
+  }
+  99% {
+    background-position:
+      0% 0,
+      0 0;
+    animation-timing-function: steps(1, end);
+  }
+  100% {
+    background-position:
+      100% 0,
+      0 0;
+  }
+}
+
+@keyframes nova-nw-x {
+  0%,
+  5% {
+    opacity: 0;
+    transform: translateX(1.9em);
+  }
+  7% {
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.45, 0.05, 0.55, 0.95);
+  }
+  24%,
+  86% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  92%,
+  100% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+}
+
+@keyframes nova-nw-y {
+  0%,
+  5% {
+    transform: translateY(1.3em) scale(0.5);
+    animation-timing-function: cubic-bezier(0.22, 0.7, 0.4, 1);
+  }
+  14% {
+    transform: translateY(-2.1em) scale(1.35);
+    animation-timing-function: cubic-bezier(0.6, 0.05, 0.9, 0.5);
+  }
+  24% {
+    transform: translateY(0) scale(1);
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1);
+  }
+  27% {
+    transform: translateY(-0.4em) scale(1.04);
+    animation-timing-function: cubic-bezier(0.6, 0.05, 0.9, 0.5);
+  }
+  29.6% {
+    transform: translateY(0) scale(1);
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1);
+  }
+  31% {
+    transform: translateY(-0.12em) scale(1);
+    animation-timing-function: cubic-bezier(0.6, 0.05, 0.9, 0.5);
+  }
+  32.2%,
+  86% {
+    transform: translateY(0) scale(1);
+    animation-timing-function: cubic-bezier(0.7, 0, 0.84, 0);
+  }
+  92%,
+  100% {
+    transform: translateY(-0.3em) scale(0.85);
+  }
+}
+
+@keyframes nova-nw-spin {
+  0%,
+  5% {
+    transform: rotateX(0deg) rotateY(0deg) rotateZ(-8deg);
+    animation-timing-function: cubic-bezier(0.3, 0.4, 0.6, 1);
+  }
+  24%,
+  32% {
+    transform: rotateX(1080deg) rotateY(0deg) rotateZ(0deg);
+  }
+  38% {
+    transform: rotateX(1080deg) rotateY(180deg) rotateZ(0deg);
+  }
+  43% {
+    transform: rotateX(1080deg) rotateY(360deg) rotateZ(0deg);
+  }
+  46.8% {
+    transform: rotateX(1080deg) rotateY(540deg) rotateZ(0deg);
+  }
+  49.8% {
+    transform: rotateX(1080deg) rotateY(720deg) rotateZ(0deg);
+  }
+  52.2% {
+    transform: rotateX(1080deg) rotateY(900deg) rotateZ(0deg);
+  }
+  54% {
+    transform: rotateX(1080deg) rotateY(1080deg) rotateZ(0deg);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  55.5% {
+    transform: rotateX(1096deg) rotateY(1080deg) rotateZ(0deg);
+  }
+  57% {
+    transform: rotateX(1073deg) rotateY(1080deg) rotateZ(0deg);
+  }
+  58.3% {
+    transform: rotateX(1083deg) rotateY(1080deg) rotateZ(0deg);
+  }
+  59.5%,
+  100% {
+    transform: rotateX(1080deg) rotateY(1080deg) rotateZ(0deg);
+  }
+}
+
+@keyframes nova-nw-shadow {
+  0%,
+  23% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  24% {
+    opacity: 0.9;
+    transform: scale(1.2);
+  }
+  27% {
+    opacity: 0.45;
+    transform: scale(0.8);
+  }
+  29.6% {
+    opacity: 0.9;
+    transform: scale(1.1);
+  }
+  33%,
+  54% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  59% {
+    opacity: 0.95;
+    transform: scale(1.25);
+  }
+  66%,
+  86% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  92%,
+  100% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+@keyframes nova-nw-ring {
+  0%,
+  23.9%,
+  61.1%,
+  100% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  24% {
+    opacity: 0.85;
+    transform: scale(0.3);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  31% {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+  54% {
+    opacity: 0.85;
+    transform: scale(0.3);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  61% {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+
+@keyframes nova-nw-pix {
+  0%,
+  53.9% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+  54% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  64%,
+  100% {
+    opacity: 0;
+    transform: translate(var(--px), var(--py)) rotate(calc(var(--pr) * 4)) scale(0.5);
+  }
+}
+
+/* ======================================================================
+   fallback signature: the neon glitch, a 7s loop. One big glitch at about
+   17.5% (1.2s) and a smaller echo at about 61% (4.3s).
+   ====================================================================== */
+
+.fx[data-fx='nova']:has(.nova-m-glitch) .fx-text {
+  animation: nova-glitch-jolt 7s linear infinite !important;
+}
+
+.fx[data-fx='nova']:has(.nova-m-glitch) .fx-text::before,
+.fx[data-fx='nova']:has(.nova-m-glitch) .fx-text::after {
+  content: attr(data-w);
+  content: attr(data-w) / '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  pointer-events: none;
+  text-shadow: none;
+  mix-blend-mode: screen;
+}
+
+.fx[data-fx='nova']:has(.nova-m-glitch) .fx-text::before {
+  color: var(--nova-cyan);
+  animation: nova-glitch-c 7s linear infinite !important;
+}
+
+.fx[data-fx='nova']:has(.nova-m-glitch) .fx-text::after {
+  color: var(--nova-mag);
+  animation: nova-glitch-m 7s linear infinite !important;
+}
+
+/* the scanline band: a bright-edged sweep plus fine dark scanlines over the
+   word's own box, visible only while it passes */
+.fx[data-fx='nova']:has(.nova-m-glitch)::after {
+  content: '';
+  position: absolute;
+  inset: -0.05em -0.12em;
+  pointer-events: none;
+  opacity: 0;
+  background-image:
+    linear-gradient(
+      to bottom,
+      transparent,
+      color-mix(in oklab, var(--nova-cyan) 34%, transparent) 55%,
+      color-mix(in oklab, var(--t-ink) 62%, var(--nova-cyan)) 94%,
+      transparent
+    ),
+    repeating-linear-gradient(to bottom, transparent 0 0.07em, color-mix(in oklab, var(--t-canvas) 55%, transparent) 0.07em 0.11em);
+  background-size:
+    100% 42%,
+    100% 100%;
+  background-repeat: no-repeat;
+  background-position:
+    0 -60%,
+    0 0;
+  animation: nova-glitch-scan 7s linear infinite !important;
+}
+
+.fx[data-fx='nova'] .nova-g {
+  position: absolute;
+  left: var(--x, 50%);
+  top: 22%;
+  margin-left: -0.25em;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: var(--gs, 0.42em);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--nova-cyan);
+  text-shadow: 0 0 0.5em color-mix(in oklab, var(--nova-cyan) 80%, transparent);
+  opacity: 0;
+  animation: nova-glitch-glyph 7s linear calc(1.2s + var(--d, 0s)) infinite backwards !important;
+}
+
+.fx[data-fx='nova'] .nova-g[data-m='1'] {
+  color: var(--nova-mag);
+  text-shadow: 0 0 0.5em color-mix(in oklab, var(--nova-mag) 80%, transparent);
+}
+
+.fx[data-fx='nova'] .nova-g[data-b='1'] {
+  animation-delay: calc(4.25s + var(--d, 0s));
+}
+
+@keyframes nova-glitch-jolt {
+  0%,
+  17.4%,
+  21%,
+  60.9%,
+  62.6%,
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+  17.7% {
+    transform: translateX(0.025em);
+  }
+  18.4% {
+    opacity: 0.82;
+    transform: translateX(-0.035em) skewX(-2.5deg);
+  }
+  19.2% {
+    opacity: 1;
+    transform: translateX(0.02em) skewX(2deg);
+  }
+  20% {
+    opacity: 0.9;
+    transform: translateX(-0.015em);
+  }
+  61.3% {
+    opacity: 0.86;
+    transform: translateX(0.02em) skewX(-1.5deg);
+  }
+}
+
+@keyframes nova-glitch-c {
+  0%,
+  17.4%,
+  21%,
+  60.9%,
+  62.6%,
+  100% {
+    opacity: 0;
+    transform: none;
+  }
+  17.5% {
+    opacity: 0.95;
+    transform: translateX(-0.05em);
+  }
+  18.5% {
+    opacity: 0.95;
+    transform: translateX(-0.15em) skewX(-6deg);
+  }
+  19.5% {
+    opacity: 0.9;
+    transform: translateX(-0.07em) skewX(4deg);
+  }
+  20.5% {
+    opacity: 0.8;
+    transform: translateX(-0.12em);
+  }
+  61% {
+    opacity: 0.8;
+    transform: translateX(-0.08em);
+  }
+  62% {
+    opacity: 0.7;
+    transform: translateX(-0.04em) skewX(3deg);
+  }
+}
+
+@keyframes nova-glitch-m {
+  0%,
+  17.4%,
+  21%,
+  60.9%,
+  62.6%,
+  100% {
+    opacity: 0;
+    transform: none;
+  }
+  17.5% {
+    opacity: 0.95;
+    transform: translateX(0.05em);
+  }
+  18.5% {
+    opacity: 0.95;
+    transform: translateX(0.16em) skewX(5deg);
+  }
+  19.5% {
+    opacity: 0.9;
+    transform: translateX(0.06em) skewX(-4deg);
+  }
+  20.5% {
+    opacity: 0.8;
+    transform: translateX(0.13em);
+  }
+  61% {
+    opacity: 0.8;
+    transform: translateX(0.08em);
+  }
+  62% {
+    opacity: 0.7;
+    transform: translateX(0.04em) skewX(-3deg);
+  }
+}
+
+@keyframes nova-glitch-scan {
+  0%,
+  17.4%,
+  23.1%,
+  60.9%,
+  64.1%,
+  100% {
+    opacity: 0;
+    background-position:
+      0 -60%,
+      0 0;
+  }
+  17.5% {
+    opacity: 1;
+    background-position:
+      0 -60%,
+      0 0;
+  }
+  23% {
+    opacity: 1;
+    background-position:
+      0 160%,
+      0 0;
+  }
+  61% {
+    opacity: 0.7;
+    background-position:
+      0 -60%,
+      0 0;
+  }
+  64% {
+    opacity: 0.7;
+    background-position:
+      0 160%,
+      0 0;
+  }
+}
+
+@keyframes nova-glitch-glyph {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  1.5% {
+    opacity: 1;
+  }
+  3% {
+    opacity: 0.35;
+  }
+  4.5% {
+    opacity: 0.95;
+  }
+  8% {
+    opacity: 0.7;
+  }
+  13%,
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx, 0), -1.1em);
+  }
+}
+
+/* forced colors: plain text, none of the pseudo-element copies or bands
+   (bio.css hides the layer itself and resets the text fill) */
+@media (forced-colors: active) {
+  .fx[data-fx='nova']::after,
+  .fx[data-fx='nova'] .fx-text::before,
+  .fx[data-fx='nova'] .fx-text::after {
+    display: none;
+  }
+}
