@@ -1,0 +1,828 @@
+/* bio.css: the profile bio's word effects. The paragraph is still body ink;
+   only tagged words ({kind:words} in data/characters.ts) change. One kind per
+   section below, in the order of bio/kinds.ts.
+
+   Imported once, by AnimatedBio.tsx.
+
+   Rules this file keeps:
+   - Particles move with transform and opacity only. The few word fills that
+     travel (frost, neon, shimmer bands) animate a background-position on a
+     single word, never on layout.
+   - Particles live in .fx-layer, an aria-hidden layer at z-index -1 inside
+     the bio's own stacking context, so they paint BEHIND every line of text
+     and can never cover a neighbouring line. Their travel stays within about
+     one em of the word.
+   - Colours: --t-* (her theme tokens on the frame) and --fx-* (her world's
+     atmosphere tints, written inline by AnimatedBio). No hex here.
+   - The effects do NOT follow prefers-reduced-motion (the user's call: the
+     bio's word effects always play). Every animation here is therefore
+     declared !important, so reduced-motion.css's global duration clamp never
+     stills them. Forced colors: plain CanvasText, no particles. */
+
+.bio {
+  /* The tagged word's static colour: her accent, pulled toward the page ink so
+     it holds contrast on both a light and a dark world. */
+  --fx-word: color-mix(in oklab, var(--t-accent) 82%, var(--t-ink));
+  /* A palette highlight that stays readable: the world's light tint, mixed back
+     toward the word colour (further on a light world, where light is pale). */
+  --fx-hi: color-mix(in oklab, var(--fx-light) 58%, var(--fx-word));
+  --fx-mid: color-mix(in oklab, var(--fx-a1) 62%, var(--fx-word));
+  --fx-alt: color-mix(in oklab, var(--fx-a2) 62%, var(--fx-word));
+  --fx-ease-sine: cubic-bezier(0.37, 0, 0.63, 1);
+  --fx-weight: 500;
+}
+
+.bio[data-scheme='light'] {
+  --fx-hi: color-mix(in oklab, var(--fx-light) 22%, var(--fx-word));
+  --fx-mid: color-mix(in oklab, var(--fx-a1) 38%, var(--fx-word));
+  --fx-alt: color-mix(in oklab, var(--fx-a2) 30%, var(--fx-word));
+}
+
+/* ---- the word and its layer -------------------------------------------- */
+
+.fx {
+  position: relative;
+  display: inline-block;
+  white-space: nowrap;
+  /* an estimate of the word's width, for travel distances: 0.54em per letter */
+  --fx-w: calc(var(--fx-n) * 0.54em);
+}
+
+.fx-text {
+  position: relative;
+  color: var(--fx-word);
+  font-weight: var(--fx-weight);
+}
+
+.fx-layer {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.fx-p {
+  position: absolute;
+  left: var(--x, 50%);
+  top: var(--y, 50%);
+  width: var(--s, 1em);
+  height: var(--s, 1em);
+  margin: calc(var(--s, 1em) / -2) 0 0 calc(var(--s, 1em) / -2);
+}
+
+/* Words filled with a gradient (clipped to the glyphs) and the overlay that
+   crosses over them. --fx-fill / --fx-fill-2 are set per kind below. */
+.fx[data-fx='gradient'] .fx-text,
+.fx[data-fx='embers'] .fx-text,
+.fx[data-fx='frost'] .fx-text,
+.fx[data-fx='stars'] .fx-text,
+.fx[data-fx='sand'] .fx-text,
+.fx[data-fx='shimmer'] .fx-text {
+  background-image: var(--fx-fill);
+  background-size: var(--fx-fill-size, 100% 100%);
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.fx[data-fx='gradient'] .fx-text::after,
+.fx[data-fx='embers'] .fx-text::after,
+.fx[data-fx='stars'] .fx-text::after {
+  content: attr(data-w);
+  content: attr(data-w) / '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  background-image: var(--fx-fill-2);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---- orbit: bats, fireflies, butterflies --------------------------------
+   Two nested sine-eased alternations a quarter period apart trace an ellipse:
+   the particle moves in x, its child in y. --rx-k / --ry-k jitter the radii. */
+.fx-orbit {
+  --rx: calc(var(--fx-w) / 2 - 0.05em + var(--rx-k, 0) * 1em);
+  --ry: calc(0.8em + var(--ry-k, 0) * 1em);
+  --s: 1;
+  width: var(--ow, 1em);
+  height: var(--oh, 0.6em);
+  margin: calc(var(--oh, 0.6em) / -2) 0 0 calc(var(--ow, 1em) / -2);
+  animation: fx-orbit-x var(--t, 3s) var(--fx-ease-sine) var(--d, 0s) infinite alternate !important;
+}
+
+.fx-orbit-y {
+  display: block;
+  animation: fx-orbit-y var(--t, 3s) var(--fx-ease-sine) calc(var(--d, 0s) - var(--t, 3s) / 2) infinite alternate !important;
+}
+
+.fx-orbit[data-rev='1'] > .fx-orbit-y {
+  animation-delay: calc(var(--d, 0s) + var(--t, 3s) / 2);
+}
+
+@keyframes fx-orbit-x {
+  from {
+    transform: translateX(calc(var(--rx) * -1));
+  }
+  to {
+    transform: translateX(var(--rx));
+  }
+}
+
+@keyframes fx-orbit-y {
+  from {
+    transform: translateY(calc(var(--ry) * -1)) scale(var(--s));
+  }
+  to {
+    transform: translateY(var(--ry)) scale(var(--s));
+  }
+}
+
+/* ---- bats: crimson word, glow, bat silhouettes -------------------------- */
+.fx[data-fx='bats'] .fx-text {
+  text-shadow: 0 0 0.7em color-mix(in oklab, var(--t-accent) 55%, transparent);
+}
+
+.fx-bat-svg {
+  display: block;
+  fill: color-mix(in oklab, var(--t-accent) 70%, var(--t-ink));
+}
+
+.fx-wing-a {
+  animation: fx-flap-a 0.34s step-end infinite !important;
+}
+
+.fx-wing-b {
+  animation: fx-flap-b 0.34s step-end infinite !important;
+}
+
+@keyframes fx-flap-a {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes fx-flap-b {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ---- fall: petals, feathers --------------------------------------------- */
+.fx-fall {
+  --y: -20%;
+  animation: fx-fall var(--t, 6s) linear var(--d, 0s) infinite !important;
+}
+
+.fx-sway {
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: fx-sway 2.2s var(--fx-ease-sine) infinite alternate !important;
+}
+
+@keyframes fx-fall {
+  0% {
+    opacity: 0;
+    transform: translate(0, -0.1em) rotate(0deg);
+  }
+  14% {
+    opacity: 0.9;
+  }
+  82% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), 1.9em) rotate(var(--rot));
+  }
+}
+
+@keyframes fx-sway {
+  from {
+    transform: translateX(-0.18em);
+  }
+  to {
+    transform: translateX(0.18em);
+  }
+}
+
+/* ---- petals ------------------------------------------------------------- */
+.fx[data-fx='petals'] .fx-text {
+  text-shadow: 0 0 0.6em color-mix(in oklab, var(--t-accent) 30%, transparent);
+}
+
+.fx[data-fx='petals'] .fx-fall {
+  --s: 0.5em;
+}
+
+.fx-petal {
+  display: block;
+  width: 100%;
+  height: 74%;
+  border-radius: 100% 0 100% 0;
+  background: linear-gradient(135deg, var(--fx-light), var(--t-accent));
+}
+
+/* ---- fireflies ----------------------------------------------------------- */
+.fx-fly {
+  display: block;
+  width: 0.3em;
+  height: 0.3em;
+  border-radius: 50%;
+  background: var(--fx-a1);
+  box-shadow:
+    0 0 0.4em 0.1em var(--fx-a1),
+    0 0 1em 0.2em color-mix(in oklab, var(--fx-a2) 45%, transparent);
+  animation: fx-pulse var(--pulse, 2s) var(--fx-ease-sine) infinite alternate !important;
+}
+
+@keyframes fx-pulse {
+  from {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fx[data-fx='fireflies'] .fx-text {
+  text-shadow: 0 0 0.8em color-mix(in oklab, var(--fx-a1) 40%, transparent);
+}
+
+/* ---- rise: bubbles ---------------------------------------------------------- */
+.fx-rise {
+  --y: 100%;
+  animation: fx-rise var(--t, 4s) linear var(--d, 0s) infinite !important;
+}
+
+@keyframes fx-rise {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0.2em) scale(0.6);
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), -1.7em) scale(1);
+  }
+}
+
+.fx-bubble {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 1px solid color-mix(in oklab, var(--fx-light) 80%, var(--t-accent));
+  background: radial-gradient(circle at 32% 30%, color-mix(in oklab, var(--fx-light) 75%, transparent), transparent 55%);
+}
+
+.fx[data-fx='bubbles'] .fx-text {
+  text-shadow: 0 0 0.5em color-mix(in oklab, var(--fx-a1) 35%, transparent);
+}
+
+/* ---- embers --------------------------------------------------------------- */
+.fx[data-fx='embers'] {
+  --fx-fill: linear-gradient(0deg, var(--fx-word) 0%, var(--fx-mid) 52%, var(--fx-hi) 100%);
+  --fx-fill-2: linear-gradient(0deg, var(--fx-mid) 0%, var(--fx-hi) 55%, var(--fx-alt) 100%);
+}
+
+.fx[data-fx='embers'] .fx-text::after {
+  animation: fx-flicker 2.4s linear infinite !important;
+}
+
+@keyframes fx-flicker {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.9;
+  }
+  22% {
+    opacity: 0.2;
+  }
+  38% {
+    opacity: 0.8;
+  }
+  47% {
+    opacity: 0.1;
+  }
+  63% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 0.3;
+  }
+}
+
+.fx-spark-rise {
+  --y: 70%;
+  animation: fx-spark-rise var(--t, 3s) linear var(--d, 0s) infinite !important;
+}
+
+@keyframes fx-spark-rise {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(1);
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), -1.8em) scale(0.3);
+  }
+}
+
+.fx-ember {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--fx-a2);
+  box-shadow: 0 0 0.35em 0.06em var(--fx-a1);
+}
+
+.fx-spark-rise[data-alt='1'] .fx-ember {
+  background: var(--fx-a1);
+  box-shadow: 0 0 0.35em 0.06em var(--t-accent);
+}
+
+/* ---- twinkle: frost, stars ------------------------------------------------------- */
+.fx-twinkle {
+  animation: fx-twinkle var(--t, 2.6s) var(--fx-ease-sine) var(--d, 0s) infinite !important;
+}
+
+@keyframes fx-twinkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.2) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(45deg);
+  }
+}
+
+.fx-star {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--fx-star, var(--fx-light));
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+  filter: drop-shadow(0 0 0.2em var(--fx-star, var(--fx-light)));
+}
+
+/* ---- frost ---------------------------------------------------------------------- */
+.fx[data-fx='frost'] {
+  --fx-star: color-mix(in oklab, var(--fx-light) 70%, var(--t-accent));
+  --fx-fill: linear-gradient(
+    105deg,
+    var(--fx-word) 0%,
+    var(--fx-word) 38%,
+    var(--fx-hi) 48%,
+    var(--fx-light) 50%,
+    var(--fx-hi) 52%,
+    var(--fx-word) 62%,
+    var(--fx-word) 100%
+  );
+  --fx-fill-size: 300% 100%;
+}
+
+.bio[data-scheme='light'] .fx[data-fx='frost'] {
+  --fx-fill: linear-gradient(105deg, var(--fx-word) 0%, var(--fx-word) 40%, var(--fx-hi) 50%, var(--fx-word) 60%, var(--fx-word) 100%);
+}
+
+.fx[data-fx='frost'] .fx-text {
+  background-position: 0% 50%;
+  animation: fx-band 5.2s var(--fx-ease-sine) infinite !important;
+}
+
+@keyframes fx-band {
+  0%,
+  30% {
+    background-position: 0% 50%;
+  }
+  80%,
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+/* ---- neon ---------------------------------------------------------------------------- */
+.fx[data-fx='neon'] .fx-text {
+  color: var(--fx-alt);
+  text-shadow:
+    0 0 0.12em var(--fx-alt),
+    0 0 0.45em color-mix(in oklab, var(--fx-alt) 70%, transparent),
+    0 0 0.9em color-mix(in oklab, var(--fx-a1) 55%, transparent);
+  animation: fx-neon 6.4s linear infinite !important;
+}
+
+@keyframes fx-neon {
+  0%,
+  17%,
+  21%,
+  58%,
+  62%,
+  100% {
+    opacity: 1;
+  }
+  18% {
+    opacity: 0.45;
+  }
+  19.5% {
+    opacity: 0.95;
+  }
+  20% {
+    opacity: 0.35;
+  }
+  59% {
+    opacity: 0.55;
+  }
+  60.5% {
+    opacity: 1;
+  }
+  61% {
+    opacity: 0.5;
+  }
+}
+
+/* ---- halo: neon, glow ------------------------------------------------------------------ */
+.fx-halo {
+  position: absolute;
+  inset: -0.25em -0.5em;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--halo, var(--t-accent)) 48%, transparent), transparent);
+  filter: blur(0.35em);
+  animation: fx-halo 2.8s var(--fx-ease-sine) infinite alternate !important;
+}
+
+.fx[data-fx='neon'] .fx-halo {
+  --halo: var(--fx-a1);
+}
+
+@keyframes fx-halo {
+  from {
+    opacity: 0.35;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+.fx[data-fx='glow'] .fx-text {
+  color: var(--fx-word);
+  text-shadow: 0 0 0.55em color-mix(in oklab, var(--t-accent) 70%, transparent);
+}
+
+/* ---- stars ------------------------------------------------------------------------------------ */
+.fx[data-fx='stars'] {
+  --fx-star: var(--fx-hi);
+  --fx-fill: linear-gradient(100deg, var(--fx-word), var(--fx-hi) 55%, var(--fx-mid));
+  --fx-fill-2: linear-gradient(100deg, var(--fx-hi), var(--fx-mid) 50%, var(--fx-word));
+}
+
+.fx[data-fx='stars'] .fx-text::after {
+  animation: fx-cross 3.6s var(--fx-ease-sine) infinite alternate !important;
+}
+
+@keyframes fx-cross {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---- foxfire ------------------------------------------------------------------------------------- */
+.fx-curl {
+  --y: 90%;
+  --s: 0.5em;
+  animation: fx-curl var(--t, 4s) var(--fx-ease-sine) var(--d, 0s) infinite !important;
+}
+
+@keyframes fx-curl {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0deg) scale(0.6);
+  }
+  25% {
+    opacity: 0.9;
+  }
+  60% {
+    transform: translate(calc(var(--dx) * 0.5), -0.9em) rotate(var(--rot)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), -1.7em) rotate(calc(var(--rot) * -0.6)) scale(0.5);
+  }
+}
+
+.fx-wisp {
+  display: block;
+  width: 62%;
+  height: 100%;
+  margin: 0 auto;
+  border-radius: 50% 50% 50% 50% / 68% 68% 32% 32%;
+  background: radial-gradient(ellipse at 50% 70%, var(--fx-light), var(--fx-a1) 55%, transparent 80%);
+  filter: blur(0.5px) drop-shadow(0 0 0.3em var(--fx-a1));
+}
+
+.fx[data-fx='foxfire'] .fx-text {
+  text-shadow: 0 0 0.7em color-mix(in oklab, var(--fx-a1) 55%, transparent);
+}
+
+/* ---- smoke ------------------------------------------------------------------------------------------ */
+.fx-puff {
+  --y: 40%;
+  animation: fx-puff var(--t, 5s) linear var(--d, 0s) infinite !important;
+}
+
+@keyframes fx-puff {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.5);
+  }
+  25% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), -1.5em) scale(1.9);
+  }
+}
+
+.fx-smoke {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in oklab, var(--fx-fog) 75%, transparent), transparent 70%);
+  filter: blur(0.15em);
+}
+
+.fx[data-fx='smoke'] .fx-text {
+  text-shadow: 0 0 0.8em color-mix(in oklab, var(--fx-fog) 60%, transparent);
+}
+
+/* ---- feathers ------------------------------------------------------------------------------------------- */
+.fx-feather {
+  --s: 1em;
+  --y: -30%;
+  width: 0.34em;
+  margin-left: -0.17em;
+  animation-name: fx-fall;
+}
+
+.fx-feather svg {
+  display: block;
+  fill: color-mix(in oklab, var(--fx-fog) 72%, var(--t-ink));
+}
+
+.fx[data-fx='feathers'] .fx-text {
+  text-shadow: 0 0 0.5em color-mix(in oklab, var(--fx-fog) 50%, transparent);
+}
+
+/* ---- sand ---------------------------------------------------------------------------------------------------- */
+.fx-drift {
+  --x: 0%;
+  animation: fx-drift var(--t, 3.6s) linear var(--d, 0s) infinite !important;
+}
+
+@keyframes fx-drift {
+  0% {
+    opacity: 0;
+    transform: translate(-0.3em, 0.1em);
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--fx-w) + 0.8em), -0.4em);
+  }
+}
+
+.fx-grain {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--fx-light);
+  box-shadow: 0 0 0.3em 0.05em var(--fx-a1);
+}
+
+.fx[data-fx='sand'] {
+  --fx-fill: linear-gradient(100deg, var(--fx-word) 0%, var(--fx-hi) 24%, var(--fx-word) 48%, var(--fx-mid) 74%, var(--fx-word) 100%);
+  --fx-fill-size: 220% 100%;
+}
+
+.fx[data-fx='sand'] .fx-text {
+  background-position: 0% 50%;
+  animation: fx-sand-band 6s var(--fx-ease-sine) infinite alternate !important;
+}
+
+@keyframes fx-sand-band {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 100% 50%;
+  }
+}
+
+/* ---- sparks ------------------------------------------------------------------------------------------------------ */
+.fx-spark-aim {
+  --s: 0.1em;
+  rotate: var(--a);
+}
+
+.fx-spark {
+  display: block;
+  width: 0.55em;
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, var(--fx-light), var(--fx-a1));
+  box-shadow: 0 0 0.3em var(--fx-a1);
+  transform-origin: left center;
+  opacity: 0;
+  animation: fx-pop 3.4s linear var(--d, 0s) infinite !important;
+}
+
+@keyframes fx-pop {
+  0% {
+    opacity: 0;
+    transform: translateX(0.1em) scaleX(0.3);
+  }
+  3% {
+    opacity: 1;
+  }
+  14% {
+    opacity: 0;
+    transform: translateX(0.9em) scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(0.9em) scaleX(1);
+  }
+}
+
+.fx[data-fx='sparks'] .fx-text {
+  text-shadow: 0 0 0.5em color-mix(in oklab, var(--fx-a1) 45%, transparent);
+}
+
+/* ---- butterflies --------------------------------------------------------------------------------------------------- */
+.fx[data-fx='butterflies'] .fx-orbit {
+  --rx: calc(var(--fx-w) / 2 + 0.35em + var(--rx-k, 0) * 1em);
+  --ry: calc(0.6em + var(--ry-k, 0) * 1em);
+  animation-duration: calc(var(--t) * 1.15) !important;
+}
+
+.fx[data-fx='butterflies'] .fx-orbit-y svg {
+  display: block;
+  fill: var(--fx-a1);
+}
+
+.fx[data-fx='butterflies'] .fx-orbit[data-alt='1'] .fx-orbit-y svg {
+  fill: var(--fx-a2);
+}
+
+.fx[data-fx='butterflies'] .fx-orbit-y svg .fx-wing-low {
+  opacity: 0.7;
+}
+
+.fx-wings {
+  transform-origin: 50% 50%;
+  transform-box: fill-box;
+  animation: fx-wings 0.42s var(--fx-ease-sine) infinite alternate !important;
+}
+
+@keyframes fx-wings {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0.32);
+  }
+}
+
+.fx[data-fx='butterflies'] .fx-text {
+  text-shadow: 0 0 0.6em color-mix(in oklab, var(--fx-a1) 35%, transparent);
+}
+
+/* ---- bokeh ------------------------------------------------------------------------------------------------------------- */
+.fx-breathe {
+  animation: fx-breathe var(--t, 4s) var(--fx-ease-sine) var(--d, 0s) infinite alternate !important;
+}
+
+@keyframes fx-breathe {
+  from {
+    opacity: 0.25;
+    transform: scale(0.82);
+  }
+  to {
+    opacity: 0.7;
+    transform: scale(1.18);
+  }
+}
+
+.fx-orb {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--fx-light), color-mix(in oklab, var(--fx-a1) 65%, transparent) 55%, transparent 72%);
+  filter: blur(0.12em);
+}
+
+.fx-breathe[data-alt='1'] .fx-orb {
+  background: radial-gradient(circle, var(--fx-a1), color-mix(in oklab, var(--fx-a2) 55%, transparent) 55%, transparent 72%);
+}
+
+.fx[data-fx='bokeh'] .fx-text {
+  text-shadow: 0 0 0.6em color-mix(in oklab, var(--fx-a1) 45%, transparent);
+}
+
+/* ---- gradient ---------------------------------------------------------------------------------------------------------------- */
+.fx[data-fx='gradient'] {
+  --fx-g1: color-mix(in oklab, var(--fx-a1) 80%, var(--fx-word));
+  --fx-g2: color-mix(in oklab, var(--fx-a2) 80%, var(--fx-word));
+  --fx-fill: linear-gradient(100deg, var(--fx-word) 0%, var(--fx-g1) 55%, var(--fx-g2) 100%);
+  --fx-fill-2: linear-gradient(100deg, var(--fx-g2) 0%, var(--fx-word) 50%, var(--fx-g1) 100%);
+}
+
+.bio[data-scheme='light'] .fx[data-fx='gradient'] {
+  --fx-g1: color-mix(in oklab, var(--fx-a1) 55%, var(--fx-word));
+  --fx-g2: color-mix(in oklab, var(--fx-a2) 40%, var(--fx-word));
+}
+
+.fx[data-fx='gradient'] .fx-text::after {
+  animation: fx-cross 4s var(--fx-ease-sine) infinite alternate !important;
+}
+
+/* ---- shimmer --------------------------------------------------------------------------------------------------------------------- */
+.fx[data-fx='shimmer'] {
+  --fx-fill: linear-gradient(
+    105deg,
+    var(--fx-word) 0%,
+    var(--fx-word) 40%,
+    var(--fx-hi) 48%,
+    var(--fx-light) 50%,
+    var(--fx-hi) 52%,
+    var(--fx-word) 60%,
+    var(--fx-word) 100%
+  );
+  --fx-fill-size: 320% 100%;
+}
+
+.bio[data-scheme='light'] .fx[data-fx='shimmer'] {
+  --fx-fill: linear-gradient(105deg, var(--fx-word) 0%, var(--fx-word) 40%, var(--fx-hi) 50%, var(--fx-word) 60%, var(--fx-word) 100%);
+}
+
+.fx[data-fx='shimmer'] .fx-text {
+  background-position: 0% 50%;
+  animation: fx-band 5.6s var(--fx-ease-sine) infinite !important;
+}
+
+/* ---- forced colors -------------------------------------------------------------------------------------------------------------------------- */
+@media (forced-colors: active) {
+  .fx-layer {
+    display: none;
+  }
+
+  .bio .fx[data-fx] .fx-text {
+    background-image: none;
+    -webkit-background-clip: border-box;
+    background-clip: border-box;
+    color: CanvasText;
+    text-shadow: none;
+  }
+
+  .fx-text::after {
+    display: none;
+  }
+}
