@@ -1,0 +1,1066 @@
+/* Vesper (crimson world: black wine, crimson, candle gold). Scoped to
+   .fx[data-fx='vesper']; keyframes are prefixed vesper-. Each word has its own
+   scene and its own 5.6 to 7.4s loop, offset with a negative delay so the five
+   never fire together. Motion is transform, opacity, filter and
+   background-position only. The word always animates (no reduced-motion rule),
+   so every animation is !important to outlast the global duration clamp. */
+
+.fx[data-fx='vesper'] {
+  --vs-lit: color-mix(in oklab, var(--fx-word) 80%, var(--t-ink));
+  --vs-blood: color-mix(in oklab, var(--t-accent) 92%, var(--t-ink));
+  --vs-deep: color-mix(in oklab, var(--t-accent) 52%, var(--fx-fog));
+  --vs-gloss: color-mix(in oklab, var(--fx-light) 55%, var(--vs-lit));
+  --vs-warm: color-mix(in oklab, var(--fx-a1) 60%, var(--vs-lit));
+  --vs-lace: color-mix(in oklab, var(--t-ink) 72%, var(--t-accent));
+  --vs-shadow: color-mix(in oklab, var(--fx-deep) 80%, transparent);
+}
+
+.fx[data-fx='vesper'] .fx-text {
+  display: inline-block;
+  background-image: linear-gradient(var(--vs-lit), var(--vs-lit));
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.fx[data-fx='vesper'] .vs-scene {
+  position: absolute;
+  inset: 0;
+}
+
+.fx[data-fx='vesper'] .vs-actor {
+  position: absolute;
+  display: block;
+}
+
+.fx[data-fx='vesper'] .vs-sprite {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 0.1em 0.14em var(--vs-shadow));
+}
+
+.fx[data-fx='vesper'] .vs-back {
+  position: absolute;
+  inset: -0.4em -0.6em;
+  border-radius: 50%;
+  opacity: 0;
+  background: radial-gradient(
+    ellipse at 50% 55%,
+    color-mix(in oklab, var(--t-accent) 52%, transparent) 0%,
+    color-mix(in oklab, var(--t-accent) 16%, transparent) 46%,
+    transparent 72%
+  );
+}
+
+/* ================= unbuttoned: 6.4s ================= */
+.fx[data-fx='vesper'] .fx-text[data-w='unbuttoned' i] {
+  background-image: linear-gradient(100deg, var(--vs-lit) 0%, var(--vs-lit) 38%, var(--vs-gloss) 50%, var(--vs-lit) 62%, var(--vs-lit) 100%);
+  background-size: 300% 100%;
+  background-position: 100% 0;
+  animation: vesper-velvet 6.4s ease-in-out -1.2s infinite !important;
+}
+
+@keyframes vesper-velvet {
+  0%,
+  34% {
+    background-position: 100% 0;
+  }
+  62%,
+  100% {
+    background-position: 0% 0;
+  }
+}
+
+.fx[data-fx='vesper'] .vs-button {
+  left: calc(100% - 1.3em);
+  top: -1.3em;
+  width: 1.9em;
+  height: 1.9em;
+  opacity: 0;
+  animation: vesper-button 6.4s ease-in-out -1.2s infinite !important;
+}
+
+@keyframes vesper-button {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0.1em) scale(0.5) rotate(0deg);
+  }
+  6% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  14% {
+    transform: translate(0, 0) scale(1) rotate(-9deg);
+  }
+  20% {
+    transform: translate(0.02em, 0.03em) scale(1) rotate(7deg);
+  }
+  26% {
+    transform: translate(-0.02em, 0.04em) scale(1) rotate(-11deg);
+  }
+  32% {
+    transform: translate(0, 0.05em) scale(1) rotate(8deg);
+  }
+  35% {
+    transform: translate(0, 0.08em) scale(0.86, 0.9) rotate(0deg);
+    animation-timing-function: cubic-bezier(0.1, 0.7, 0.3, 1);
+  }
+  41% {
+    transform: translate(0.55em, -0.9em) scale(1.1) rotate(170deg);
+  }
+  52% {
+    transform: translate(1.15em, -0.55em) scale(1.05) rotate(320deg);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+  }
+  66% {
+    transform: translate(1.55em, 1.4em) scale(1) rotate(540deg);
+    animation-timing-function: ease-out;
+  }
+  71% {
+    transform: translate(1.75em, 1.05em) scale(1) rotate(600deg);
+    animation-timing-function: ease-in;
+  }
+  76% {
+    transform: translate(1.9em, 1.4em) scale(1) rotate(660deg);
+  }
+  80%,
+  90% {
+    opacity: 1;
+    transform: translate(1.98em, 1.3em) scale(1) rotate(690deg);
+  }
+  96%,
+  100% {
+    opacity: 0;
+    transform: translate(1.98em, 1.3em) scale(1) rotate(690deg);
+  }
+}
+
+.fx[data-fx='vesper'] .vs-glint {
+  position: absolute;
+  left: 20%;
+  top: 14%;
+  width: 0.55em;
+  height: 0.55em;
+  opacity: 0;
+  background:
+    radial-gradient(circle, var(--vs-gloss) 0 14%, transparent 42%),
+    linear-gradient(90deg, transparent 42%, var(--vs-gloss) 50%, transparent 58%),
+    linear-gradient(0deg, transparent 42%, var(--vs-gloss) 50%, transparent 58%);
+  animation: vesper-glint 6.4s linear -1.2s infinite !important;
+}
+
+@keyframes vesper-glint {
+  0%,
+  5%,
+  10%,
+  40%,
+  47%,
+  77%,
+  84%,
+  100% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  8%,
+  43%,
+  80% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.fx[data-fx='vesper'] .vs-lace {
+  position: absolute;
+  left: -0.15em;
+  right: -0.15em;
+  top: calc(100% - 0.15em);
+  height: 0.34em;
+  opacity: 0.75;
+  transform-origin: 50% 0;
+  background: radial-gradient(circle at 50% 0%, transparent 0.15em, var(--vs-lace) 0.16em 0.2em, transparent 0.21em) 0 0 / 0.46em 0.34em repeat-x;
+  animation: vesper-lace 6.4s ease-in-out -1.2s infinite !important;
+}
+
+@keyframes vesper-lace {
+  0%,
+  34% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: translateY(0.06em) scaleY(1.15);
+  }
+  56% {
+    transform: translateY(0.04em) scaleY(0.95);
+  }
+  62%,
+  92% {
+    transform: translateY(0.05em) scaleY(1.05);
+  }
+  100% {
+    transform: scaleY(0.3);
+  }
+}
+
+.fx[data-fx='vesper'] .vs-unbuttoned .vs-back {
+  animation: vesper-pop-glow 6.4s ease-out -1.2s infinite !important;
+}
+
+@keyframes vesper-pop-glow {
+  0%,
+  34% {
+    opacity: 0.1;
+  }
+  41% {
+    opacity: 0.85;
+  }
+  62%,
+  100% {
+    opacity: 0.12;
+  }
+}
+
+/* ================= stays: 7.2s ================= */
+.fx[data-fx='vesper'] .fx-text[data-w='stays' i] {
+  background-image: linear-gradient(90deg, var(--vs-lit) 0%, var(--vs-warm) 50%, var(--vs-lit) 100%);
+  background-size: 240% 100%;
+  background-position: 0% 0;
+  animation:
+    vesper-warm-fill 7.2s ease-in-out -2.6s infinite,
+    vesper-warm-glow 7.2s linear -2.6s infinite !important;
+}
+
+@keyframes vesper-warm-fill {
+  0%,
+  38% {
+    background-position: 0% 0;
+  }
+  70%,
+  100% {
+    background-position: 100% 0;
+  }
+}
+
+@keyframes vesper-warm-glow {
+  0% {
+    filter: drop-shadow(0 0 0.15em color-mix(in oklab, var(--fx-a1) 25%, transparent));
+  }
+  4% {
+    filter: drop-shadow(0 0 0.4em color-mix(in oklab, var(--fx-a1) 55%, transparent));
+  }
+  9% {
+    filter: drop-shadow(0 0 0.1em color-mix(in oklab, var(--fx-a1) 18%, transparent));
+  }
+  15% {
+    filter: drop-shadow(0 0 0.45em color-mix(in oklab, var(--fx-a1) 60%, transparent));
+  }
+  22% {
+    filter: drop-shadow(0 0 0.12em color-mix(in oklab, var(--fx-a1) 22%, transparent));
+  }
+  30% {
+    filter: drop-shadow(0 0 0.38em color-mix(in oklab, var(--fx-a1) 52%, transparent));
+  }
+  37% {
+    filter: drop-shadow(0 0 0.2em color-mix(in oklab, var(--fx-a1) 30%, transparent));
+  }
+  42%,
+  100% {
+    filter: drop-shadow(0 0 0.4em color-mix(in oklab, var(--fx-a1) 50%, transparent));
+  }
+}
+
+.fx[data-fx='vesper'] .vs-candle {
+  left: calc(100% - 1.45em);
+  top: calc(100% - 2em);
+  width: 2.1em;
+  height: 2.1em;
+}
+
+.fx[data-fx='vesper'] .vs-candle > .vs-sprite {
+  filter: brightness(0.8) drop-shadow(0 0.1em 0.14em var(--vs-shadow));
+}
+
+.fx[data-fx='vesper'] .vs-flame {
+  position: absolute;
+  inset: 0;
+  clip-path: inset(0 0 76% 0);
+  transform-origin: 77% 24%;
+  animation: vesper-flame 7.2s ease-in-out -2.6s infinite !important;
+}
+
+@keyframes vesper-flame {
+  0% {
+    transform: skewX(0deg) scaleY(1);
+  }
+  3% {
+    transform: skewX(-4deg) scaleY(0.94);
+  }
+  6% {
+    transform: skewX(3deg) scaleY(1.06);
+  }
+  9% {
+    transform: skewX(-3deg) scaleY(0.96);
+  }
+  12% {
+    transform: skewX(4deg) scaleY(1.05);
+  }
+  16% {
+    transform: skewX(-5deg) scaleY(0.92);
+  }
+  20% {
+    transform: skewX(3deg) scaleY(1.07);
+  }
+  24% {
+    transform: skewX(-2deg) scaleY(1);
+  }
+  28% {
+    transform: skewX(3deg) scaleY(0.96);
+  }
+  32% {
+    transform: skewX(-1.5deg) scaleY(1.03);
+  }
+  36% {
+    transform: skewX(1deg) scaleY(1);
+  }
+  41% {
+    transform: skewX(0deg) scaleY(1.06);
+  }
+  56% {
+    transform: skewX(0.7deg) scaleY(1.03);
+  }
+  72% {
+    transform: skewX(-0.6deg) scaleY(1.05);
+  }
+  100% {
+    transform: skewX(0deg) scaleY(1);
+  }
+}
+
+.fx[data-fx='vesper'] .vs-flame-glow {
+  position: absolute;
+  left: 77%;
+  top: 11%;
+  width: 2.6em;
+  height: 2.6em;
+  margin: -1.3em 0 0 -1.3em;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in oklab, var(--fx-a1) 62%, transparent) 0%, color-mix(in oklab, var(--fx-a1) 20%, transparent) 38%, transparent 68%);
+  animation: vesper-flame-glow 7.2s linear -2.6s infinite !important;
+}
+
+@keyframes vesper-flame-glow {
+  0% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  4% {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+  8% {
+    opacity: 0.3;
+    transform: scale(0.75);
+  }
+  13% {
+    opacity: 0.9;
+    transform: scale(1.05);
+  }
+  19% {
+    opacity: 0.35;
+    transform: scale(0.78);
+  }
+  26% {
+    opacity: 0.8;
+    transform: scale(0.98);
+  }
+  33% {
+    opacity: 0.5;
+    transform: scale(0.88);
+  }
+  42% {
+    opacity: 0.85;
+    transform: scale(1.12);
+  }
+  70% {
+    opacity: 0.78;
+    transform: scale(1.06);
+  }
+  100% {
+    opacity: 0.85;
+    transform: scale(1.12);
+  }
+}
+
+.fx[data-fx='vesper'] .vs-wax {
+  position: absolute;
+  left: 86%;
+  top: 33%;
+  width: 0.13em;
+  height: 0.2em;
+  border-radius: 50% 50% 55% 55% / 40% 40% 60% 60%;
+  background: color-mix(in oklab, var(--t-ink) 78%, var(--fx-light));
+  opacity: 0;
+  transform-origin: 50% 0;
+  animation: vesper-wax 7.2s ease-in -2.6s infinite !important;
+}
+
+@keyframes vesper-wax {
+  0%,
+  44% {
+    opacity: 0;
+    transform: translateY(0) scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  54% {
+    opacity: 1;
+    transform: translateY(0.04em) scale(0.9, 1.2);
+  }
+  66% {
+    opacity: 1;
+    transform: translateY(0.55em) scale(0.8, 1.7);
+  }
+  72% {
+    opacity: 1;
+    transform: translateY(0.56em) scale(1, 0.9);
+  }
+  90% {
+    opacity: 1;
+    transform: translateY(0.56em) scale(1, 0.9);
+  }
+  97%,
+  100% {
+    opacity: 0;
+    transform: translateY(0.56em) scale(1, 0.9);
+  }
+}
+
+.fx[data-fx='vesper'] .vs-ember {
+  position: absolute;
+  left: 77%;
+  top: 8%;
+  width: 0.1em;
+  height: 0.1em;
+  border-radius: 50%;
+  background: var(--fx-a1);
+  box-shadow: 0 0 0.12em var(--fx-a1);
+  opacity: 0;
+  animation: vesper-ember 7.2s ease-out var(--ed, -2.6s) infinite !important;
+}
+
+.fx[data-fx='vesper'] .vs-ember-a {
+  --ed: -2.1s;
+}
+
+.fx[data-fx='vesper'] .vs-ember-b {
+  --ed: -0.6s;
+  left: 74%;
+}
+
+@keyframes vesper-ember {
+  0%,
+  42% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  48% {
+    opacity: 1;
+    transform: translate(0.04em, -0.2em);
+  }
+  62% {
+    opacity: 0.8;
+    transform: translate(-0.08em, -0.7em);
+  }
+  72%,
+  100% {
+    opacity: 0;
+    transform: translate(0.06em, -1em);
+  }
+}
+
+/* ================= whisper your name: 6.8s ================= */
+.fx[data-fx='vesper'] .fx-text[data-w='whisper your name' i] {
+  background-image: linear-gradient(95deg, var(--vs-lit) 0%, var(--vs-lit) 40%, var(--vs-gloss) 50%, var(--vs-lit) 60%, var(--vs-lit) 100%);
+  background-size: 320% 100%;
+  background-position: 100% 0;
+  animation: vesper-breath 6.8s ease-in-out -0.7s infinite !important;
+}
+
+@keyframes vesper-breath {
+  0%,
+  20% {
+    background-position: 100% 0;
+  }
+  82%,
+  100% {
+    background-position: 0% 0;
+  }
+}
+
+.fx[data-fx='vesper'] .vs-mist {
+  position: absolute;
+  left: 0;
+  top: var(--y);
+  width: calc(var(--fx-w) * 0.7);
+  height: var(--h);
+  opacity: 0;
+  background: radial-gradient(ellipse at 50% 50%, color-mix(in oklab, var(--t-accent) 46%, transparent) 0%, color-mix(in oklab, var(--t-accent) 14%, transparent) 46%, transparent 72%);
+  animation: vesper-mist 6.8s ease-in-out var(--o) infinite !important;
+}
+
+@keyframes vesper-mist {
+  0% {
+    opacity: 0;
+    transform: translateX(-30%) scale(0.7, 0.5);
+  }
+  25% {
+    opacity: 0.85;
+  }
+  60% {
+    opacity: 0.7;
+    transform: translateX(25%) scale(1.15, 0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(55%) scale(1.3, 1);
+  }
+}
+
+.fx[data-fx='vesper'] .vs-curl {
+  position: absolute;
+  left: 0;
+  top: 0.1em;
+  width: 100%;
+  height: 1.4em;
+  overflow: visible;
+  opacity: 0.7;
+  animation: vesper-curl-fade 6.8s linear var(--o, 0s) infinite !important;
+}
+
+.fx[data-fx='vesper'] .vs-curl path {
+  fill: none;
+  stroke: color-mix(in oklab, var(--t-accent) 70%, var(--t-ink));
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+  filter: drop-shadow(0 0 3px color-mix(in oklab, var(--t-accent) 70%, transparent));
+  animation: vesper-curl 6.8s ease-in-out var(--o, 0s) infinite !important;
+}
+
+@keyframes vesper-curl {
+  0%,
+  16% {
+    stroke-dashoffset: 1;
+  }
+  46% {
+    stroke-dashoffset: 0;
+  }
+  78%,
+  100% {
+    stroke-dashoffset: -1;
+  }
+}
+
+@keyframes vesper-curl-fade {
+  0%,
+  14% {
+    opacity: 0;
+  }
+  30%,
+  62% {
+    opacity: 0.7;
+  }
+  80%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.fx[data-fx='vesper'] .vs-petal {
+  position: absolute;
+  left: -0.55em;
+  top: 0;
+  width: 1.1em;
+  height: 1.35em;
+  opacity: 0;
+  animation: vesper-petal 6.8s ease-in-out -0.7s infinite !important;
+}
+
+.fx[data-fx='vesper'] .vs-petal-sway {
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: vesper-petal-sway 1.5s ease-in-out infinite alternate !important;
+}
+
+.fx[data-fx='vesper'] .vs-petal-svg {
+  display: block;
+  filter: drop-shadow(0 0.08em 0.1em var(--vs-shadow));
+  animation: vesper-petal-flip 1.05s ease-in-out infinite alternate !important;
+}
+
+.fx[data-fx='vesper'] .vs-petal-hi {
+  stop-color: color-mix(in oklab, var(--t-accent) 60%, var(--fx-light));
+}
+
+.fx[data-fx='vesper'] .vs-petal-mid {
+  stop-color: var(--vs-blood);
+}
+
+.fx[data-fx='vesper'] .vs-petal-lo {
+  stop-color: var(--vs-deep);
+}
+
+.fx[data-fx='vesper'] .vs-petal-vein {
+  stroke: color-mix(in oklab, var(--vs-deep) 80%, transparent);
+  stroke-width: 0.7;
+}
+
+@keyframes vesper-petal {
+  0% {
+    opacity: 0;
+    transform: translate(calc(var(--fx-w) * -0.05), -1.6em);
+  }
+  12% {
+    opacity: 1;
+    transform: translate(calc(var(--fx-w) * 0.02), -1.2em);
+  }
+  34% {
+    transform: translate(calc(var(--fx-w) * 0.28), -0.35em);
+  }
+  52% {
+    transform: translate(calc(var(--fx-w) * 0.5), 0.45em);
+  }
+  72% {
+    transform: translate(calc(var(--fx-w) * 0.78), 0.2em);
+  }
+  86% {
+    opacity: 1;
+    transform: translate(calc(var(--fx-w) * 0.95), 0.9em);
+  }
+  94% {
+    opacity: 1;
+    transform: translate(calc(var(--fx-w) * 0.98), 1.25em);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--fx-w) * 0.98), 1.3em);
+  }
+}
+
+@keyframes vesper-petal-sway {
+  from {
+    transform: rotate(-28deg);
+  }
+  to {
+    transform: rotate(24deg);
+  }
+}
+
+@keyframes vesper-petal-flip {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0.35);
+  }
+}
+
+/* ================= hungry: 6s ================= */
+.fx[data-fx='vesper'] .fx-text[data-w='hungry' i] {
+  background-image: linear-gradient(0deg, var(--vs-blood) 0%, var(--vs-blood) 47%, var(--vs-lit) 53%, var(--vs-lit) 100%);
+  background-size: 100% 200%;
+  background-position: 0 0;
+  animation: vesper-fill 6s ease-in-out -3.2s infinite !important;
+}
+
+@keyframes vesper-fill {
+  0%,
+  10% {
+    background-position: 0 0;
+  }
+  38%,
+  48% {
+    background-position: 0 72%;
+  }
+  64%,
+  100% {
+    background-position: 0 0;
+  }
+}
+
+.fx[data-fx='vesper'] .vs-bead {
+  position: absolute;
+  left: calc(100% - 0.55em);
+  top: 0.95em;
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  opacity: 0;
+  background: radial-gradient(circle, color-mix(in oklab, var(--t-accent) 70%, transparent), transparent 70%);
+  animation: vesper-bead 6s ease-in-out -3.2s infinite !important;
+}
+
+@keyframes vesper-bead {
+  0%,
+  8% {
+    opacity: 0;
+  }
+  22% {
+    opacity: 0.9;
+  }
+  46% {
+    opacity: 0.5;
+  }
+  58%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.fx[data-fx='vesper'] .vs-hungry .vs-back {
+  animation: vesper-hunger 6s ease-in-out -3.2s infinite !important;
+}
+
+@keyframes vesper-hunger {
+  0%,
+  10% {
+    opacity: 0.1;
+  }
+  40%,
+  50% {
+    opacity: 0.7;
+  }
+  66%,
+  100% {
+    opacity: 0.1;
+  }
+}
+
+.fx[data-fx='vesper'] .vs-drop {
+  left: calc(100% - 1.15em);
+  top: 1.05em;
+  width: 1.7em;
+  height: 1.7em;
+  opacity: 0;
+  transform-origin: 50% 9%;
+  animation: vesper-drop 6s ease-in-out -3.2s infinite !important;
+}
+
+@keyframes vesper-drop {
+  0%,
+  10% {
+    opacity: 0;
+    transform: translateY(0) scale(0.15);
+  }
+  14% {
+    opacity: 1;
+    transform: translateY(0) scale(0.3);
+  }
+  36% {
+    opacity: 1;
+    transform: translateY(0.04em) scale(0.95, 1);
+  }
+  42% {
+    transform: translateY(0.06em) scale(0.92, 1.08) rotate(2deg);
+  }
+  46% {
+    transform: translateY(0.05em) scale(1, 1.02) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(0.12em) scale(0.85, 1.3) rotate(0deg);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+  }
+  62% {
+    opacity: 1;
+    transform: translateY(0.8em) scale(0.85, 1.3);
+  }
+  68%,
+  100% {
+    opacity: 0;
+    transform: translateY(1.05em) scale(0.6, 1.1);
+  }
+}
+
+/* ================= ask: 7.4s ================= */
+.fx[data-fx='vesper'] .fx-text[data-w='ask' i] {
+  background-image: linear-gradient(100deg, var(--vs-lit) 0%, var(--vs-lit) 40%, var(--vs-gloss) 50%, var(--vs-lit) 60%, var(--vs-lit) 100%);
+  background-size: 300% 100%;
+  background-position: 100% 0;
+  transform-origin: 80% 100%;
+  animation: vesper-flush 7.4s ease-in-out -4.6s infinite !important;
+}
+
+@keyframes vesper-flush {
+  0%,
+  29% {
+    background-position: 100% 0;
+    transform: translateY(0);
+  }
+  31% {
+    transform: translateY(0.04em);
+  }
+  34% {
+    transform: translateY(0);
+  }
+  48%,
+  100% {
+    background-position: 0% 0;
+    transform: translateY(0);
+  }
+}
+
+.fx[data-fx='vesper'] .vs-bat-fly,
+.fx[data-fx='vesper'] .vs-bat-perch {
+  left: calc(100% - 1.35em);
+  top: -1.5em;
+  width: 2.1em;
+  height: 2.1em;
+  opacity: 0;
+}
+
+.fx[data-fx='vesper'] .vs-bat-fly {
+  animation: vesper-bat-fly 7.4s ease-in-out -4.6s infinite !important;
+}
+
+.fx[data-fx='vesper'] .vs-flap {
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: vesper-flap 0.16s ease-in-out infinite alternate !important;
+}
+
+.fx[data-fx='vesper'] .vs-bat-perch {
+  transform-origin: 50% 78%;
+  animation: vesper-bat-perch 7.4s ease-in-out -4.6s infinite !important;
+}
+
+@keyframes vesper-flap {
+  from {
+    transform: scaleY(0.78);
+  }
+  to {
+    transform: scaleY(1.08);
+  }
+}
+
+@keyframes vesper-bat-fly {
+  0% {
+    opacity: 0;
+    transform: translate(3.4em, -2.2em) scale(0.45) rotate(-14deg);
+  }
+  5% {
+    opacity: 1;
+    transform: translate(3.1em, -2em) scale(0.5) rotate(-14deg);
+  }
+  9% {
+    transform: translate(3.3em, -2.35em) scale(0.52) rotate(-10deg);
+  }
+  13% {
+    transform: translate(3em, -1.9em) scale(0.5) rotate(-12deg);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+  }
+  19% {
+    transform: translate(1.9em, -0.5em) scale(0.75) rotate(12deg);
+    animation-timing-function: ease-in-out;
+  }
+  25% {
+    transform: translate(0.5em, 0.35em) scale(0.95) rotate(8deg);
+    animation-timing-function: ease-out;
+  }
+  30% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  30.1%,
+  65.9% {
+    opacity: 0;
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  66% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  69% {
+    transform: translate(0, 0.12em) scale(1, 0.9) rotate(0deg);
+    animation-timing-function: ease-out;
+  }
+  74% {
+    transform: translate(-0.6em, -0.9em) scale(1.05) rotate(-8deg);
+  }
+  82% {
+    transform: translate(-2em, -2em) scale(0.8) rotate(-16deg);
+  }
+  92% {
+    opacity: 0;
+    transform: translate(-4em, -3em) scale(0.5) rotate(-20deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-4em, -3em) scale(0.5) rotate(-20deg);
+  }
+}
+
+@keyframes vesper-bat-perch {
+  0%,
+  29.9% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  33% {
+    transform: scale(0.78, 1.04);
+  }
+  36% {
+    transform: scale(0.54, 1.08);
+  }
+  38% {
+    transform: scale(0.58, 1.05);
+  }
+  46% {
+    transform: scale(0.56, 1.07) rotate(-3deg);
+  }
+  50% {
+    transform: scale(-0.56, 1.07) rotate(3deg);
+  }
+  56% {
+    transform: scale(-0.56, 1.07) rotate(2deg);
+  }
+  62% {
+    transform: scale(0.7, 1.04) rotate(0deg);
+  }
+  65.9% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  66%,
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+.fx[data-fx='vesper'] .vs-ask .vs-back {
+  animation: vesper-land-glow 7.4s ease-out -4.6s infinite !important;
+}
+
+@keyframes vesper-land-glow {
+  0%,
+  28% {
+    opacity: 0.08;
+  }
+  34% {
+    opacity: 0.8;
+  }
+  60%,
+  100% {
+    opacity: 0.1;
+  }
+}
+
+/* ================= signature (any other phrase) ================= */
+.fx[data-fx='vesper'] .fx-text:has(+ .fx-layer .vs-sig) {
+  background-image: linear-gradient(180deg, var(--vs-deep) 0%, var(--vs-blood) 36%, var(--vs-gloss) 55%, var(--vs-blood) 68%, var(--vs-deep) 100%);
+  background-size: 100% 1.4em;
+  background-repeat: repeat-y;
+  filter: drop-shadow(0 0 0.32em color-mix(in oklab, var(--t-accent) 50%, transparent));
+  animation: vesper-ooze 7s linear infinite !important;
+}
+
+@keyframes vesper-ooze {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 1.4em;
+  }
+}
+
+.fx[data-fx='vesper'] .vs-pulse {
+  position: absolute;
+  inset: -0.25em -0.55em;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 50%, color-mix(in oklab, var(--t-accent) 52%, transparent) 0%, color-mix(in oklab, var(--t-accent) 20%, transparent) 42%, transparent 70%);
+  opacity: 0.15;
+  animation: vesper-heart 2.4s ease-out infinite !important;
+}
+
+@keyframes vesper-heart {
+  0% {
+    opacity: 0.15;
+    transform: scale(0.96);
+  }
+  10% {
+    opacity: 0.85;
+    transform: scale(1.06);
+  }
+  20% {
+    opacity: 0.3;
+    transform: scale(0.99);
+  }
+  30% {
+    opacity: 0.65;
+    transform: scale(1.03);
+  }
+  48%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.96);
+  }
+}
+
+.fx[data-fx='vesper'] .vs-sig-drop {
+  position: absolute;
+  left: var(--x);
+  top: 74%;
+  width: 0.2em;
+  height: 0.32em;
+  margin-left: -0.1em;
+  opacity: 0;
+  border-radius: 50% 50% 50% 50% / 38% 38% 62% 62%;
+  background: var(--vs-blood);
+  transform-origin: 50% 0;
+  animation: vesper-sig-drip var(--t) cubic-bezier(0.5, 0, 0.9, 0.6) var(--d) infinite !important;
+}
+
+@keyframes vesper-sig-drip {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.3);
+  }
+  22% {
+    opacity: 0.95;
+    transform: translateY(0) scale(1);
+  }
+  40% {
+    opacity: 0.95;
+    transform: translateY(0.04em) scale(0.92, 1.25);
+  }
+  80% {
+    opacity: 0.8;
+    transform: translateY(0.85em) scale(0.8, 1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(1em) scale(0.7, 1.1);
+  }
+}
+
+@media (forced-colors: active) {
+  .fx[data-fx='vesper'] .fx-text {
+    background-image: none;
+    color: CanvasText;
+    filter: none;
+  }
+}

@@ -1,0 +1,187 @@
+/* Nerissa's opening cinematic. Scoped under .ne-intro; keyframes are prefixed
+   nerissa-intro-. Always plays (no reduced-motion rule), so every animation is
+   !important. Motion: transform and opacity only. */
+
+.ne-intro {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  container-type: size;
+  pointer-events: none;
+}
+
+.ne-intro .ne-i-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.ne-intro .ne-i-tint {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(ellipse at 50% 70%, color-mix(in oklab, var(--fx-a1) 22%, transparent), color-mix(in oklab, var(--fx-fog) 38%, transparent) 60%, color-mix(in oklab, var(--fx-deep) 45%, transparent));
+  animation: nerissa-intro-tint 2.8s ease-in-out forwards !important;
+}
+
+@keyframes nerissa-intro-tint {
+  0% {
+    opacity: 0;
+  }
+  25%,
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* the wall of water: a slanted sheet that sweeps left to right, foam on its edge */
+.ne-intro .ne-i-sheet {
+  position: absolute;
+  top: -12%;
+  left: 0;
+  width: 85%;
+  height: 124%;
+  transform: translateX(-115%) skewX(-9deg);
+  animation: nerissa-intro-sweep 1.55s cubic-bezier(0.55, 0.05, 0.4, 1) 0.15s forwards !important;
+}
+
+@keyframes nerissa-intro-sweep {
+  0% {
+    transform: translateX(-115%) skewX(-9deg);
+  }
+  100% {
+    transform: translateX(125%) skewX(-9deg);
+  }
+}
+
+.ne-intro .ne-i-body {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, var(--fx-deep) 55%, var(--fx-fog)) 14%,
+    color-mix(in oklab, var(--fx-fog) 78%, transparent) 50%,
+    color-mix(in oklab, var(--fx-a1) 70%, transparent) 86%,
+    transparent 100%
+  );
+}
+
+.ne-intro .ne-i-foam {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 9%;
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--fx-a2) 80%, transparent) 55%, color-mix(in oklab, var(--fx-light) 90%, transparent) 80%, transparent);
+}
+
+.ne-intro .ne-i-crest {
+  position: absolute;
+  right: -9%;
+  width: 230px;
+  height: 230px;
+  transform: scaleX(-1);
+  filter: drop-shadow(0 8px 14px color-mix(in oklab, var(--fx-deep) 70%, transparent));
+  animation: nerissa-intro-crest 1.55s ease-in-out 0.15s forwards !important;
+}
+
+.ne-intro .ne-i-crest[data-i='0'] {
+  top: 4%;
+}
+
+.ne-intro .ne-i-crest[data-i='1'] {
+  top: 36%;
+  width: 270px;
+  height: 270px;
+}
+
+.ne-intro .ne-i-crest[data-i='2'] {
+  top: 68%;
+  width: 210px;
+  height: 210px;
+}
+
+@keyframes nerissa-intro-crest {
+  0% {
+    transform: scaleX(-1) translateY(30px) rotate(0deg);
+  }
+  50% {
+    transform: scaleX(-1) translateY(-14px) rotate(-6deg);
+  }
+  100% {
+    transform: scaleX(-1) translateY(8px) rotate(5deg);
+  }
+}
+
+.ne-intro .ne-i-spray {
+  position: absolute;
+  right: -2%;
+  top: var(--y);
+  width: var(--s);
+  height: var(--s);
+  opacity: 0;
+  animation: nerissa-intro-spray 0.9s ease-out var(--d) forwards !important;
+}
+
+@keyframes nerissa-intro-spray {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.4);
+  }
+  20% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) scale(1);
+  }
+}
+
+/* bubbles rush up the whole frame */
+.ne-intro .ne-i-bubble {
+  position: absolute;
+  left: var(--x);
+  top: 100%;
+  width: var(--s);
+  height: var(--s);
+  opacity: 0;
+  animation: nerissa-intro-rise var(--t) cubic-bezier(0.3, 0.05, 0.6, 1) var(--d) forwards !important;
+}
+
+.ne-intro .ne-i-bubble img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 2px 4px color-mix(in oklab, var(--fx-deep) 60%, transparent));
+  animation: nerissa-intro-sway 0.55s ease-in-out var(--d) infinite alternate !important;
+}
+
+@keyframes nerissa-intro-rise {
+  0% {
+    opacity: 0;
+    transform: translate(0, 10px) scale(0.5);
+  }
+  10% {
+    opacity: 0.95;
+  }
+  80% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--sx), -118cqh) scale(1.15);
+  }
+}
+
+@keyframes nerissa-intro-sway {
+  from {
+    transform: translateX(-5px);
+  }
+  to {
+    transform: translateX(5px);
+  }
+}
