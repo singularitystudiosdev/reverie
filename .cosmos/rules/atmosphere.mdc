@@ -19,9 +19,10 @@ globs: ["src/theme/**", "src/screens/**", "src/components/**"]
 - `backdrop-filter` belongs to the floating controls only (tab bar, chat menu button, deck buttons,
   at most 12px). Bubbles, rows, cards and sheets use an opaque or >= 0.86 alpha surface: a blurred
   layer over the live canvas is re-blurred every frame.
-- Every animated or moving element carries its own reduced-motion guard next to it. Under reduced
-  motion the canvas draws one still frame and stops, overlays are static, and screens swap without
-  sliding.
+- The app deliberately ignores `prefers-reduced-motion` (the user's instruction: "do not respect
+  reduced motion"). Every animation, particle field, portrait loop and clip always plays; motion's
+  `MotionConfig reducedMotion="never"` and the `useReducedMotion` helper in `src/lib/motion.ts`
+  (always false) enforce it. Do not add reduced-motion fallbacks back.
 - Theme palettes live in `src/theme/themes.ts`; atmosphere tints too (hex values are allowed there
   and nowhere else in components). Each world keeps its contrast checks passing over its own plate.
 - The atmosphere is modelled on game-audio RTPC: conversation params (`typing`, `drag`, `affinity`),
