@@ -1,0 +1,417 @@
+/* Zahra: three spells, each a loop of the same four beats (--T per word):
+     0-20%   anticipation: a gathering glow (the haze) and the word's light rising
+     20-60%  the cast: coins spill, smoke curls, the lamp blooms; a gold band crosses the word
+     55-90%  the linger: glints twinkling around the phrase
+     80-100% the dissipate: smoke thinning, coins fading to rest
+   Scoped under .fx[data-fx='zahra']; keyframes are zahra-*. Every animation is
+   !important (the bio effects always play, reduced-motion.css must not clamp
+   them). Sprites sit above, below or beside the phrase, or pass behind the
+   text (the layer is z-index -1); transform, opacity, filter and
+   background-position only. */
+
+.fx[data-fx='zahra'] {
+  --zh-gold: var(--fx-a1);
+  --zh-turq: var(--fx-a2);
+  --zh-glint: var(--fx-light);
+  --zh-band: color-mix(in oklab, white 55%, var(--zh-glint));
+  --zh-base: linear-gradient(100deg, var(--zh-gold) 0%, var(--zh-gold) 45%, color-mix(in oklab, var(--zh-turq) 80%, var(--zh-gold)) 100%);
+  --T: 6.4s;
+}
+
+.fx[data-fx='zahra'][data-word='wants'] {
+  --T: 5.6s;
+  --zh-base: linear-gradient(100deg, var(--zh-gold) 0%, color-mix(in oklab, var(--zh-glint) 70%, var(--zh-gold)) 60%, var(--zh-gold) 100%);
+}
+.fx[data-fx='zahra'][data-word='smoke'] {
+  --T: 7s;
+}
+.fx[data-fx='zahra'][data-word='desire'] {
+  --T: 6.4s;
+}
+
+/* ---- the word: a gold-to-turquoise fill with a light band crossing it as
+   the spell is cast, and a gold glow that swells under it ---- */
+.fx[data-fx='zahra'] .fx-text {
+  background-image:
+    linear-gradient(100deg, transparent 0%, transparent 38%, var(--zh-band) 50%, transparent 62%, transparent 100%),
+    var(--zh-base);
+  background-size:
+    300% 100%,
+    100% 100%;
+  background-position:
+    0% 50%,
+    0 0;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 0.1em color-mix(in oklab, var(--zh-gold) 30%, transparent));
+  animation:
+    zahra-band var(--T) var(--fx-ease-sine) infinite,
+    zahra-glow var(--T) var(--fx-ease-sine) infinite !important;
+}
+
+@keyframes zahra-band {
+  0%,
+  18% {
+    background-position:
+      0% 50%,
+      0 0;
+  }
+  60%,
+  100% {
+    background-position:
+      100% 50%,
+      0 0;
+  }
+}
+
+@keyframes zahra-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0.08em color-mix(in oklab, var(--zh-gold) 25%, transparent));
+  }
+  34%,
+  56% {
+    filter: drop-shadow(0 0 0.5em color-mix(in oklab, var(--zh-gold) 90%, transparent));
+  }
+}
+
+/* ---- sprites ---- */
+.fx[data-fx='zahra'] .zh-actor {
+  position: absolute;
+  left: var(--x, 0);
+  top: var(--y, 0);
+  width: var(--s);
+  height: var(--s);
+  margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2);
+  opacity: 0;
+}
+
+.fx[data-fx='zahra'] .zh-mid {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.fx[data-fx='zahra'] .zh-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 0.08em 0.1em color-mix(in oklab, black 45%, transparent));
+}
+
+/* ---- back light: the gathering glow ---- */
+.fx[data-fx='zahra'] .zh-haze {
+  position: absolute;
+  inset: -0.4em -0.7em;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--zh-gold) 50%, transparent), transparent);
+  opacity: 0;
+  animation: zahra-haze var(--T) var(--fx-ease-sine) infinite !important;
+}
+
+.fx[data-fx='zahra'] .zh-haze-corner {
+  inset: -1em -0.5em 0.4em 35%;
+}
+
+.fx[data-fx='zahra'] .zh-haze-lamp {
+  inset: 0.3em 35% -1.3em -0.7em;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--zh-turq) 38%, color-mix(in oklab, var(--zh-gold) 50%, transparent)), transparent);
+}
+
+@keyframes zahra-haze {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  14% {
+    opacity: 0.35;
+  }
+  34% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+  62% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.1);
+  }
+}
+
+/* ---- "wants": coins spill from above and land under the word ---- */
+.fx[data-fx='zahra'] .zh-coin {
+  animation: zahra-spill var(--T) var(--fx-ease-sine) calc(var(--k) * 0.12s) infinite !important;
+}
+
+.fx[data-fx='zahra'] .zh-flip {
+  animation: zahra-flip var(--T) var(--fx-ease-sine) calc(var(--k) * 0.12s) infinite !important;
+}
+
+.fx[data-fx='zahra'] .zh-coin-img {
+  filter: drop-shadow(0 0 0.22em color-mix(in oklab, var(--zh-gold) 70%, transparent)) drop-shadow(0 0.08em 0.1em color-mix(in oklab, black 45%, transparent));
+}
+
+@keyframes zahra-spill {
+  0%,
+  8% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.4);
+  }
+  16% {
+    opacity: 1;
+    transform: translate(calc(var(--dx) * 0.35), -0.5em) scale(1);
+  }
+  44% {
+    opacity: 1;
+    transform: translate(var(--dx), calc(var(--y1) + 0.7em)) scale(1);
+  }
+  50% {
+    transform: translate(var(--dx), calc(var(--y1) + 0.45em)) scale(1);
+  }
+  56%,
+  86% {
+    opacity: 1;
+    transform: translate(var(--dx), calc(var(--y1) + 0.7em)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), calc(var(--y1) + 0.7em)) scale(0.9);
+  }
+}
+
+@keyframes zahra-flip {
+  0%,
+  10% {
+    transform: scaleX(1);
+  }
+  14% {
+    transform: scaleX(0.15);
+  }
+  19% {
+    transform: scaleX(1);
+  }
+  24% {
+    transform: scaleX(0.15);
+  }
+  30% {
+    transform: scaleX(1);
+  }
+  36% {
+    transform: scaleX(0.2);
+  }
+  42%,
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+/* ---- "smoke curl" and the lamp's spout: ribbons of smoke curling up ---- */
+.fx[data-fx='zahra'] .zh-ribbon {
+  animation: zahra-rise var(--T) var(--fx-ease-sine) calc(var(--k) * 0.5s) infinite !important;
+}
+
+.fx[data-fx='zahra'] .zh-spout {
+  animation: zahra-spout var(--T) var(--fx-ease-sine) infinite !important;
+}
+
+.fx[data-fx='zahra'] .zh-curl {
+  transform-origin: 50% 80%;
+  animation: zahra-curl var(--T) var(--fx-ease-sine) calc(var(--k) * 0.5s) infinite !important;
+}
+
+@keyframes zahra-rise {
+  0%,
+  10% {
+    opacity: 0;
+    transform: translate(0, 0.3em) scale(0.5);
+  }
+  26% {
+    opacity: 0.85;
+    transform: translate(calc(var(--dx) * 0.3), -0.2em) scale(0.9);
+  }
+  55% {
+    opacity: 0.7;
+    transform: translate(var(--dx), -0.8em) scale(1.25);
+  }
+  80%,
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--dx) * 0.4), -1.3em) scale(1.5);
+  }
+}
+
+@keyframes zahra-spout {
+  0%,
+  28% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.4);
+  }
+  40% {
+    opacity: 0.9;
+    transform: translate(0, -0.3em) scale(0.8);
+  }
+  62% {
+    opacity: 0.75;
+    transform: translate(var(--dx), -1.2em) scale(1.2);
+  }
+  86%,
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--dx) * 0.4), -1.9em) scale(1.5);
+  }
+}
+
+@keyframes zahra-curl {
+  0% {
+    transform: rotate(0deg) scaleX(1);
+  }
+  55% {
+    transform: rotate(var(--rot)) scaleX(1.15);
+  }
+  100% {
+    transform: rotate(calc(var(--rot) * -0.5)) scaleX(0.9);
+  }
+}
+
+/* ---- "desire": the lamp is rubbed, blooms, and breathes smoke ---- */
+.fx[data-fx='zahra'] .zh-lamp {
+  animation: zahra-lamp var(--T) var(--fx-ease-sine) infinite !important;
+}
+
+.fx[data-fx='zahra'] .zh-rub {
+  transform-origin: 50% 85%;
+  filter: drop-shadow(0 0 0.2em color-mix(in oklab, var(--zh-gold) 65%, transparent)) drop-shadow(0 0.08em 0.1em color-mix(in oklab, black 45%, transparent));
+  animation: zahra-rub var(--T) var(--fx-ease-sine) infinite !important;
+}
+
+@keyframes zahra-lamp {
+  0% {
+    opacity: 0;
+    transform: translateY(0.4em) scale(0.8);
+  }
+  8%,
+  80% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  94%,
+  100% {
+    opacity: 0;
+    transform: translateY(0.1em) scale(0.95);
+  }
+}
+
+@keyframes zahra-rub {
+  0%,
+  8% {
+    transform: rotate(0deg) translateX(0) scale(1);
+  }
+  12% {
+    transform: rotate(-7deg) translateX(-0.06em) scale(1);
+  }
+  16% {
+    transform: rotate(6deg) translateX(0.06em) scale(1);
+  }
+  20% {
+    transform: rotate(-7deg) translateX(-0.06em) scale(1);
+  }
+  24% {
+    transform: rotate(6deg) translateX(0.06em) scale(1);
+  }
+  28% {
+    transform: rotate(-5deg) translateX(-0.04em) scale(1);
+  }
+  32% {
+    transform: rotate(0deg) translateX(0) scale(1);
+  }
+  36% {
+    transform: rotate(0deg) translateX(0) scale(1.16);
+  }
+  46%,
+  100% {
+    transform: rotate(0deg) translateX(0) scale(1);
+  }
+}
+
+.fx[data-fx='zahra'] .zh-burst {
+  animation: zahra-burst var(--T) var(--fx-ease-sine) infinite !important;
+}
+
+.fx[data-fx='zahra'] .zh-twirl {
+  animation: zahra-twirl var(--T) linear infinite !important;
+}
+
+@keyframes zahra-burst {
+  0%,
+  30% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  38% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  60% {
+    opacity: 0.6;
+    transform: scale(1.3);
+  }
+  82%,
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+@keyframes zahra-twirl {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(90deg);
+  }
+}
+
+/* ---- front detail: four-point gold glints, the linger ---- */
+.fx[data-fx='zahra'] .zh-glint {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--s);
+  height: var(--s);
+  margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2);
+  background: var(--zh-band);
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+  opacity: 0;
+  animation: zahra-glint var(--T) var(--fx-ease-sine) calc(var(--k) * 0.2s) infinite !important;
+}
+
+@keyframes zahra-glint {
+  0%,
+  52% {
+    opacity: 0;
+    transform: scale(0.2) rotate(0deg);
+  }
+  62% {
+    opacity: 1;
+    transform: scale(1) rotate(45deg);
+  }
+  72% {
+    opacity: 0;
+    transform: scale(0.2) rotate(90deg);
+  }
+  80% {
+    opacity: 0.8;
+    transform: scale(0.7) rotate(120deg);
+  }
+  92%,
+  100% {
+    opacity: 0;
+    transform: scale(0.2) rotate(180deg);
+  }
+}

@@ -1,0 +1,274 @@
+/* Zahra's intro cinematic. Everything is under .zh-intro; keyframes are
+   zahra-intro-*. The lamp is rubbed, flashes, smoke pours from its spout and
+   swirls to the text, sand flies out and settles into the words. transform
+   and opacity only. --lx/--ly place the lamp, --sx/--sy its spout (px). */
+
+.zh-intro {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 5;
+  animation: zahra-intro-life var(--total, 2.8s) linear both;
+}
+
+@keyframes zahra-intro-life {
+  0%,
+  84% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.zh-intro img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* a gold haze over the whole frame while the smoke is out */
+.zh-i-haze {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at var(--sx) var(--sy), color-mix(in oklab, var(--fx-a1, currentColor) 42%, transparent), transparent 70%);
+  opacity: 0;
+  animation: zahra-intro-haze 2.2s var(--fx-ease-sine, ease-in-out) 0.3s both;
+}
+
+@keyframes zahra-intro-haze {
+  0% {
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* the lamp: pops in, is rubbed side to side, then settles and slips away */
+.zh-i-lamp {
+  position: absolute;
+  left: var(--lx);
+  top: var(--ly);
+  width: 150px;
+  height: 150px;
+  margin: -75px 0 0 -75px;
+  opacity: 0;
+  animation: zahra-intro-lamp 2.5s var(--fx-ease-sine, ease-in-out) both;
+}
+
+.zh-i-lamp-rub {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 85%;
+  filter: drop-shadow(0 0 22px var(--fx-a1, currentColor)) drop-shadow(0 10px 14px color-mix(in oklab, black 50%, transparent));
+  animation: zahra-intro-rub 2.5s var(--fx-ease-sine, ease-in-out) both;
+}
+
+@keyframes zahra-intro-lamp {
+  0% {
+    opacity: 0;
+    transform: translateY(40px) scale(0.6);
+  }
+  12%,
+  78% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.92);
+  }
+}
+
+@keyframes zahra-intro-rub {
+  0%,
+  10% {
+    transform: rotate(0deg) translateX(0);
+  }
+  14% {
+    transform: rotate(-9deg) translateX(-6px);
+  }
+  18% {
+    transform: rotate(8deg) translateX(6px);
+  }
+  22% {
+    transform: rotate(-9deg) translateX(-6px);
+  }
+  26% {
+    transform: rotate(7deg) translateX(5px);
+  }
+  30% {
+    transform: rotate(-4deg) translateX(-3px);
+  }
+  34% {
+    transform: rotate(0deg) scale(1.18);
+  }
+  44%,
+  100% {
+    transform: rotate(0deg) translateX(0) scale(1);
+  }
+}
+
+/* the flash at the spout when the lamp comes to life */
+.zh-i-flash {
+  position: absolute;
+  left: var(--sx);
+  top: var(--sy);
+  width: 120px;
+  height: 120px;
+  margin: -60px 0 0 -60px;
+  border-radius: 50%;
+  background: radial-gradient(circle, white 0%, color-mix(in oklab, var(--fx-light, white) 80%, transparent) 25%, color-mix(in oklab, var(--fx-a1, white) 50%, transparent) 50%, transparent 72%);
+  opacity: 0;
+  animation: zahra-intro-flash 0.9s ease-out 0.55s both;
+}
+
+@keyframes zahra-intro-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  25% {
+    opacity: 1;
+    transform: scale(1.5);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3.4);
+  }
+}
+
+/* smoke: each plume leaves the spout on a curved path (x and y on different
+   easings), swells, turns, and thins out over the text */
+.zh-i-plume {
+  position: absolute;
+  left: var(--sx);
+  top: var(--sy);
+  width: 0;
+  height: 0;
+  animation: zahra-intro-plume-x 1.5s cubic-bezier(0.2, 0.7, 0.3, 1) var(--d) both;
+}
+
+.zh-i-plume-y {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  animation: zahra-intro-plume-y 1.5s cubic-bezier(0.5, 0, 0.5, 1) var(--d) both;
+}
+
+.zh-i-plume-in {
+  position: absolute;
+  left: calc(var(--s) / -2);
+  top: calc(var(--s) / -2);
+  width: var(--s);
+  height: var(--s);
+  opacity: 0;
+  filter: drop-shadow(0 0 16px color-mix(in oklab, var(--fx-a1, currentColor) 60%, transparent));
+  animation: zahra-intro-plume-in 1.5s var(--fx-ease-sine, ease-in-out) var(--d) both;
+}
+
+@keyframes zahra-intro-plume-x {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(var(--ex));
+  }
+}
+
+@keyframes zahra-intro-plume-y {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(var(--ey));
+  }
+}
+
+@keyframes zahra-intro-plume-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.15) rotate(var(--r0));
+  }
+  18% {
+    opacity: 0.6;
+  }
+  70% {
+    opacity: 0.38;
+    transform: scale(1.3) rotate(calc((var(--r0) + var(--r1)) / 2));
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.9) rotate(var(--r1));
+  }
+}
+
+/* sand: grains fly out of the smoke along a bowed path and settle in the text */
+.zh-i-grain {
+  position: absolute;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--fx-light, white) 80%, var(--fx-a1, currentColor));
+  box-shadow: 0 0 6px 1px var(--fx-a1, currentColor);
+  opacity: 0;
+  animation: zahra-intro-grain 0.8s ease-out var(--d) both;
+}
+
+@keyframes zahra-intro-grain {
+  0% {
+    opacity: 0;
+    transform: translate(var(--gx), var(--gy)) scale(0.6);
+  }
+  15% {
+    opacity: 1;
+  }
+  55% {
+    transform: translate(calc(var(--gx) * 0.35 + var(--wx)), calc(var(--gy) * 0.35 + var(--wy))) scale(1);
+  }
+  85% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, 4px) scale(0.4);
+  }
+}
+
+/* a burst of glitter at the spout as the genie arrives */
+.zh-i-glitter {
+  position: absolute;
+  left: var(--sx);
+  top: var(--sy);
+  width: 190px;
+  height: 190px;
+  margin: -95px 0 0 -95px;
+  opacity: 0;
+  filter: drop-shadow(0 0 14px var(--fx-a1, currentColor));
+  animation: zahra-intro-glitter 1.8s var(--fx-ease-sine, ease-in-out) 0.6s both;
+}
+
+@keyframes zahra-intro-glitter {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) rotate(0deg);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1) rotate(30deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.9) rotate(110deg);
+  }
+}

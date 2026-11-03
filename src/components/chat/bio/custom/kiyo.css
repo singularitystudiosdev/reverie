@@ -1,0 +1,533 @@
+/* Kiyo: four spells, each a loop of the same four beats (--T per word):
+     0-20%   anticipation: a gathering glow (the haze) and the word's glow rising
+     20-60%  the cast: the sprite action and the light band crossing the word
+     55-90%  the linger: residual sparks drifting down
+     80-100% the dissipate: a puff of ghost smoke, everything fading to rest
+   Scoped under .fx[data-fx='kiyo']; keyframes are kiyo-*. Every animation is
+   !important (the bio effects always play, reduced-motion.css must not clamp
+   them). Sprites sit above, below or beside the phrase, or pass behind the
+   text (the layer is z-index -1); transform, opacity, filter and
+   background-position only. */
+
+.fx[data-fx='kiyo'] {
+  --ky-blue: var(--fx-a1);
+  --ky-amber: var(--fx-a2);
+  --ky-maple: color-mix(in oklab, var(--t-accent) 62%, var(--fx-a2));
+  --ky-band: color-mix(in oklab, white 55%, var(--ky-blue));
+  --ky-spark: color-mix(in oklab, white 60%, var(--ky-blue));
+  --T: 6.5s;
+}
+
+.fx[data-fx='kiyo'][data-word='riddle'] {
+  --T: 7s;
+}
+.fx[data-fx='kiyo'][data-word='foxfire'] {
+  --T: 6s;
+}
+.fx[data-fx='kiyo'][data-word='maples'] {
+  --T: 7.4s;
+  --ky-band: color-mix(in oklab, var(--ky-amber) 78%, white);
+  --ky-spark: color-mix(in oklab, var(--ky-amber) 70%, white);
+}
+.fx[data-fx='kiyo'][data-word='kiss'] {
+  --T: 6.4s;
+  --ky-band: color-mix(in oklab, var(--ky-maple) 55%, white);
+}
+
+/* ---- the word: a light band crosses it as the spell is cast, a glow swells
+   under it; the riddle also dims while it is forgotten ---- */
+.fx[data-fx='kiyo'] .fx-text {
+  background-image: linear-gradient(100deg, var(--fx-word) 0%, var(--fx-word) 38%, var(--ky-band) 50%, var(--fx-word) 62%, var(--fx-word) 100%);
+  background-size: 300% 100%;
+  background-position: 0% 50%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 0.1em color-mix(in oklab, var(--ky-blue) 30%, transparent));
+  animation:
+    kiyo-band var(--T) var(--fx-ease-sine) infinite,
+    kiyo-glow var(--T) var(--fx-ease-sine) infinite !important;
+}
+
+.fx[data-fx='kiyo'][data-word='riddle'] .fx-text {
+  animation:
+    kiyo-band var(--T) var(--fx-ease-sine) infinite,
+    kiyo-glow var(--T) var(--fx-ease-sine) infinite,
+    kiyo-dim var(--T) var(--fx-ease-sine) infinite !important;
+}
+
+@keyframes kiyo-band {
+  0%,
+  18% {
+    background-position: 0% 50%;
+  }
+  60%,
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes kiyo-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0.08em color-mix(in oklab, var(--ky-blue) 25%, transparent));
+  }
+  34%,
+  56% {
+    filter: drop-shadow(0 0 0.5em color-mix(in oklab, var(--ky-blue) 85%, transparent));
+  }
+}
+
+@keyframes kiyo-dim {
+  0%,
+  22% {
+    opacity: 1;
+  }
+  62%,
+  80% {
+    opacity: 0.72;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* ---- sprites ---- */
+.fx[data-fx='kiyo'] .ky-actor {
+  position: absolute;
+  left: var(--x, 0);
+  top: var(--y, 0);
+  width: var(--s);
+  height: var(--s);
+  margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2);
+  opacity: 0;
+}
+
+.fx[data-fx='kiyo'] .ky-mid {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.fx[data-fx='kiyo'] .ky-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  transform-origin: 50% 85%;
+  filter: drop-shadow(0 0.08em 0.1em color-mix(in oklab, black 45%, transparent));
+}
+
+.fx[data-fx='kiyo'] .ky-wisp .ky-img,
+.fx[data-fx='kiyo'] .ky-flame .ky-img {
+  filter: drop-shadow(0 0 0.28em var(--ky-blue)) drop-shadow(0 0.06em 0.08em color-mix(in oklab, black 40%, transparent));
+}
+
+.fx[data-fx='kiyo'] .ky-flick {
+  animation: kiyo-flick 0.9s linear var(--fd, 0s) infinite !important;
+}
+
+@keyframes kiyo-flick {
+  0%,
+  100% {
+    transform: scale(1, 1) rotate(0deg);
+  }
+  28% {
+    transform: scale(0.92, 1.1) rotate(3deg);
+  }
+  55% {
+    transform: scale(1.06, 0.93) rotate(-3deg);
+  }
+  78% {
+    transform: scale(0.96, 1.06) rotate(2deg);
+  }
+}
+
+/* ---- back light: the gathering glow ---- */
+.fx[data-fx='kiyo'] .ky-haze {
+  position: absolute;
+  inset: -0.45em -0.7em;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--ky-blue) 52%, transparent), transparent);
+  opacity: 0;
+  animation: kiyo-haze var(--T) var(--fx-ease-sine) infinite !important;
+}
+
+.fx[data-fx='kiyo'] .ky-haze-low {
+  inset: 0.2em -0.5em -0.3em;
+}
+
+.fx[data-fx='kiyo'] .ky-haze-amber {
+  inset: -0.9em -0.5em 0.4em;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--ky-amber) 46%, transparent), transparent);
+}
+
+.fx[data-fx='kiyo'] .ky-haze-end {
+  inset: -0.8em -1.3em -0.4em 55%;
+}
+
+@keyframes kiyo-haze {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  24% {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+  62% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+}
+
+/* ---- "forget the riddle": a foxfire wisp circles the phrase ---- */
+.fx[data-fx='kiyo'] .ky-beat {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  animation: kiyo-beat var(--T) linear infinite !important;
+}
+
+@keyframes kiyo-beat {
+  0%,
+  14% {
+    opacity: 0;
+  }
+  26%,
+  60% {
+    opacity: 1;
+  }
+  74%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.fx[data-fx='kiyo'] .ky-ring {
+  --rx: calc(var(--fx-w) / 2 + 0.35em);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  animation: kiyo-ring-x calc(var(--T) / 4) var(--fx-ease-sine) infinite alternate !important;
+}
+
+.fx[data-fx='kiyo'] .ky-ring-y {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  animation: kiyo-ring-y calc(var(--T) / 4) var(--fx-ease-sine) calc(var(--T) / -8) infinite alternate !important;
+}
+
+.fx[data-fx='kiyo'] .ky-ring-y .ky-actor {
+  opacity: 1;
+}
+
+@keyframes kiyo-ring-x {
+  from {
+    transform: translateX(calc(var(--rx) * -1));
+  }
+  to {
+    transform: translateX(var(--rx));
+  }
+}
+
+@keyframes kiyo-ring-y {
+  from {
+    transform: translateY(-0.95em);
+  }
+  to {
+    transform: translateY(0.95em);
+  }
+}
+
+/* ---- "foxfire": flames ignite on the letter tips, left to right ---- */
+.fx[data-fx='kiyo'] .ky-flame {
+  animation: kiyo-ignite var(--T) var(--fx-ease-sine) calc(var(--k) * 0.12s) infinite !important;
+}
+
+@keyframes kiyo-ignite {
+  0%,
+  10% {
+    opacity: 0;
+    transform: scale(0.15);
+  }
+  14% {
+    opacity: 0.35;
+    transform: scale(0.4);
+  }
+  26% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  34% {
+    transform: scale(1);
+  }
+  66% {
+    opacity: 0.95;
+    transform: scale(1);
+  }
+  84% {
+    opacity: 0.55;
+    transform: translateY(-0.35em) scale(0.75);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-0.8em) scale(0.4);
+  }
+}
+
+/* ---- "falling maples": leaves spiral down and settle under the phrase ---- */
+.fx[data-fx='kiyo'] .ky-leaf {
+  animation: kiyo-fall var(--T) var(--fx-ease-sine) calc(var(--k) * 0.35s) infinite !important;
+}
+
+.fx[data-fx='kiyo'] .ky-sway {
+  animation: kiyo-sway var(--T) var(--fx-ease-sine) calc(var(--k) * 0.35s) infinite !important;
+}
+
+.fx[data-fx='kiyo'] .ky-spin {
+  transform-origin: 50% 50%;
+  filter: drop-shadow(0 0.1em 0.12em color-mix(in oklab, var(--ky-maple) 55%, transparent));
+  animation: kiyo-spin var(--T) var(--fx-ease-sine) calc(var(--k) * 0.35s) infinite !important;
+}
+
+@keyframes kiyo-fall {
+  0%,
+  6% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  14% {
+    opacity: 1;
+  }
+  62%,
+  88% {
+    opacity: 1;
+    transform: translate(var(--dx), calc(var(--y1) + 0.9em));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), calc(var(--y1) + 0.9em));
+  }
+}
+
+@keyframes kiyo-sway {
+  0%,
+  12% {
+    transform: translateX(0);
+  }
+  22% {
+    transform: translateX(-0.35em);
+  }
+  32% {
+    transform: translateX(0.35em);
+  }
+  42% {
+    transform: translateX(-0.3em);
+  }
+  52% {
+    transform: translateX(0.25em);
+  }
+  62%,
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@keyframes kiyo-spin {
+  0%,
+  12% {
+    transform: rotate(0deg) scaleX(1);
+  }
+  22% {
+    transform: rotate(80deg) scaleX(0.55);
+  }
+  32% {
+    transform: rotate(170deg) scaleX(1);
+  }
+  42% {
+    transform: rotate(250deg) scaleX(0.55);
+  }
+  52% {
+    transform: rotate(320deg) scaleX(1);
+  }
+  62%,
+  100% {
+    transform: rotate(calc(var(--rot) + 360deg)) scaleX(1);
+  }
+}
+
+/* ---- "steal a kiss": a kitsune mask tilts up, a tail swishes behind ---- */
+.fx[data-fx='kiyo'] .ky-mask {
+  animation: kiyo-mask var(--T) var(--fx-ease-sine) infinite !important;
+}
+
+@keyframes kiyo-mask {
+  0%,
+  18% {
+    opacity: 0;
+    transform: translateY(0.7em) scale(0.5);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(0) scale(1.06);
+  }
+  36%,
+  74% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  90%,
+  100% {
+    opacity: 0;
+    transform: translateY(-0.25em) scale(0.9);
+  }
+}
+
+.fx[data-fx='kiyo'] .ky-tilt {
+  animation: kiyo-tilt var(--T) var(--fx-ease-sine) infinite !important;
+}
+
+@keyframes kiyo-tilt {
+  0%,
+  26% {
+    transform: rotate(0deg);
+  }
+  38% {
+    transform: rotate(-18deg);
+  }
+  46% {
+    transform: rotate(-13deg);
+  }
+  52% {
+    transform: rotate(-20deg);
+  }
+  66% {
+    transform: rotate(-16deg);
+  }
+  82%,
+  100% {
+    transform: rotate(-3deg);
+  }
+}
+
+.fx[data-fx='kiyo'] .ky-tail {
+  animation: kiyo-tail-in var(--T) var(--fx-ease-sine) infinite !important;
+}
+
+@keyframes kiyo-tail-in {
+  0%,
+  14% {
+    opacity: 0;
+  }
+  28%,
+  80% {
+    opacity: 0.95;
+  }
+  94%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.fx[data-fx='kiyo'] .ky-swish {
+  transform-origin: 12% 85%;
+  animation: kiyo-swish var(--T) var(--fx-ease-sine) infinite !important;
+}
+
+@keyframes kiyo-swish {
+  0%,
+  20% {
+    transform: rotate(-6deg);
+  }
+  30% {
+    transform: rotate(12deg);
+  }
+  42% {
+    transform: rotate(-8deg);
+  }
+  54% {
+    transform: rotate(14deg);
+  }
+  66% {
+    transform: rotate(-6deg);
+  }
+  78% {
+    transform: rotate(10deg);
+  }
+  100% {
+    transform: rotate(-6deg);
+  }
+}
+
+/* ---- front detail: the linger (sparks) and the dissipate (ghost puffs) ---- */
+.fx[data-fx='kiyo'] .ky-spark {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--s);
+  height: var(--s);
+  border-radius: 50%;
+  background: var(--ky-spark);
+  box-shadow: 0 0 0.3em 0.06em var(--ky-blue);
+  opacity: 0;
+  animation: kiyo-spark var(--T) linear calc(var(--k) * 0.15s) infinite !important;
+}
+
+@keyframes kiyo-spark {
+  0%,
+  52% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  62% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 0;
+    transform: translate(var(--dx), 0.7em);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), 0.7em);
+  }
+}
+
+.fx[data-fx='kiyo'] .ky-puff {
+  position: absolute;
+  left: var(--x);
+  top: 20%;
+  width: 1.3em;
+  height: 1.3em;
+  margin: -0.65em 0 0 -0.65em;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in oklab, var(--ky-blue) 40%, transparent), transparent 68%);
+  opacity: 0;
+  animation: kiyo-puff var(--T) var(--fx-ease-sine) calc(var(--k) * 0.25s) infinite !important;
+}
+
+@keyframes kiyo-puff {
+  0%,
+  72% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  82% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-0.45em) scale(1.8);
+  }
+}
