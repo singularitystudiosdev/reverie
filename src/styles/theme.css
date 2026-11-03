@@ -72,6 +72,27 @@
   opacity: var(--w-scene);
 }
 
+/* Her scene loop over the still. Hidden until it plays, then it fades in over
+   the still (which is the poster and the fallback). The video carries the
+   motion, so once it is opaque the still steps aside and its drift stops; a
+   still-only plate keeps the drift. The video holds the still's framing. */
+.atm-plate-video {
+  animation: none;
+  transition: opacity var(--duration-400) var(--ease-standard);
+  pointer-events: none;
+}
+
+.atm-plate-video.is-playing {
+  opacity: var(--w-scene);
+}
+
+.atm-plate.is-ready.is-covered {
+  opacity: 0;
+  animation: none;
+  transform: translate3d(0, 0, 0) scale(1.06);
+  transition-duration: var(--duration-400);
+}
+
 @keyframes atm-drift {
   0% {
     transform: translate3d(-1%, 0.6%, 0) scale(1.06);

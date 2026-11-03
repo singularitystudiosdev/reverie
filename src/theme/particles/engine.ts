@@ -82,6 +82,9 @@ const easeContinuous = bezier(ease.continuous as readonly number[]);
 
 const MAX_SLOTS = 8;
 
+/** Scene loops decoding at once: the committed world and the drag preview. */
+const MAX_LOOPS = 2;
+
 export interface EnginePerf {
   engineMs: number[];
   frameMs: number[];
@@ -116,7 +119,11 @@ export class AtmosphereEngine {
   private emit: { slot: number; layer: number; left: number; every: number; next: number } | null = null;
   private readonly ro: ResizeObserver;
   private readonly perf: EnginePerf | null;
-  private readonly onVisibility = () => this.wake();
+  private readonly onVisibility = () => {
+    // A hidden tab runs no frames: release every loop now, the first frame back replays them.
+    if (document.hidden) for (const w of [...this.stack, this.preview]) w?.group.setPlaying(false);
+    this.wake();
+  };
   private readonly onInput = () => {
     this.inputs.lastInputAt = performance.now();
   };
@@ -521,6 +528,7 @@ export class AtmosphereEngine {
       rem *= 1 - o;
     }
     this.writeGroups();
+    this.syncLoops();
 
     // Responses: the current world answers the live sources; the preview its neutral ones.
     const scale = sleepy ? 0 : tier.responseScale;
@@ -647,6 +655,24 @@ export class AtmosphereEngine {
       if (settled || (Math.abs(v - w.written) < 0.002 && v !== 0 && v !== 1)) continue;
       w.group.root.style.opacity = v >= 1 ? '1' : v.toFixed(3);
       w.written = v;
+    }
+  }
+
+  /**
+   * Scene loops: only the committed world and the preview under the finger
+   * play (at most MAX_LOOPS). A world at weight 0, an armed preview nobody
+   * sees, a world fading out beyond the cap: paused and released (no src).
+   */
+  private syncLoops(): void {
+    const top = this.stack[this.stack.length - 1];
+    let free = MAX_LOOPS;
+    const order: (World | null)[] = [top, this.preview];
+    for (let i = this.stack.length - 2; i >= 0; i--) order.push(this.stack[i]);
+    for (const w of order) {
+      if (!w) continue;
+      const play = free > 0 && w.group.hasVideo && (w === top || w.field.weight > 0.001);
+      w.group.setPlaying(play);
+      if (play) free--;
     }
   }
 

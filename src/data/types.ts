@@ -64,6 +64,7 @@ export interface Character {
   clipPoster: string;     // /characters/<id>-clip-poster.jpg
   scene: string;          // /characters/<id>-scene.webp   900x1600
   sceneSm: string;        // /characters/<id>-scene-sm.webp 360x640
+  sceneLoop: string;      // /characters/<id>-scene-loop.mp4 720x1280, 4-6 s muted seamless loop of her scene (may 404: the still stays)
   avatarPosition: string; // CSS object-position + transform-origin for round crops, e.g. '50% 24%'
   avatarScale: number;    // zoom for round crops so the face fills the circle, e.g. 2.2
   opener: string;         // her first message after a match

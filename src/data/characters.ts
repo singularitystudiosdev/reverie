@@ -60,10 +60,21 @@ function art(seed: Seed): Character {
     clipPoster: `${base}-clip-poster.jpg`,
     scene: `${base}-scene.webp`,
     sceneSm: `${base}-scene-sm.webp`,
+    sceneLoop: `${base}-scene-loop.mp4`,
     avatarPosition: seed.avatarPosition ?? AVATAR_POSITION,
     avatarScale: seed.avatarScale ?? AVATAR_SCALE,
     opener: seed.opener,
   };
+}
+
+/**
+ * The looping scene video that belongs to a scene still (the string the
+ * screens hand to setTheme / setPreview), or null when no character owns it.
+ * The one place a still maps to its loop.
+ */
+export function sceneLoopFor(sceneSrc: string | null): string | null {
+  if (!sceneSrc) return null;
+  return characters.find((c) => c.scene === sceneSrc)?.sceneLoop ?? null;
 }
 
 /** The roster, in roster order. Avatar crops were tuned by rendering each circle against her portrait. */
