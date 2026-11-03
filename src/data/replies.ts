@@ -777,10 +777,10 @@ const voices: Record<string, Voice> = {
       'Boots on! Here is where we are going.',
     ],
     places: [
-      { title: 'The Sunflower Road', subtitle: 'Dirt track through the tall blooms', meta: 'Windows down', art: 'scene', at: [0.5, 0.58, 2.2] },
-      { title: 'Red Barn Hill', subtitle: 'Windmill, barn and wide sky', meta: 'Best at sunrise', art: 'scene', at: [0.62, 0.1, 2.6] },
+      { title: 'The Sunflower Road', subtitle: 'Dirt track through the tall blooms', meta: 'Windows down', art: 'scene', at: [0.5, 0.62, 2.2] },
+      { title: 'Red Barn Hill', subtitle: 'Windmill, barn and wide sky', meta: 'Best at sunrise', art: 'scene', at: [0.68, 0.35, 2.6] },
       { title: 'The Pie Porch', subtitle: 'Peach pie cooling on the sill', meta: 'Warm until six', art: 'portrait', at: [0.65, 0.66, 2.4] },
-      { title: 'Hive Meadow', subtitle: 'Where the bees live', meta: 'Wear a hat', art: 'scene', at: [0.85, 0.85, 2.4] },
+      { title: 'Hive Meadow', subtitle: 'Where the bees live', meta: 'Wear a hat', art: 'scene', at: [0.82, 0.55, 2.4] },
     ],
     topics: /\b(bake|baking|pie|pies|bees?|honey|road trip|truck|sunflowers?|farm|garden|peach|apple|cake|cookies?)\b/,
     setting: /\b(farm|barn|field|fields|porch|windmill|countryside)\b/,
