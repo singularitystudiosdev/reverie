@@ -4,13 +4,14 @@
 
   Files (public/fx/clementine/, stacked-alpha H.264, colour top half, alpha-as-luma bottom half;
   each has a transparent first-frame <clip>.poster.png):
-    intro.mp4   450x800, 5.04 s, plays once. Butterflies burst up and out of a bouquet trailing
-                golden pollen while a sun flare blooms. Two composited passes: butterflies and
-                bouquet rendered on flat magenta (chroma key), flare and pollen on black (luma).
-    loop.mp4    450x800, 4.54 s seamless. Wheat swaying, butterflies flitting (magenta key) under
-                a drifting sunbeam with dust motes (luma).
-    frame.mp4   450x800, 12 fps seamless. Sunflower and vine border with butterflies, empty
-                middle (magenta key).
+    intro.mp4   450x800, 5.04 s, plays once. A bouquet bursts and a flock of butterflies explodes
+                outward to fill the whole frame, trailing golden pollen, while a sun flare blooms.
+                Two composited passes: butterflies on flat magenta (chroma key), flare and pollen on
+                black (luma). The last 0.6 s fades to empty.
+    loop.mp4    450x800, 4.54 s seamless. A wheat field swaying strongly along the bottom edge,
+                butterflies flitting (magenta key) under a drifting sunbeam with dust motes (luma).
+    frame.mp4   450x800, 24 fps, 4.54 s seamless. Sunflower and vine border swaying in a breeze,
+                butterflies flapping, empty middle (magenta key).
     ring.mp4    360x360, seamless. Sunflower and vine wreath with an empty circular centre for
                 her avatar (magenta key).
     words.mp4   640x640 atlas, 2x2 cells of 320 px, seamless (magenta key). Each motif sits in
