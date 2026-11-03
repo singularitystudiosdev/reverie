@@ -9,14 +9,15 @@
   - Tapping a tile opens it full-frame INSIDE the same sheet: the media fills
     the sheet. A clip autoplays muted on a loop; a tap pauses or resumes it.
   - No close button anywhere, like the profile sheet (ProfileSheet.tsx): a swipe
-    that starts anywhere on the sheet, or on the scrim above it, drags the sheet
-    and tracks the finger directly; on release the position is projected along
-    the velocity and the nearer rest wins. Past the midpoint a grid closes the
-    sheet and a full-frame preview returns to the grid. A tap on the scrim that
-    did not drag closes the sheet. Escape returns from a preview to the grid,
-    then closes the sheet. When the grid is taller than the sheet it scrolls
-    natively, so a swipe that starts on it scrolls; the grabber strip above it
-    and the scrim stay drag sources.
+    DOWN that starts anywhere in the window (the sheet, the scrim, or outside
+    the frame) drags the sheet and tracks the finger 1:1 (useSwipeDismiss). It
+    acts only when pulled most of the way or to the bottom edge of the window,
+    otherwise it springs back; a quick flick alone does nothing. Then a grid
+    closes the sheet and a full-frame preview returns to the grid. A tap on the
+    scrim that did not drag closes the sheet. Escape returns from a preview to
+    the grid, then closes the sheet. When the grid is taller than the sheet it
+    scrolls natively, so a touch that starts on it scrolls; the grabber strip
+    above it and the scrim stay drag sources.
   - An opaque sheet (surface-solid, no blur), rendered into the frame's UI
     layer through a portal so it covers the floating tab bar. Focus moves in,
     Tab stays inside, and focus returns to the trigger on close.
@@ -28,11 +29,7 @@ import { Play } from 'lucide-react';
 import {
   AnimatePresence,
   motion,
-  useDragControls,
   useIsPresent,
-  useMotionValue,
-  useTransform,
-  type PanInfo,
 } from 'motion/react';
 import {
   useEffect,
@@ -41,13 +38,13 @@ import {
   useState,
   type JSX,
   type MutableRefObject,
-  type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { artSize } from '../data/characters';
 import type { Character, Message } from '../data/types';
-import { dur, ease, spring, useReducedMotion } from '../lib/motion';
+import { dur, ease, useReducedMotion } from '../lib/motion';
+import { useSwipeDismiss } from '../lib/useSwipeDismiss';
 import { useApp } from '../state/store';
 import { trapTab } from './chat/focus';
 import { stateLayer } from './chat/stateLayer';
@@ -149,35 +146,26 @@ function Sheet(props: {
     if (preview) dialog.current?.focus({ preventScroll: true });
   }, [preview]);
 
-  // The drag offset (px). The scrim lightens as the sheet is pulled down.
-  const y = useMotionValue(0);
-  const scrimOpacity = useTransform(y, (v: number | string) => {
-    const h = dialog.current?.offsetHeight;
-    return typeof v === 'number' && h ? Math.max(0, 1 - v / h) : 1;
-  });
-  const controls = useDragControls();
-
-  // `dragged` keeps a swipe that ends over the scrim, a tile or the clip from also counting as a tap.
-  const dragged = useRef(false);
-  const startDrag = (e: ReactPointerEvent) => {
-    dragged.current = false;
-    controls.start(e);
-  };
-
   const closePreview = () => {
     pendingTile.current = previewId;
     setPreviewId(null);
   };
 
-  // Release: project along the velocity; the nearer rest wins. Past the
-  // midpoint a grid closes the sheet and a preview steps back to the grid.
-  const onDragEnd = (_: unknown, info: PanInfo) => {
-    const h = dialog.current?.offsetHeight ?? 0;
-    const projected = info.offset.y + info.velocity.y * dur.base;
-    if (Math.abs(h - projected) >= Math.abs(projected)) return;
-    if (previewId) closePreview();
-    else onClose();
-  };
+  // A swipe down from anywhere; `dragged` keeps a swipe that ends over the
+  // scrim, a tile or the clip from also counting as a tap. A grid closes the
+  // sheet; a preview steps back to the grid, so the sheet springs back (false).
+  const { offset, scrimOpacity, dragged } = useSwipeDismiss({
+    direction: 'down',
+    panel: dialog,
+    onDismiss: () => {
+      if (!previewId) {
+        onClose();
+        return true;
+      }
+      closePreview();
+      return false;
+    },
+  });
 
   useEffect(() => {
     if (!isPresent) return;
@@ -205,7 +193,6 @@ function Sheet(props: {
           data-slot="gallery-scrim"
           className="absolute inset-0 touch-none bg-[var(--scrim)]"
           style={{ opacity: scrimOpacity }}
-          onPointerDown={startDrag}
           onClick={() => {
             if (!dragged.current) onClose();
           }}
@@ -226,19 +213,7 @@ function Sheet(props: {
             'land:mx-auto land:max-w-[var(--sheet-max-w)]',
             preview ? 'h-[var(--sheet-max-h)]' : 'max-h-[var(--sheet-max-h)]'
           )}
-          style={{ y }}
-          onPointerDown={startDrag}
-          onDragStart={() => {
-            dragged.current = true;
-          }}
-          drag="y"
-          dragListener={false}
-          dragControls={controls}
-          dragConstraints={{ top: 0, bottom: 0 }}
-          dragElastic={{ top: 0, bottom: 1 }}
-          dragMomentum={false}
-          dragTransition={{ bounceStiffness: spring.snappy.stiffness, bounceDamping: spring.snappy.damping }}
-          onDragEnd={onDragEnd}
+          style={{ y: offset }}
           initial={reduce ? { opacity: 0 } : { y: '100%' }}
           animate={
             reduce
@@ -320,7 +295,7 @@ function Grid(props: {
       ref={list}
       key="grid"
       aria-label={`Media from ${character.name}`}
-      onPointerDown={scrolls ? (e) => e.stopPropagation() : undefined}
+      data-swipe-scroll={scrolls ? '' : undefined}
       className={clsx(
         'grid min-h-0 flex-1 grid-cols-2 content-start gap-8 overflow-y-auto overscroll-contain px-16 pb-[calc(var(--spacing-24)+var(--safe-bottom))]',
         scrolls ? 'touch-pan-y' : 'touch-none'
