@@ -4,7 +4,8 @@
 
     intro  ivy whips in from the edges and curls shut, blossoms open, fireflies rush the
            camera, the moon flares (120 frames, plays once)
-    loop   drifting fireflies, breathing leaves, shifting ivy, moon glow at the top
+    loop   ivy vines swaying and curling, leaves turning, blossoms opening and closing,
+           fireflies drifting, moon glow at the top (seamless, 109 frames)
     frame  ivy and blossoms around the 9:16 edge, nothing in the middle
     ring   an ivy and blossom wreath around her avatar, centre empty
     words  2x2 atlas, each motif kept inside its cell (gutter 0.1):
