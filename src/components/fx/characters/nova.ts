@@ -27,23 +27,24 @@ import type { CharacterFx } from '../types'
               border with light running along the traces and flickering
               magenta tubes, empty middle. Seamless.
 
-   Not rendered yet, so not declared here (the player falls back to the v5
-   sprite scenes for her bio words, and has no ring for her avatar):
-     words  one column by three rows of her tagged phrases, painted at
-            public/fx/nova/plates/words.jpg:
-              "noticed"         -> middle row, an ECG heartbeat line drawing
-              "stay jacked in"  -> top row, glyph noise decoding with a neon
-                                   tube flickering on beneath it
-              "always wins"     -> bottom row, a hologram coin flipping
-     ring   a circuit ring with an empty centre and glitch fragments breaking
-            out past its edge, painted at public/fx/nova/plates/ring.jpg.
-   The fal balance was exhausted before those two clips could be generated.
-   Once it is topped up, run kling on each plate with the same settings as
-   above and encode with encode.sh (mode luma), then add:
-     words: { src: '/fx/nova/words.mp4', loop: true, duration, loopDelay: 0,
-              zIndex: 100, cols: 1, rows: 3, gutter: 0.1,
-              cells: { 'stay jacked in': [0, 0], noticed: [0, 1], 'always wins': [0, 2] } }
-     ring:  { src: '/fx/nova/ring.mp4', loop: true, duration, loopDelay: 0, zIndex: 100 }
+   words.mp4  109 frames, 109 distinct, solid 41.4% (luma; the hologram coin
+              is translucent but stayed above the 40% ghost line). 640x640
+              square atlas, one column by three rows with a 0.1 gutter, so
+              motion never crosses a row edge. Re-rendered once: the first take
+              grew a cyan V that crossed from the top row into the ECG row, so
+              the prompt now pins the bands and negates diagonals.
+                "stay jacked in"  top row, glyph noise decoding with a magenta
+                                  neon tube flickering on beneath it
+                "noticed"         middle row, an ECG heartbeat line with pulses
+                                  travelling along it
+                "always wins"     bottom row, a hologram coin spinning
+              Seamless, zIndex 100. Plate: plates/words.jpg.
+   ring.mp4   109 frames, 109 distinct, solid 49.0% (luma, emissive). 384x384
+              square avatar decoration: a circuit ring with an empty centre,
+              pulsing traces, flickering magenta tubes and glitch fragments
+              tearing out past its edge. Seamless. Plate: plates/ring.jpg.
+   words and ring use the same Kling settings as above (5 s, cfg 0.6), encoded
+   with encode.sh at gain 1.6, mode luma, crf 32.
 */
 
 export const nova: CharacterFx = {
@@ -68,6 +69,24 @@ export const nova: CharacterFx = {
     duration: 4542,
     loopDelay: 0,
     zIndex: 90,
+  },
+  words: {
+    src: '/fx/nova/words.mp4',
+    loop: true,
+    duration: 4542,
+    loopDelay: 0,
+    zIndex: 100,
+    cols: 1,
+    rows: 3,
+    gutter: 0.1,
+    cells: { 'stay jacked in': [0, 0], noticed: [0, 1], 'always wins': [0, 2] },
+  },
+  ring: {
+    src: '/fx/nova/ring.mp4',
+    loop: true,
+    duration: 4542,
+    loopDelay: 0,
+    zIndex: 100,
   },
 }
 
