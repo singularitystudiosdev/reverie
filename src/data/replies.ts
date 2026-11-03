@@ -256,7 +256,7 @@ const voices: Record<string, Voice> = {
       'Festivals are the best. Fireworks, stalls, goldfish scooping. I am terrible at it, but I always try.',
     ],
     about: [
-      'I am the shrine maiden of the spring shrine! I sweep, I pray, I tie wishes to the branch, and I make a lot of tea.',
+      'I keep the spring shrine! I sweep, I pray, I tie wishes to the branch, and I make a lot of tea.',
       'I wear a white haori and red hakama every day, with ribbons in my ponytail. Every lantern here has a name, did you know?',
       'I am cheerful, a little superstitious, and I never forget a wish someone shares with me.',
     ],
@@ -390,7 +390,7 @@ const voices: Record<string, Voice> = {
     how: [
       'Burning bright. Won a spellcraft duel this morning and had three bowls of curry. You?',
       'Warm, as always. Singed a sleeve on a practice flame, nothing serious. How are you?',
-      'Great, now. Class was boring until you messaged. How is your day?',
+      'Great, now. I spent the afternoon teaching apprentices not to set their sleeves on fire, and then you messaged. How is your day?',
     ],
     doing: [
       'Practicing a fire ring. Fourteen tries, and the fourth only singed a curtain.',
@@ -418,7 +418,7 @@ const voices: Record<string, Voice> = {
       'Dragons are the best. I have known one since I was nine. She is grumpy, loyal, and likes cinnamon.',
     ],
     about: [
-      'I am a fire sorceress. Top of my class at the Ember Spire, and I have singed an eyebrow on every professor there.',
+      'I am a fire sorceress and a battle-mage instructor at the Ember Spire. I have singed an eyebrow on every colleague I have, and they still invite me to dinner.',
       'I am competitive, loud and always a little warm to the touch. I am also really good at comforting people. Do not tell anyone.',
       'I carry a flame in my palm and a grudge against bland food. That is about the whole story.',
     ],
@@ -459,7 +459,7 @@ const voices: Record<string, Voice> = {
       { title: 'Chili Hall', subtitle: 'The Spire\'s hottest hot pot', meta: 'Water is for cowards', art: 'portrait', at: [0.78, 0.32, 2.6] },
     ],
     topics: /\b(spell|spells|spellcraft|magic|fire|flame|spicy|spice|chili|pepper|peppers|dragon|dragons|curry|duel|duels)\b/,
-    setting: /\b(spire|volcano|lava|academy)\b/,
+    setting: /\b(spire|volcano|lava)\b/,
   },
 
   isolde: {
@@ -501,7 +501,7 @@ const voices: Record<string, Voice> = {
     about: [
       'I am the Queen of the Frost March. I rule well, play chess better, and laugh more than my portraits suggest.',
       'I wear a silver crown and white fur, and I rarely raise my voice. In private, I giggle.',
-      'I was crowned young. I learned that warmth is a choice, so I choose it, for those I trust.',
+      'I have worn the crown a long time. I learned that warmth is a choice, so I choose it, for those I trust.',
     ],
     goodbye: [
       'You are dismissed. Kindly. Sleep well.',
@@ -906,7 +906,7 @@ const voices: Record<string, Voice> = {
     about: [
       'I am a kitsune, nine tails, nine lives lived. I keep a tail from each, and they all have opinions.',
       'I have outwitted emperors and one very stubborn tanuki. I am clever and a bit of a tease.',
-      'I look young, but I am older than your language. I am still working on flirting. Nine lifetimes, and I am nearly there.',
+      'I am older than your language, nine lifetimes and counting, and I am still working on flirting. I am nearly there.',
     ],
     goodbye: [
       'Go on, then. I will leave a leaf at your door.',
@@ -957,7 +957,7 @@ const voices: Record<string, Voice> = {
     how: [
       'Magnificent, naturally! A caravan brought saffron, and the whole market smells like gold. And you?',
       'Wonderful, thank you. Three thousand years and I still love the sunrise. How are you, dear?',
-      'Content, truly. I granted a small wish today, for a child, and now I am glowing. How is your day?',
+      'Content, truly. I granted a small wish today, for an old fisherman, and now I am glowing. How is your day?',
     ],
     doing: [
       'Counting stars from the top of a dune. I lose track around seven thousand, then I start again.',

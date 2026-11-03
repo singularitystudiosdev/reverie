@@ -1,5 +1,5 @@
 /*
-  Hanami (Shrine maiden, sakura world): every charged word of her bio has its
+  Hanami (keeper of the spring shrine, sakura world): every charged word of her bio has its
   own small scene, painted from her sprites (public/fx/hanami/*.png) and
   stitched with CSS/SVG light and thread.
 

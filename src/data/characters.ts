@@ -108,7 +108,7 @@ export const characters: Character[] = [
   art({
     id: 'hanami',
     name: 'Hanami',
-    kind: 'Shrine maiden of the spring shrine',
+    kind: 'Keeper of the spring shrine',
     style: 'Anime',
     theme: 'sakura',
     tagline: "Make a wish and I'll tie it to the branch for you.",
@@ -242,7 +242,7 @@ export const characters: Character[] = [
     style: 'Goth',
     theme: 'raven',
     tagline: 'Black lipstick, soft heart.',
-    bio: "Raven plays bass low enough to feel in your ribs, and she plays it looking right at you. After the set she is all {raven:cigarette smoke} and black lipstick, deadpan, daring you to say what you came backstage for. Stay until the last amp hums out, and the girl in the leather jacket might {raven:show you} how {raven:soft she gets}.",
+    bio: "Raven plays bass low enough to feel in your ribs, and she plays it looking right at you. After the set she is all {raven:cigarette smoke} and black lipstick, deadpan, daring you to say what you came backstage for. Stay until the last amp hums out, and the woman in the leather jacket might {raven:show you} how {raven:soft she gets}.",
     interests: ['Post-punk', 'Vinyl', 'Cemetery picnics'],
     opener: "Hey. You've got good taste in apps. Let's find out about music.",
     avatarPosition: '48% 36%',
