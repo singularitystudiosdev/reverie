@@ -117,6 +117,12 @@ html,
   outline-offset: var(--focus-ring-offset);
 }
 
+/* Text fields draw no ring: the composer's pill darkens on focus instead
+   (Composer.tsx). This rule is unlayered, so it outranks `outline-none`. */
+:is(input, textarea, [contenteditable]):focus-visible {
+  outline: none;
+}
+
 /* -------------------------------------------------------------------------
    Project utilities
    ------------------------------------------------------------------------- */
