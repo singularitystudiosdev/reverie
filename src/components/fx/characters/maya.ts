@@ -1,7 +1,9 @@
 /* Maya (citylights): film grain, light leaks, bokeh and a shutter.
    Five rendered stacked-alpha clips in public/fx/maya/ (Kling i2v on gpt-image-2 plates, encoded by
    .tmp/reverie-research/proof/encode.sh). Durations are milliseconds, as in Discord's layer schema.
-     intro   a shutter snaps, a white flash floods the lens, then it develops back in through a leak
+     intro   solid dark shutter blades (chroma-keyed pass on flat green) snap shut, hold, spring open;
+             a luma flash pass floods the whole frame pure white for ~5 frames, then develops back
+             in through a warm light leak (4.04s, no loop, last 0.9s fades to transparent)
      loop    bokeh orbs drifting and pulsing, grain crawling, a slow warm leak (luma, emissive)
      frame   film-strip and lens-flare border, empty middle (solid film on flat green, keyed)
      ring    focus-ring avatar decoration, empty circular centre, flares and bokeh outside it
@@ -18,7 +20,7 @@ const BASE = '/fx/maya/';
 
 export const maya: CharacterFx = {
   id: 'maya',
-  intro: { src: `${BASE}intro.mp4`, loop: false, duration: 5042, zIndex: 110 },
+  intro: { src: `${BASE}intro.mp4`, loop: false, duration: 4042, zIndex: 110 },
   loop: { src: `${BASE}loop.mp4`, loop: true, duration: 4542, loopDelay: 0, zIndex: 100 },
   frame: { src: `${BASE}frame.mp4`, loop: true, duration: 4542, zIndex: 90 },
   ring: { src: `${BASE}ring.mp4`, loop: true, duration: 4542, zIndex: 100 },
