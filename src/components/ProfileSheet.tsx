@@ -7,12 +7,12 @@
     image with her name (--text-name) over a bottom scrim, then her bio with
     AnimatedBio. No interest chips, no Message button, no close button, no
     kind or style lines.
-  - Mechanics after design-web sheet.tsx: a swipe that starts anywhere on the
-    sheet, or on the scrim above it, drags the sheet and tracks the finger
-    directly (no easing while dragging); on release the position is projected
-    along the velocity and the nearer rest wins (open or dismissed); the scrim
-    lightens as she is pulled down. Escape and a tap on the scrim (one that
-    did not drag) dismiss. Focus moves into the sheet on open, Tab stays inside, and
+  - Mechanics (useSwipeDismiss): a swipe DOWN that starts anywhere in the
+    window (the sheet, the scrim, or outside the frame) drags the sheet and
+    tracks the finger 1:1; the scrim lightens as she is pulled down. It closes
+    only when pulled most of the way or to the bottom edge of the window,
+    otherwise it springs back; a quick flick alone does not close it. Escape
+    and a tap on the scrim (one that did not drag) dismiss. Focus moves into the sheet on open, Tab stays inside, and
     focus returns to the trigger as it closes.
   - Motion: in on the base band (enter easing), out on the quick band. The hero
     eases in with a slight scale, then the bio fades up after it. Reduced
@@ -28,17 +28,14 @@
 import {
   AnimatePresence,
   motion,
-  useDragControls,
   useIsPresent,
-  useMotionValue,
-  useTransform,
-  type PanInfo,
 } from 'motion/react';
-import { useEffect, useId, useRef, type JSX, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useId, useRef, type JSX } from 'react';
 import { trapTab } from './chat/focus';
 import { AnimatedBio } from './chat/AnimatedBio';
 import type { Character } from '../data/types';
-import { dur, durMs, ease, spring, useReducedMotion } from '../lib/motion';
+import { dur, durMs, ease, useReducedMotion } from '../lib/motion';
+import { useSwipeDismiss } from '../lib/useSwipeDismiss';
 import { useApp, useCharacter } from '../state/store';
 import { Portrait } from './Portrait';
 import { FxSurface } from './fx/FxSurface';
@@ -60,7 +57,6 @@ function Sheet(props: { character: Character }): JSX.Element {
   const isPresent = useIsPresent();
   const dialog = useRef<HTMLDivElement>(null);
   const returnTo = useRef<HTMLElement | null>(null);
-  const controls = useDragControls();
   const nameId = useId();
 
   // Rendered FX: intro then loop on one surface, her frame art on another.
@@ -74,13 +70,6 @@ function Sheet(props: { character: Character }): JSX.Element {
   useEffect(() => suspendBase(), []);
 
   const close = () => actions.openProfile(null);
-
-  // The drag offset (px). The scrim lightens as the sheet is pulled down.
-  const y = useMotionValue(0);
-  const scrimOpacity = useTransform(y, (v: number | string) => {
-    const h = dialog.current?.offsetHeight;
-    return typeof v === 'number' && h ? Math.max(0, 1 - v / h) : 1;
-  });
 
   // Focus moves in on open (the dialog itself, so its name is read first).
   useEffect(() => {
@@ -105,20 +94,9 @@ function Sheet(props: { character: Character }): JSX.Element {
     return () => document.removeEventListener('keydown', onKey);
   }, [isPresent, actions]);
 
-  // Any press on the sheet or the scrim can become the drag. `dragged` keeps a
-  // swipe that ends over the scrim from also counting as a tap that closes.
-  const dragged = useRef(false);
-  const startDrag = (e: ReactPointerEvent) => {
-    dragged.current = false;
-    controls.start(e);
-  };
-
-  // Release: project along the velocity, settle on the nearer rest.
-  const onDragEnd = (_: unknown, info: PanInfo) => {
-    const h = dialog.current?.offsetHeight ?? 0;
-    const projected = info.offset.y + info.velocity.y * dur.base;
-    if (Math.abs(h - projected) < Math.abs(projected)) close();
-  };
+  // A swipe down from anywhere drags the sheet; `dragged` keeps a swipe that
+  // ends over the scrim from also counting as a tap that closes.
+  const swipe = useSwipeDismiss({ direction: 'down', panel: dialog, onDismiss: close });
 
   return (
     <motion.div key="profile" data-slot="profile-layer" className="absolute inset-0 z-30">
@@ -132,10 +110,9 @@ function Sheet(props: { character: Character }): JSX.Element {
         <motion.div
           data-slot="sheet-scrim"
           className="absolute inset-0 touch-none bg-[var(--scrim)]"
-          style={{ opacity: scrimOpacity }}
-          onPointerDown={startDrag}
+          style={{ opacity: swipe.scrimOpacity }}
           onClick={() => {
-            if (!dragged.current) close();
+            if (!swipe.dragged.current) close();
           }}
         />
       </motion.div>
@@ -150,19 +127,7 @@ function Sheet(props: { character: Character }): JSX.Element {
           onKeyDown={trapTab}
           data-slot="profile-sheet"
           className="pointer-events-auto flex max-h-[var(--sheet-max-h)] w-full touch-none flex-col overflow-y-auto overscroll-contain rounded-t-20 border-t border-hairline surface-solid text-ink select-none"
-          style={{ y }}
-          onPointerDown={startDrag}
-          onDragStart={() => {
-            dragged.current = true;
-          }}
-          drag="y"
-          dragListener={false}
-          dragControls={controls}
-          dragConstraints={{ top: 0, bottom: 0 }}
-          dragElastic={{ top: 0, bottom: 1 }}
-          dragMomentum={false}
-          dragTransition={{ bounceStiffness: spring.snappy.stiffness, bounceDamping: spring.snappy.damping }}
-          onDragEnd={onDragEnd}
+          style={{ y: swipe.offset }}
           initial={reduce ? { opacity: 0 } : { y: '100%' }}
           animate={
             reduce
