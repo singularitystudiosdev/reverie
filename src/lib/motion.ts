@@ -110,11 +110,9 @@ export const matchDelayMs = {
 /** How long after her reply the clip video message arrives. */
 export const clipDelayMs = 1500 /* deliberate */;
 
-/** The locked Chats tab: a short horizontal nudge, then a hint bubble. */
-export const lockedTab = {
-  nudgeX: 6,
-  nudgeS: dur.quick,
-  hintMs: 2000 /* deliberate */,
+/** Explore before the first match: the lock hint bubble stays up this long, once per session. */
+export const lockHint = {
+  ms: 2000 /* deliberate */,
 } as const;
 
 /** Drawer rows rise in one after another: this gap (s), for at most `max` rows. */
@@ -124,14 +122,8 @@ export const rowStagger = {
   riseY: 8,
 } as const;
 
-/**
- * The tab bar's liquid lens: it stretches along its direction of travel by
- * its own speed (px/s), up to `maxStretch`, and squashes a little across it.
- */
+/** The floating glass buttons (chat header, Explore back) squish to this scale while pressed. */
 export const lens = {
-  speedForMax: 1800,
-  maxStretch: 0.32,
-  squash: 0.35,
   pressScale: 0.96,
 } as const;
 

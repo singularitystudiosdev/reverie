@@ -23,8 +23,8 @@
     close; Tab stays inside while open. aria-expanded lives on the hamburger
     (ChatHeader).
   - Rendered into the frame's UI layer (the parent of <main>) through a
-    portal, so it covers the floating tab bar (z-20) and stays under the
-    profile sheet (z-30). Opaque panel (surface-solid): no blur, per the
+    portal, so it covers the screen and its floating controls and stays under
+    the profile sheet (z-30). Opaque panel (surface-solid): no blur, per the
     blur budget.
   - Motion: the panel slides in on the base band with enter easing and leaves
     on the quick band; the scrim fades.

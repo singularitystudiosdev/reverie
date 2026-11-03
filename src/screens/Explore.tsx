@@ -21,16 +21,30 @@
 
   A short screen (`short:`, measured on the section itself) tightens the
   gutters and uses the smaller round buttons so the card keeps its height.
+
+  There is no bottom bar. The way back to the chats is a round liquid-glass
+  back button at the top left (the chat header's menu button, same size and
+  inset), floating above the card. It is absent (not in the tab order either)
+  until the first match exists, and carries the total unread count. Before the
+  first match, the first Explore view of the session shows a 2s hint bubble
+  above the deck buttons ("Swipe right on someone to unlock chat"); it never
+  takes a tap. The deck buttons sit --bottom-room above the frame's bottom edge.
 */
-import { Check, X } from 'lucide-react';
-import { motion, useMotionValue } from 'motion/react';
-import { useCallback, useEffect, useLayoutEffect, useRef, type JSX } from 'react';
+import { Check, ChevronLeft, X } from 'lucide-react';
+import { AnimatePresence, motion, useMotionValue } from 'motion/react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react';
+import { UnreadBadge } from '../components/chat/UnreadBadge';
 import { EmptyDeck } from '../components/explore/EmptyDeck';
 import { SwipeCard, type SwipeCardHandle } from '../components/explore/SwipeCard';
 import { deckConfig, type SwipeDir } from '../components/explore/deckConfig';
-import { dur, ease, pulseStrength, spring, useReducedMotion } from '../lib/motion';
+import { dur, ease, lens, lockHint, pulseStrength, spring, useReducedMotion } from '../lib/motion';
 import { useApp, useDeck } from '../state/store';
 import { useFrameTheme } from '../theme/ThemeProvider';
+
+const lockHintText = 'Swipe right on someone to unlock chat';
+
+/** The lock hint is shown once per session: set when its 2s have run. */
+let lockHintShown = false;
 
 export function Explore(): JSX.Element {
   const { state, actions } = useApp();
@@ -39,6 +53,24 @@ export function Explore(): JSX.Element {
   const next = deck[1];
   const { setTheme, setPreview, setParam, pulse } = useFrameTheme();
   const reduce = useReducedMotion();
+
+  const unlocked = state.matchIds.length > 0;
+  const unread = state.matchIds.reduce((sum, id) => sum + (state.conversations[id]?.unread ?? 0), 0);
+
+  // The lock hint: the first view while nobody is matched, 2s, then never again.
+  const [hint, setHint] = useState(false);
+  useEffect(() => {
+    if (unlocked || lockHintShown) {
+      setHint(false);
+      return;
+    }
+    setHint(true);
+    const timer = window.setTimeout(() => {
+      lockHintShown = true;
+      setHint(false);
+    }, lockHint.ms);
+    return () => window.clearTimeout(timer);
+  }, [unlocked]);
 
   const progress = useMotionValue(0);
   const topHandle = useRef<SwipeCardHandle>(null);
@@ -126,11 +158,45 @@ export function Explore(): JSX.Element {
   return (
     <section
       aria-labelledby="explore-title"
-      className="flex h-full flex-col pt-[var(--statusbar-h)] pb-[var(--tabbar-h)] [container-type:size]"
+      className="relative flex h-full flex-col pt-[var(--statusbar-h)] pb-[var(--bottom-room)] [container-type:size]"
     >
       <h1 id="explore-title" className="sr-only">
         Explore
       </h1>
+
+      {/* Back to the chats: first in the tab order, over the card's layer, and
+          only there once there is a chat to go back to. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 pt-[var(--statusbar-h)]">
+        <div className="safe-x pt-8">
+          <AnimatePresence initial={false}>
+            {unlocked ? (
+              <motion.div
+                key="back"
+                className="pointer-events-auto relative size-[var(--target-touch)]"
+                initial={{ opacity: 0, scale: 0.6 }}
+                animate={{ opacity: 1, scale: 1, transition: { scale: spring.snappy, opacity: { duration: dur.quick } } }}
+                exit={{ opacity: 0, scale: 0.6, transition: { duration: dur.quick, ease: ease.exit } }}
+              >
+                <motion.button
+                  type="button"
+                  aria-label="Back to chats"
+                  onClick={() => actions.setTab('chats')}
+                  whileTap={reduce ? undefined : { scale: lens.pressScale }}
+                  transition={spring.snappy}
+                  className="liquid-glass grid size-full place-items-center rounded-full"
+                >
+                  <ChevronLeft aria-hidden="true" className="size-20" />
+                </motion.button>
+                {unread > 0 ? (
+                  <span className="pointer-events-none absolute -top-4 -right-4">
+                    <UnreadBadge count={unread} />
+                  </span>
+                ) : null}
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        </div>
+      </div>
 
       {top ? (
         <>
@@ -169,7 +235,23 @@ export function Explore(): JSX.Element {
           <p aria-live="polite" className="sr-only">
             {`${top.name}, ${top.kind}`}
           </p>
-          <div className="flex items-center justify-center gap-24 pt-12 pb-12 short:pt-8 short:pb-8">
+          <div className="relative flex items-center justify-center gap-24 pt-12 pb-12 short:pt-8 short:pb-8">
+            <div role="status" className="pointer-events-none absolute inset-x-0 bottom-full z-10 flex justify-center">
+              <AnimatePresence>
+                {hint ? (
+                  <motion.p
+                    key="hint"
+                    data-slot="lock-hint"
+                    className="liquid-glass pointer-events-none mx-[var(--gutter)] rounded-full px-16 py-8 text-center text-label text-ink"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0, transition: { duration: dur.base, ease: ease.enter } }}
+                    exit={{ opacity: 0, transition: { duration: dur.quick, ease: ease.exit } }}
+                  >
+                    {lockHintText}
+                  </motion.p>
+                ) : null}
+              </AnimatePresence>
+            </div>
             <button
               type="button"
               aria-label={`Pass on ${top.name}`}

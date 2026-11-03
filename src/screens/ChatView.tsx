@@ -1,9 +1,10 @@
 /*
   One conversation, after the reference image: header (a liquid-glass
   hamburger at the left, her avatar + name pill centered and tappable to open
-  her profile), messages (bubbles, the grouped card message, the typing
+  her profile, a magnifier at the right), messages (bubbles, the grouped card message, the typing
   bubble), the composer pill, and the chats drawer (the only list of chats).
-  The floating tab bar stays visible below (the composer pads with --tabbar-h).
+  There is no bottom bar: the composer sits --bottom-room above the frame's bottom edge,
+  and the magnifier at the header's top right goes to Explore.
   Focus theme: her theme + her scene plate; the UI over her world stays quiet.
 
   Atmosphere wiring (RTPC model; refs only, never per-frame state):
@@ -119,7 +120,7 @@ export function ChatView(props: { characterId: string }): JSX.Element {
 
   if (!character) {
     return (
-      <section className="safe-x flex h-full flex-col items-center justify-center gap-16 pb-[var(--tabbar-h)] text-center">
+      <section className="safe-x flex h-full flex-col items-center justify-center gap-16 pb-[var(--bottom-room)] text-center">
         <p className="text-body text-muted">This conversation is no longer here.</p>
         <button
           type="button"
@@ -144,6 +145,7 @@ export function ChatView(props: { characterId: string }): JSX.Element {
         onMenu={() => actions.setDrawer(true)}
         onProfile={() => actions.openProfile(character.id)}
         onGallery={() => setGalleryOpen(true)}
+        onExplore={() => actions.setTab('explore')}
       />
       <MessageList character={character} messages={messages} typing={typing} />
       <Composer name={character.name} onSend={send} />

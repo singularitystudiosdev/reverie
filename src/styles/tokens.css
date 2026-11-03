@@ -211,9 +211,6 @@
 /* A short portrait screen, measured on the nearest size container (the Explore section
    is one), not the window: the 9:16 frame is short whenever the window is. */
 @custom-variant short (@container (height < 720px) and (aspect-ratio < 1));
-/* The tab bar's own width: a landscape phone makes a frame under 280px wide, where
-   the tabs stack icon over label instead of sitting side by side. */
-@custom-variant narrow (@container (width < 280px));
 
 :root {
   /* Avatars (round crops) and thumbnails */
@@ -338,12 +335,13 @@
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
 
-  /* Floating pill tab bar. --tabbar-h is the bottom space it takes,
-     safe area included: screens pad their bottom with it. */
-  --tabbar-pad: 6px;
-  --tabbar-pill-h: calc(var(--target-touch) + var(--tabbar-pad) * 2);
-  --tabbar-gap: 12px;
-  --tabbar-h: calc(var(--tabbar-pill-h) + var(--tabbar-gap) * 2 + var(--safe-bottom));
+  /* Bottom breathing room: the space screens keep under their last control
+     (the composer, the deck buttons): the safe area plus one small gap. There
+     is no bottom bar. --tabbar-h is the old name, kept only until
+     Composer.tsx (not part of this change) reads --bottom-room instead. */
+  --bottom-gap: 16px;
+  --bottom-room: calc(var(--safe-bottom) + var(--bottom-gap));
+  --tabbar-h: var(--bottom-room);
 
   /* The pure left inset (the notch side on a phone). The drawer pads with it. */
   --notch-left: env(safe-area-inset-left, 0px);

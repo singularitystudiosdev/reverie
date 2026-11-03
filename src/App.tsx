@@ -2,8 +2,9 @@
   Composition: AppProvider > PhoneFrame > ThemeProvider > LayoutGroup.
   Routing is store state, not URLs, and there is no chats list:
     openChatId set -> ChatView; otherwise Explore.
-  The Chats tab opens the last chat (the store's setTab) and the chats drawer
-  in the chat header is the only list of chats.
+  There is no bottom bar: the magnifier in the chat header opens Explore, the
+  back button on Explore reopens the last chat (the store's setTab), and the
+  chats drawer in the chat header is the only list of chats.
   Transitions (AnimatePresence, both screens mounted together):
     - any route change (Explore <-> chat, chat <-> chat): a 300ms cross-fade
       (screens are transparent over the shared atmosphere)
@@ -22,7 +23,6 @@ import { LiquidGlassDefs } from './components/LiquidGlassDefs';
 import { MatchNotice } from './components/MatchNotice';
 import { PhoneFrame } from './components/PhoneFrame';
 import { ProfileSheet } from './components/ProfileSheet';
-import { TabBar } from './components/TabBar';
 import { dur, ease, instant, useReducedMotion } from './lib/motion';
 import { ChatView } from './screens/ChatView';
 import { Explore } from './screens/Explore';
@@ -74,7 +74,6 @@ export default function App(): JSX.Element {
           <ThemeProvider>
             <LayoutGroup>
               <Routes />
-              <TabBar />
               <ProfileSheet />
               <MatchNotice />
             </LayoutGroup>

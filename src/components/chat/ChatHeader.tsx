@@ -2,11 +2,13 @@
   The chat header, after the reference: a round liquid-glass hamburger at the
   left (opens the chats drawer, aria-expanded), her avatar centered with her
   name in a small pill under it. Her avatar and name are ONE button that opens
-  her profile sheet ("View <name>'s profile"). At the top right, a second
-  liquid-glass button with the photos icon opens her gallery sheet; it is only
-  there once she has sent an image or a clip in this chat, and springs in when
-  the first one arrives (never on a chat that already has media). There is no
-  Profile pill.
+  her profile sheet ("View <name>'s profile"). The top right is a cluster of
+  liquid-glass buttons: the magnifier is always the LAST one (it is the way to
+  Explore, there is no bottom bar), and the photos button opens her gallery
+  sheet to its LEFT; that one is only there once she has sent an image or a clip
+  in this chat, and springs in when the first one arrives (never on a chat that
+  already has media). The cluster is right-aligned, so the magnifier never moves
+  when the gallery button comes or goes. There is no Profile pill.
 
   The name pill carries a second line, her thought: an emoji and a short
   teasing action. It shows while she types, for ~4s after she speaks, and for
@@ -14,7 +16,7 @@
   spring (the line fades and rises); under reduced motion the line swaps.
 */
 import { clsx } from 'clsx';
-import { Images, Menu } from 'lucide-react';
+import { Images, Menu, Search } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useRef, useState, type JSX, type Ref } from 'react';
 import { Avatar } from '../Avatar';
@@ -120,8 +122,11 @@ export function ChatHeader(props: {
   onMenu(): void;
   onProfile(): void;
   onGallery(): void;
+  /** The magnifier: leave this chat for Explore. */
+  onExplore(): void;
 }): JSX.Element {
-  const { character, drawerOpen, galleryOpen, hasGallery, menuRef, titleRef, onMenu, onProfile, onGallery } = props;
+  const { character, drawerOpen, galleryOpen, hasGallery, menuRef, titleRef, onMenu, onProfile, onGallery, onExplore } =
+    props;
   const reduce = useReducedMotion();
   const thought = useThought(character.id);
   return (
@@ -180,25 +185,37 @@ export function ChatHeader(props: {
           </motion.span>
         </button>
 
-        <AnimatePresence initial={false}>
-          {hasGallery ? (
-            <motion.button
-              key="gallery"
-              type="button"
-              aria-label={`Open ${character.name}'s gallery`}
-              aria-haspopup="dialog"
-              aria-expanded={galleryOpen}
-              onClick={onGallery}
-              initial={{ opacity: 0, scale: 0.6 }}
-              animate={{ opacity: 1, scale: 1, transition: { scale: spring.snappy, opacity: { duration: dur.quick } } }}
-              exit={{ opacity: 0, scale: 0.6, transition: { duration: dur.quick, ease: ease.exit } }}
-              whileTap={reduce ? undefined : { scale: lens.pressScale }}
-              className="liquid-glass grid size-[var(--target-touch)] place-items-center justify-self-end rounded-full"
-            >
-              <Images aria-hidden="true" className="size-20" />
-            </motion.button>
-          ) : null}
-        </AnimatePresence>
+        <div className="flex items-center gap-8 justify-self-end">
+          <AnimatePresence initial={false}>
+            {hasGallery ? (
+              <motion.button
+                key="gallery"
+                type="button"
+                aria-label={`Open ${character.name}'s gallery`}
+                aria-haspopup="dialog"
+                aria-expanded={galleryOpen}
+                onClick={onGallery}
+                initial={{ opacity: 0, scale: 0.6 }}
+                animate={{ opacity: 1, scale: 1, transition: { scale: spring.snappy, opacity: { duration: dur.quick } } }}
+                exit={{ opacity: 0, scale: 0.6, transition: { duration: dur.quick, ease: ease.exit } }}
+                whileTap={reduce ? undefined : { scale: lens.pressScale }}
+                className="liquid-glass grid size-[var(--target-touch)] place-items-center rounded-full"
+              >
+                <Images aria-hidden="true" className="size-20" />
+              </motion.button>
+            ) : null}
+          </AnimatePresence>
+          <motion.button
+            type="button"
+            aria-label="Explore new people"
+            onClick={onExplore}
+            whileTap={reduce ? undefined : { scale: lens.pressScale }}
+            transition={spring.snappy}
+            className="liquid-glass grid size-[var(--target-touch)] place-items-center rounded-full"
+          >
+            <Search aria-hidden="true" className="size-20" />
+          </motion.button>
+        </div>
       </div>
     </header>
   );
