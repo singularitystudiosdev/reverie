@@ -3,9 +3,10 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
-export default defineConfig({
-  // Must match the GitHub repo name: Pages serves the app from /<repo>/.
-  base: '/reverie/',
+export default defineConfig(({ command }) => ({
+  // Pages serves the build from /<repo>/, so the production bundle must match the
+  // GitHub repo name. The dev server keeps the root, so localhost stays at /.
+  base: command === 'build' ? '/reverie/' : '/',
   plugins: [react(), tailwindcss()],
   build: {
     rolldownOptions: {
@@ -22,4 +23,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))
