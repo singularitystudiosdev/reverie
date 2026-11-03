@@ -20,6 +20,7 @@ import {
 } from 'motion/react';
 import type { JSX } from 'react';
 import { LiquidGlassDefs } from './components/LiquidGlassDefs';
+import { MatchToast } from './components/MatchToast';
 import { PhoneFrame } from './components/PhoneFrame';
 import { ProfileSheet } from './components/ProfileSheet';
 import { TabBar } from './components/TabBar';
@@ -76,6 +77,7 @@ export default function App(): JSX.Element {
             <LayoutGroup>
               <Routes />
               <TabBar />
+              <MatchToast />
               <ProfileSheet />
               <MatchOverlay />
             </LayoutGroup>

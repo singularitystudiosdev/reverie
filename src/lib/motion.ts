@@ -88,10 +88,23 @@ export const matchPopFrom = 0.6;
 
 /**
  * The chance a right swipe is an INSTANT match (her opener is already in the
- * chat and the "You Matched!" modal shows). Otherwise she types and her opener
- * lands after `typingDelayMs`. The `?instant=1|0` URL hook overrides the roll.
+ * chat and the "You Matched!" modal shows). Otherwise the like becomes a
+ * pending match that resolves after `matchDelayMs`. The very first like ever
+ * is always instant; the `?instant=1|0` URL hook overrides the roll.
  */
-export const instantMatchChance = 0.2;
+export const instantMatchChance = 0.3;
+
+/** How long a non-instant like waits before the match resolves (randomised). */
+export const matchDelayMs = {
+  min: 5000 /* deliberate */,
+  max: 30000 /* deliberate */,
+} as const;
+
+/** How long after her reply the clip video message arrives. */
+export const clipDelayMs = 1500 /* deliberate */;
+
+/** How long "<Name> matched with you" stays up (one at a time). */
+export const matchToastMs = 5000 /* deliberate */;
 
 /** The locked Chats tab: a short horizontal nudge, then a hint bubble. */
 export const lockedTab = {

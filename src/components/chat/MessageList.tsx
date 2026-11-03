@@ -1,6 +1,8 @@
 /*
   The conversation: her bubbles left on her surface, mine right on `me`
-  (radius-20, 16px body), the grouped card message, and the typing bubble.
+  (radius-20, 16px body), the grouped card message, her video message (a
+  rounded 9:16 clip: poster until played, muted, playsInline, tap to pause),
+  and the typing bubble.
   - Arrival is an event, not an entrance: a message that lands after mount
     rises and fades in (base band, enter easing); the history present at
     mount renders still. Reduced motion: a fade only.
@@ -12,6 +14,7 @@
     hidden status line, not the dots.
 */
 import { clsx } from 'clsx';
+import { Play } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion, type TargetAndTransition } from 'motion/react';
 import { useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react';
 import type { Character, Message } from '../../data/types';
@@ -126,6 +129,9 @@ function MessageBody(props: { message: Message; character: Character }): JSX.Ele
   if (message.kind === 'cards' && message.cards?.length) {
     return <CardGroup cards={message.cards} from={character.name} />;
   }
+  if (message.kind === 'video' && message.src) {
+    return <VideoBubble message={message} name={character.name} />;
+  }
   const mine = message.from === 'me';
   return (
     <p
@@ -137,5 +143,102 @@ function MessageBody(props: { message: Message; character: Character }): JSX.Ele
       {mine ? <span className="sr-only">You: </span> : <span className="sr-only">{character.name}: </span>}
       {message.text}
     </p>
+  );
+}
+
+/**
+ * Her clip: a 9:16 video message, about 220px wide, radius-20. The poster is
+ * what shows until the user presses play; the clip is muted and playsInline
+ * with no controls chrome. Tap the frame to play or pause. It never autoplays
+ * (so reduced motion always gets the poster and a play button).
+ */
+function VideoBubble(props: { message: Message; name: string }): JSX.Element {
+  const { message, name } = props;
+  const video = useRef<HTMLVideoElement>(null);
+  const [started, setStarted] = useState(false);
+  const [playing, setPlaying] = useState(false);
+
+  const toggle = () => {
+    const el = video.current;
+    if (!el) return;
+    if (el.paused) {
+      setStarted(true);
+      void el
+        .play()
+        .then(() => setPlaying(true))
+        .catch(() => {
+          setStarted(false);
+          setPlaying(false);
+        });
+    } else {
+      el.pause();
+      setPlaying(false);
+    }
+  };
+
+  const label = playing ? `Pause ${name}'s video message` : `Play ${name}'s video message`;
+
+  return (
+    <div
+      data-slot="video-message"
+      className="w-224 overflow-hidden rounded-20 border border-hairline bg-surface shadow-8"
+    >
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={label}
+        aria-pressed={playing}
+        className="relative block w-full cursor-pointer"
+        style={{ aspectRatio: message.aspect ?? 9 / 16 }}
+      >
+        {message.poster ? (
+          <img
+            src={message.poster}
+            alt=""
+            aria-hidden="true"
+            width={360}
+            height={640}
+            decoding="async"
+            className="absolute inset-0 size-full object-cover"
+          />
+        ) : null}
+        <video
+          ref={video}
+          src={message.src}
+          poster={message.poster}
+          aria-hidden="true"
+          muted
+          playsInline
+          loop
+          preload="metadata"
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+          onError={() => {
+            setStarted(false);
+            setPlaying(false);
+          }}
+          className={clsx(
+            'absolute inset-0 size-full object-cover transition-opacity duration-[var(--duration-150)] ease-standard motion-reduce:transition-none',
+            started ? 'opacity-100' : 'opacity-0'
+          )}
+        />
+        <span
+          aria-hidden="true"
+          className={clsx(
+            'absolute inset-0 grid place-items-center bg-[color-mix(in_oklab,var(--t-ink)_16%,transparent)] transition-opacity duration-[var(--duration-150)] ease-standard motion-reduce:transition-none',
+            playing ? 'opacity-0' : 'opacity-100'
+          )}
+        >
+          <span className="grid size-[var(--target-touch)] place-items-center rounded-full bg-surface-strong/90 text-ink shadow-8">
+            <Play aria-hidden="true" className="size-20 translate-x-1" />
+          </span>
+        </span>
+      </button>
+      {message.caption ? (
+        <p data-slot="video-caption" className="px-12 py-8 text-caption text-muted">
+          {message.caption}
+        </p>
+      ) : null}
+    </div>
   );
 }

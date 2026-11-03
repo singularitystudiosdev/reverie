@@ -10,23 +10,39 @@ import {
   type ReactNode,
 } from 'react';
 import { characters, getCharacter } from '../data/characters';
-import { getReply } from '../data/replies';
+import { getClipCaption, getReply } from '../data/replies';
 import { deckOrder } from '../data/seed';
 import type { Character, Conversation, Message, StyleFilter } from '../data/types';
 import { makeId } from '../lib/id';
-import { instantMatchChance, typingDelayMs } from '../lib/motion';
+import {
+  clipDelayMs,
+  instantMatchChance,
+  matchDelayMs,
+  typingDelayMs,
+} from '../lib/motion';
+
+/** A right swipe that has not landed yet: her match resolves at `at` (epoch ms). */
+export interface PendingMatch {
+  characterId: string;
+  at: number;
+}
 
 export interface AppState {
   tab: 'chats' | 'explore';
   openChatId: string | null;
-  matchIds: string[];        // most recent activity first; empty = chat is locked
+  matchIds: string[];        // resolved matches, most recent activity first; empty = chat is locked
   lastChatId: string | null; // the last chat opened: what the Chats tab returns to
   passedIds: string[];
   conversations: Record<string, Conversation>;
   typing: Record<string, boolean>;
   drawerOpen: boolean;
   profileId: string | null;  // profile sheet open for this character
-  pendingMatchId: string | null; // match moment showing for this character
+  pendingMatchId: string | null; // the instant-match modal showing for this character
+  pendingMatches: PendingMatch[]; // likes waiting out their 5..30s
+  hasMatchedBefore: boolean;  // the first LIKE ever has happened (not the first resolved match)
+  sentClipIds: string[];      // characters who have sent their video message (once, ever)
+  matchToasts: string[];      // queued "<Name> matched with you" toasts, one shown at a time
+  resumingIds: string[];      // matches resolved at load whose opener is still to be typed
   filter: StyleFilter;
 }
 
@@ -36,9 +52,10 @@ export interface AppActions {
   closeChat(): void;                     // back to Explore
   setDrawer(open: boolean): void;
   openProfile(id: string | null): void;
-  like(id: string): void;     // match: prepend to matchIds, create her conversation, roll an instant match (opener now + pendingMatchId) or let her type (opener lands later, unread)
+  like(id: string): void;     // records a LIKE: instant (opener now + modal), or a pending match that resolves after 5..30s
   pass(id: string): void;
   dismissMatch(): void;
+  dismissToast(id: string): void; // a match toast was tapped or timed out
   resetDeck(): void;          // clears passedIds so passed characters return
   send(id: string, text: string): void; // append 'me' message, typing on, await getReply, append, typing off, unread++ if not open, move to top
   setFilter(f: StyleFilter): void;
@@ -46,8 +63,8 @@ export interface AppActions {
 
 /* ---------------------------------------------------------------- persistence */
 
-const STORAGE_KEY = 'reverie:v2';
-const STORAGE_VERSION = 2;
+const STORAGE_KEY = 'reverie:v3';
+const STORAGE_VERSION = 3;
 
 interface Persisted {
   v: typeof STORAGE_VERSION;
@@ -55,17 +72,37 @@ interface Persisted {
   passedIds: string[];
   conversations: Record<string, Conversation>;
   lastChatId: string | null;
+  pendingMatches: PendingMatch[];
+  hasMatchedBefore: boolean;
+  sentClipIds: string[];
 }
 
-type Saved = Pick<AppState, 'matchIds' | 'passedIds' | 'conversations' | 'lastChatId'>;
+type Saved = Pick<
+  AppState,
+  'matchIds' | 'passedIds' | 'conversations' | 'lastChatId' | 'pendingMatches' | 'hasMatchedBefore' | 'sentClipIds'
+>;
 
-/** A new user: nobody matched, nothing said, chat locked. */
+/** A new user: nobody matched, no likes, nothing said, chat locked. */
 function fresh(): Saved {
-  return { matchIds: [], passedIds: [], conversations: {}, lastChatId: null };
+  return {
+    matchIds: [],
+    passedIds: [],
+    conversations: {},
+    lastChatId: null,
+    pendingMatches: [],
+    hasMatchedBefore: false,
+    sentClipIds: [],
+  };
 }
 
 function isStringArray(v: unknown): v is string[] {
   return Array.isArray(v) && v.every((x) => typeof x === 'string');
+}
+
+function isPendingMatch(v: unknown): v is PendingMatch {
+  if (!v || typeof v !== 'object') return false;
+  const p = v as Partial<PendingMatch>;
+  return typeof p.characterId === 'string' && typeof p.at === 'number' && Number.isFinite(p.at);
 }
 
 function openerMessage(id: string): Message | null {
@@ -73,10 +110,33 @@ function openerMessage(id: string): Message | null {
   return c ? { id: makeId('her'), from: 'her', kind: 'text', text: c.opener, at: Date.now() } : null;
 }
 
-function load(): Saved {
+/** Her clip, the video message she sends once after the user's first message. */
+function clipMessage(c: Character): Message {
+  return {
+    id: makeId('her'),
+    from: 'her',
+    kind: 'video',
+    src: c.clip,
+    poster: c.clipPoster,
+    caption: getClipCaption(c.id),
+    aspect: 9 / 16,
+    at: Date.now(),
+  };
+}
+
+interface Loaded extends Saved {
+  /** Matches whose time passed while the app was closed: they announce now. */
+  toasts: string[];
+  /** Of those, the ones whose opener still has to be typed in after the load. */
+  resuming: string[];
+}
+
+const emptyLoad = (): Loaded => ({ ...fresh(), toasts: [], resuming: [] });
+
+function load(): Loaded {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return fresh();
+    if (!raw) return emptyLoad();
     const p = JSON.parse(raw) as Partial<Persisted> | null;
     if (
       !p ||
@@ -86,7 +146,7 @@ function load(): Saved {
       typeof p.conversations !== 'object' ||
       p.conversations === null
     ) {
-      return fresh();
+      return emptyLoad();
     }
     // Drop ids that no longer exist in the roster; every match keeps a conversation.
     const matchIds = p.matchIds.filter((id) => getCharacter(id) && p.conversations?.[id]);
@@ -94,18 +154,57 @@ function load(): Saved {
     const conversations: Record<string, Conversation> = {};
     for (const id of matchIds) {
       const c = p.conversations[id];
-      if (!c || !Array.isArray(c.messages)) return fresh();
+      if (!c || !Array.isArray(c.messages)) return emptyLoad();
       // A reload while she was still typing her opener: deliver it now.
       const opener = c.messages.length === 0 ? openerMessage(id) : null;
       conversations[id] = opener
         ? { characterId: id, messages: [opener], unread: 1 }
         : { characterId: id, messages: c.messages, unread: Number(c.unread) || 0 };
     }
+
+    // Pending likes survive the reload. Any whose time has already passed
+    // resolve now: an empty chat with her typing, the chat moved to lastChatId,
+    // and a toast for when we are not inside a chat. The provider delivers her
+    // opener after the typing delay (resuming).
+    const now = Date.now();
+    const pendingMatches: PendingMatch[] = [];
+    const toasts: string[] = [];
+    const resuming: string[] = [];
+    const rawPending = Array.isArray(p.pendingMatches) ? p.pendingMatches : [];
+    for (const entry of rawPending) {
+      if (!isPendingMatch(entry)) continue;
+      const id = entry.characterId;
+      if (!getCharacter(id) || matchIds.includes(id)) continue;
+      if (conversations[id]) continue;
+      if (entry.at <= now) {
+        conversations[id] = { characterId: id, messages: [], unread: 0 };
+        matchIds.unshift(id);
+        toasts.push(id);
+        resuming.push(id);
+      } else {
+        pendingMatches.push({ characterId: id, at: entry.at });
+      }
+    }
+
     const lastChatId =
-      typeof p.lastChatId === 'string' && matchIds.includes(p.lastChatId) ? p.lastChatId : null;
-    return { matchIds, passedIds, conversations, lastChatId };
+      typeof p.lastChatId === 'string' && matchIds.includes(p.lastChatId)
+        ? p.lastChatId
+        : toasts[0] ?? (matchIds[0] ?? null);
+    const hasMatchedBefore = p.hasMatchedBefore === true || matchIds.length > 0;
+    const sentClipIds = isStringArray(p.sentClipIds) ? p.sentClipIds.filter((id) => getCharacter(id)) : [];
+    return {
+      matchIds,
+      passedIds,
+      conversations,
+      lastChatId,
+      pendingMatches,
+      hasMatchedBefore,
+      sentClipIds,
+      toasts,
+      resuming,
+    };
   } catch {
-    return fresh();
+    return emptyLoad();
   }
 }
 
@@ -119,8 +218,10 @@ function save(s: Saved) {
 }
 
 /**
- * QA hook: `?instant=1` makes every right swipe an instant match, `?instant=0`
- * never. Read once at load; harmless in production (it only picks the roll).
+ * QA hooks:
+ *   ?instant=1 forces every like instant, ?instant=0 forces every like to wait
+ *   ?matchDelay=<ms> pins the wait before a pending match resolves
+ * Read once at load; harmless in production (they only pick the roll/timer).
  */
 function readInstantOverride(): boolean | null {
   if (typeof window === 'undefined') return null;
@@ -132,21 +233,42 @@ function readInstantOverride(): boolean | null {
   }
 }
 
-const instantOverride = readInstantOverride();
+function readMatchDelayOverride(): number | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const n = Number(new URLSearchParams(window.location.search).get('matchDelay'));
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  } catch {
+    return null;
+  }
+}
 
-function rollInstant(): boolean {
-  return instantOverride ?? Math.random() < instantMatchChance;
+const instantOverride = readInstantOverride();
+const matchDelayOverride = readMatchDelayOverride();
+
+function rollInstant(hasMatchedBefore: boolean): boolean {
+  // The very first like ever always matches at once; after that, 30%.
+  return instantOverride ?? (!hasMatchedBefore || Math.random() < instantMatchChance);
+}
+
+function rollDelay(): number {
+  return matchDelayOverride ?? matchDelayMs.min + Math.random() * (matchDelayMs.max - matchDelayMs.min);
 }
 
 function initState(): AppState {
+  const { toasts, resuming, ...saved } = load();
+  const typing: Record<string, boolean> = {};
+  for (const id of resuming) typing[id] = true;
   return {
     tab: 'explore',
     openChatId: null,
-    ...load(),
-    typing: {},
+    ...saved,
+    typing,
     drawerOpen: false,
     profileId: null,
     pendingMatchId: null,
+    matchToasts: toasts,
+    resumingIds: resuming,
     filter: 'All',
   };
 }
@@ -159,12 +281,16 @@ type Action =
   | { type: 'closeChat' }
   | { type: 'setDrawer'; open: boolean }
   | { type: 'openProfile'; id: string | null }
-  | { type: 'like'; id: string; opener: Message; instant: boolean }
+  | { type: 'like'; id: string; opener: Message; instant: boolean; at: number }
+  | { type: 'resolve'; id: string }
   | { type: 'pass'; id: string }
   | { type: 'dismissMatch' }
+  | { type: 'dismissToast'; id: string }
   | { type: 'resetDeck' }
   | { type: 'sent'; id: string; message: Message }
   | { type: 'received'; id: string; messages: Message[]; stillTyping: boolean }
+  | { type: 'clip'; id: string; message: Message }
+  | { type: 'resumingDone' }
   | { type: 'setFilter'; filter: StyleFilter };
 
 function toFront(ids: string[], id: string): string[] {
@@ -180,6 +306,7 @@ function opened(state: AppState, id: string): AppState {
     openChatId: id,
     lastChatId: id,
     drawerOpen: false,
+    matchToasts: state.matchToasts.filter((x) => x !== id),
     conversations: convo ? { ...state.conversations, [id]: { ...convo, unread: 0 } } : state.conversations,
   };
 }
@@ -190,7 +317,7 @@ function reducer(state: AppState, action: Action): AppState {
       if (action.tab === 'explore') {
         return { ...state, tab: 'explore', openChatId: null, drawerOpen: false };
       }
-      // Chats: locked until the first match; then the last chat you were on.
+      // Chats: locked until the first RESOLVED match; then the last chat you were on.
       if (state.matchIds.length === 0) return state;
       const target =
         state.lastChatId && state.matchIds.includes(state.lastChatId)
@@ -212,17 +339,24 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, profileId: action.id };
 
     case 'like': {
-      const existing = state.conversations[action.id];
+      // One like per person: an existing chat or a pending timer is final.
+      if (
+        state.conversations[action.id] ||
+        state.pendingMatches.some((p) => p.characterId === action.id)
+      ) {
+        return state;
+      }
       const base: AppState = {
         ...state,
-        matchIds: toFront(state.matchIds, action.id),
+        hasMatchedBefore: true,
         passedIds: state.passedIds.filter((x) => x !== action.id),
       };
-      if (existing) return base;
       if (action.instant) {
         // Her opener is already in the chat; the match modal shows.
         return {
           ...base,
+          matchIds: toFront(state.matchIds, action.id),
+          lastChatId: action.id,
           conversations: {
             ...state.conversations,
             [action.id]: { characterId: action.id, messages: [action.opener], unread: 1 },
@@ -230,8 +364,25 @@ function reducer(state: AppState, action: Action): AppState {
           pendingMatchId: action.id,
         };
       }
-      // She is typing; the opener lands later (see like() in the provider).
+      // She is a pending match: the deck drops her, nothing shows on the card,
+      // and her match resolves when the timer in the provider fires.
       return {
+        ...base,
+        pendingMatches: [...state.pendingMatches, { characterId: action.id, at: action.at }],
+      };
+    }
+
+    case 'resolve': {
+      const pendingMatches = state.pendingMatches.filter((p) => p.characterId !== action.id);
+      const base: AppState = {
+        ...state,
+        pendingMatches,
+        matchIds: toFront(state.matchIds, action.id),
+        lastChatId: action.id,
+      };
+      const convo = state.conversations[action.id];
+      if (convo) return base;
+      const withChat: AppState = {
         ...base,
         conversations: {
           ...state.conversations,
@@ -239,6 +390,13 @@ function reducer(state: AppState, action: Action): AppState {
         },
         typing: { ...state.typing, [action.id]: true },
       };
+      // The toast only when the user is looking at the deck, never over a chat,
+      // the profile sheet or the match modal; the queue keeps them one at a time.
+      if (state.openChatId !== null || state.pendingMatchId !== null || state.profileId !== null) {
+        return withChat;
+      }
+      if (state.matchToasts.includes(action.id)) return withChat;
+      return { ...withChat, matchToasts: [...state.matchToasts, action.id] };
     }
 
     case 'pass':
@@ -248,6 +406,9 @@ function reducer(state: AppState, action: Action): AppState {
 
     case 'dismissMatch':
       return { ...state, pendingMatchId: null };
+
+    case 'dismissToast':
+      return { ...state, matchToasts: state.matchToasts.filter((x) => x !== action.id) };
 
     case 'resetDeck':
       return { ...state, passedIds: [] };
@@ -288,6 +449,30 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
 
+    case 'clip': {
+      if (state.sentClipIds.includes(action.id)) return state;
+      const sentClipIds = [...state.sentClipIds, action.id];
+      const convo = state.conversations[action.id];
+      if (!convo) return { ...state, sentClipIds };
+      const isOpen = state.openChatId === action.id;
+      return {
+        ...state,
+        sentClipIds,
+        matchIds: toFront(state.matchIds, action.id),
+        conversations: {
+          ...state.conversations,
+          [action.id]: {
+            ...convo,
+            messages: [...convo.messages, action.message],
+            unread: isOpen ? 0 : convo.unread + 1,
+          },
+        },
+      };
+    }
+
+    case 'resumingDone':
+      return { ...state, resumingIds: [] };
+
     case 'setFilter':
       return { ...state, filter: action.filter };
   }
@@ -309,7 +494,8 @@ function wait(ms: number) {
 export function AppProvider(props: { children: ReactNode }): JSX.Element {
   const [state, dispatch] = useReducer(reducer, undefined, initState);
 
-  // Latest state for async work (reply history) without re-creating actions.
+  // Latest state for async work (reply history, pending likes) without
+  // re-creating actions.
   const stateRef = useRef(state);
   useEffect(() => {
     stateRef.current = state;
@@ -317,6 +503,11 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
 
   // Replies in flight per character: typing stays on until the last one lands.
   const pending = useRef<Record<string, number>>({});
+  // Pending-match resolve timers, one per character.
+  const matchTimers = useRef<Record<string, number>>({});
+  // Clips already scheduled (guards the 1.5s window before the state records them).
+  const clipScheduled = useRef<Record<string, boolean>>({});
+  const clipTimers = useRef<Record<string, number>>({});
 
   useEffect(() => {
     save({
@@ -324,16 +515,128 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
       passedIds: state.passedIds,
       conversations: state.conversations,
       lastChatId: state.lastChatId,
+      pendingMatches: state.pendingMatches,
+      hasMatchedBefore: state.hasMatchedBefore,
+      sentClipIds: state.sentClipIds,
     });
-  }, [state.matchIds, state.passedIds, state.conversations, state.lastChatId]);
+  }, [
+    state.matchIds,
+    state.passedIds,
+    state.conversations,
+    state.lastChatId,
+    state.pendingMatches,
+    state.hasMatchedBefore,
+    state.sentClipIds,
+  ]);
+
+  /** She types, then her opener lands; unread bumps when it does (unless open). */
+  const deliverOpener = useCallback((id: string) => {
+    const c = getCharacter(id);
+    if (!c) return;
+    const opener: Message = { id: makeId('her'), from: 'her', kind: 'text', text: c.opener, at: Date.now() };
+    pending.current[id] = (pending.current[id] ?? 0) + 1;
+    const delay = typingDelayMs.min + Math.random() * (typingDelayMs.max - typingDelayMs.min);
+    void wait(delay).then(() => {
+      pending.current[id] = Math.max(0, (pending.current[id] ?? 1) - 1);
+      dispatch({
+        type: 'received',
+        id,
+        messages: [{ ...opener, at: Date.now() }],
+        stillTyping: pending.current[id] > 0,
+      });
+    });
+  }, []);
+
+  /** A pending match's timer fired: the chat opens with her typing her opener. */
+  const resolveMatch = useCallback(
+    (id: string) => {
+      const already = Boolean(stateRef.current.conversations[id]);
+      dispatch({ type: 'resolve', id });
+      if (already) return;
+      deliverOpener(id);
+    },
+    [deliverOpener]
+  );
+
+  // Matches whose time passed while the app was closed: their chat opened at
+  // load, so deliver the opener now (typing first, then the message).
+  const resumed = useRef(false);
+  useEffect(() => {
+    if (resumed.current || state.resumingIds.length === 0) return;
+    resumed.current = true;
+    const ids = state.resumingIds;
+    dispatch({ type: 'resumingDone' });
+    for (const id of ids) deliverOpener(id);
+  }, [state.resumingIds, deliverOpener]);
+
+  // Schedule every pending match from its own `at`; a reload keeps the time.
+  // Ids that left the pending list get their timer cleared.
+  useEffect(() => {
+    const now = Date.now();
+    for (const p of state.pendingMatches) {
+      if (matchTimers.current[p.characterId] !== undefined) continue;
+      const ms = Math.max(0, p.at - now);
+      matchTimers.current[p.characterId] = window.setTimeout(() => {
+        delete matchTimers.current[p.characterId];
+        resolveMatch(p.characterId);
+      }, ms);
+    }
+    for (const id of Object.keys(matchTimers.current)) {
+      if (!state.pendingMatches.some((p) => p.characterId === id)) {
+        window.clearTimeout(matchTimers.current[id]);
+        delete matchTimers.current[id];
+      }
+    }
+  }, [state.pendingMatches, resolveMatch]);
+
+  // Catch-up: a chat where the user already spoke but her clip never landed
+  // (a reload during the 1.5s window, or an older conversation) still gets it,
+  // once. The live send() path marks `clipScheduled` first, so this never
+  // races her reply text.
+  useEffect(() => {
+    for (const [id, convo] of Object.entries(state.conversations)) {
+      if (state.sentClipIds.includes(id) || clipScheduled.current[id]) continue;
+      if (!convo.messages.some((m) => m.from === 'me')) continue;
+      const c = getCharacter(id);
+      if (!c) continue;
+      clipScheduled.current[id] = true;
+      clipTimers.current[id] = window.setTimeout(() => {
+        delete clipTimers.current[id];
+        dispatch({ type: 'clip', id, message: clipMessage(c) });
+      }, clipDelayMs);
+    }
+  }, [state.conversations, state.sentClipIds]);
+
+  useEffect(
+    () => () => {
+      for (const id of Object.keys(matchTimers.current)) {
+        window.clearTimeout(matchTimers.current[id]);
+      }
+      matchTimers.current = {};
+      for (const id of Object.keys(clipTimers.current)) {
+        window.clearTimeout(clipTimers.current[id]);
+      }
+      clipTimers.current = {};
+    },
+    []
+  );
 
   const send = useCallback((id: string, text: string) => {
     const body = text.trim();
     const character = getCharacter(id);
     if (!body || !character) return;
 
+    const before = stateRef.current.conversations[id]?.messages ?? [];
+    const firstMine = !before.some((m) => m.from === 'me');
+    const withClip =
+      firstMine &&
+      Boolean(character.clip) &&
+      !stateRef.current.sentClipIds.includes(id) &&
+      !clipScheduled.current[id];
+    if (withClip) clipScheduled.current[id] = true;
+
     const message: Message = { id: makeId('me'), from: 'me', kind: 'text', text: body, at: Date.now() };
-    const history = [...(stateRef.current.conversations[id]?.messages ?? []), message];
+    const history = [...before, message];
     dispatch({ type: 'sent', id, message });
     pending.current[id] = (pending.current[id] ?? 0) + 1;
 
@@ -350,28 +653,28 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
           messages: replies.map((m, i) => ({ ...m, at: now + i })),
           stillTyping: pending.current[id] > 0,
         });
+        // Her clip, once per character ever: after her reply text has landed.
+        if (withClip) {
+          void wait(clipDelayMs).then(() => {
+            dispatch({ type: 'clip', id, message: clipMessage(character) });
+          });
+        }
       });
   }, []);
 
   const like = useCallback((id: string) => {
     const c = getCharacter(id);
     if (!c) return;
-    const instant = rollInstant();
+    const current = stateRef.current;
+    if (current.conversations[id] || current.pendingMatches.some((p) => p.characterId === id)) return;
+    const instant = rollInstant(current.hasMatchedBefore);
     const opener: Message = { id: makeId('her'), from: 'her', kind: 'text', text: c.opener, at: Date.now() };
-    const first = !stateRef.current.conversations[id];
-    dispatch({ type: 'like', id, opener, instant });
-    if (instant || !first) return;
-    // Not instant: she types, then her opener lands and counts as unread.
-    pending.current[id] = (pending.current[id] ?? 0) + 1;
-    const delay = typingDelayMs.min + Math.random() * (typingDelayMs.max - typingDelayMs.min);
-    void wait(delay).then(() => {
-      pending.current[id] = Math.max(0, (pending.current[id] ?? 1) - 1);
-      dispatch({
-        type: 'received',
-        id,
-        messages: [{ ...opener, at: Date.now() }],
-        stillTyping: pending.current[id] > 0,
-      });
+    dispatch({
+      type: 'like',
+      id,
+      opener,
+      instant,
+      at: Date.now() + (instant ? 0 : rollDelay()),
     });
   }, []);
 
@@ -385,6 +688,7 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
       like,
       pass: (id) => dispatch({ type: 'pass', id }),
       dismissMatch: () => dispatch({ type: 'dismissMatch' }),
+      dismissToast: (id) => dispatch({ type: 'dismissToast', id }),
       resetDeck: () => dispatch({ type: 'resetDeck' }),
       send,
       setFilter: (filter) => dispatch({ type: 'setFilter', filter }),
@@ -408,20 +712,24 @@ deckOrder.forEach((id, i) => deckRank.set(id, i));
 const rosterRank = new Map<string, number>(characters.map((c, i) => [c.id, deckOrder.length + i]));
 
 /**
- * Not matched, not passed; in the Explore deck order. The style filter stays in
- * the store for now but the deck ignores it (the filter chips are gone).
+ * Not matched, not passed, not waiting on a pending match; in the Explore deck
+ * order. The style filter stays in the store for now but the deck ignores it
+ * (the filter chips are gone).
  */
 export function useDeck(): Character[] {
   const { state } = useApp();
-  const { matchIds, passedIds } = state;
+  const { matchIds, passedIds, pendingMatches } = state;
   return useMemo(() => {
-    const out = characters.filter((c) => !matchIds.includes(c.id) && !passedIds.includes(c.id));
+    const pendingIds = pendingMatches.map((p) => p.characterId);
+    const out = characters.filter(
+      (c) => !matchIds.includes(c.id) && !passedIds.includes(c.id) && !pendingIds.includes(c.id)
+    );
     const rank = (id: string) => deckRank.get(id) ?? rosterRank.get(id) ?? 0;
     return out.sort((a, b) => rank(a.id) - rank(b.id));
-  }, [matchIds, passedIds]);
+  }, [matchIds, passedIds, pendingMatches]);
 }
 
-/** True once the first right swipe has landed: the Chats tab works. */
+/** True once the first match has RESOLVED: the Chats tab works. */
 export function useChatUnlocked(): boolean {
   const { state } = useApp();
   return state.matchIds.length > 0;

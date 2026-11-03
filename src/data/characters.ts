@@ -55,6 +55,8 @@ function art(seed: Seed): Character {
     portrait: `${base}.webp`,
     portraitSm: `${base}-sm.webp`,
     loop: `${base}-loop.mp4`,
+    clip: `${base}-clip.mp4`,
+    clipPoster: `${base}-clip-poster.jpg`,
     scene: `${base}-scene.webp`,
     sceneSm: `${base}-scene-sm.webp`,
     avatarPosition: seed.avatarPosition ?? AVATAR_POSITION,

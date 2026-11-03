@@ -60,6 +60,8 @@ export interface Character {
   portrait: string;       // /characters/<id>.webp         900x1600
   portraitSm: string;     // /characters/<id>-sm.webp      360x640
   loop: string;           // /characters/<id>-loop.mp4     720x1280, muted seamless loop
+  clip: string;           // /characters/<id>-clip.mp4     her video message, 9:16
+  clipPoster: string;     // /characters/<id>-clip-poster.jpg
   scene: string;          // /characters/<id>-scene.webp   900x1600
   sceneSm: string;        // /characters/<id>-scene-sm.webp 360x640
   avatarPosition: string; // CSS object-position + transform-origin for round crops, e.g. '50% 24%'
@@ -76,7 +78,7 @@ export interface CardItem {
   imageScale?: number;
 }
 
-export type MessageKind = 'text' | 'cards';
+export type MessageKind = 'text' | 'cards' | 'video';
 
 export interface Message {
   id: string;
@@ -84,6 +86,10 @@ export interface Message {
   kind: MessageKind;
   text?: string;
   cards?: CardItem[];
+  src?: string;           // video kind: the clip
+  poster?: string;        // video kind: the still shown until it plays
+  caption?: string;       // video kind: the line under the bubble
+  aspect?: number;        // video kind: width / height, 9:16
   at: number;             // epoch ms
 }
 
