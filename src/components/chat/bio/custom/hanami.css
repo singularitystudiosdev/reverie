@@ -1,0 +1,701 @@
+/* Hanami: per-word scenes for the shrine maiden's bio. Sprites are painted
+   (public/fx/hanami), the glow, thread and glints are CSS/SVG. Everything is
+   scoped under .fx[data-fx='hanami']; keyframes are prefixed hanami-.
+   Each word has its own period so neighbours never fire together:
+   "ask for" 6.4s, "blush" 7.2s, "fate" 6.8s, anything else 8.6s.
+   The word fills run through background-position only. Animations are
+   !important on purpose: the bio's effects always play (see bio.css). */
+
+.fx[data-fx='hanami'] {
+  --hn-cream: color-mix(in oklab, var(--fx-word) 82%, var(--t-glow));
+  --hn-rose: color-mix(in oklab, var(--t-accent) 84%, var(--t-glow));
+  --hn-red: var(--t-accent);
+  --hn-bloom: color-mix(in oklab, var(--t-accent) 34%, transparent);
+  --hn-soft: color-mix(in oklab, var(--t-glow) 70%, transparent);
+  --hn-shadow: color-mix(in oklab, var(--t-ink) 40%, transparent);
+  --hn-spark: color-mix(in oklab, var(--t-glow) 28%, var(--t-canvas));
+}
+
+.bio[data-scheme='dark'] .fx[data-fx='hanami'] {
+  --hn-cream: color-mix(in oklab, var(--fx-word) 66%, var(--t-glow));
+  --hn-rose: color-mix(in oklab, var(--t-accent) 62%, var(--t-glow));
+}
+
+/* The phrase: cream-ink to rose, a 300% gradient slid by background-position */
+.fx[data-fx='hanami'] .fx-text {
+  background-image: linear-gradient(100deg, var(--hn-cream) 0%, var(--hn-cream) 33%, var(--hn-rose) 66%, var(--hn-rose) 100%);
+  background-size: 300% 100%;
+  background-position: 0% 50%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.fx[data-fx='hanami']:has(.hn-ask-halo) .fx-text {
+  animation: hanami-fill-ask 6.4s var(--fx-ease-sine) infinite !important;
+}
+
+.fx[data-fx='hanami']:has(.hn-blush-glow) .fx-text {
+  animation: hanami-fill-blush 7.2s var(--fx-ease-sine) infinite !important;
+}
+
+.fx[data-fx='hanami']:has(.hn-fate-glow) .fx-text {
+  animation: hanami-fill-fate 6.8s var(--fx-ease-sine) infinite !important;
+}
+
+.fx[data-fx='hanami']:has(.hn-lantern-glow) .fx-text {
+  animation: hanami-fill-drift 8.6s var(--fx-ease-sine) infinite !important;
+}
+
+.fx[data-fx='hanami'] .hn-sprite {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: none;
+  user-select: none;
+  pointer-events: none;
+  filter: drop-shadow(0 0.1em 0.16em var(--hn-shadow));
+}
+
+.fx[data-fx='hanami'] .hn-glint {
+  position: absolute;
+  width: 0.8em;
+  height: 0.8em;
+  margin: -0.4em 0 0 -0.4em;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle, var(--hn-spark) 0 9%, transparent 46%),
+    linear-gradient(90deg, transparent 0%, var(--hn-spark) 50%, transparent 100%) center / 100% 1px no-repeat,
+    linear-gradient(0deg, transparent 0%, var(--hn-spark) 50%, transparent 100%) center / 1px 100% no-repeat;
+}
+
+/* ============================ "ask for" ================================== */
+
+.fx[data-fx='hanami'] .hn-ask-halo {
+  position: absolute;
+  left: -0.5em;
+  right: -0.5em;
+  top: -0.25em;
+  bottom: -0.35em;
+  background: radial-gradient(closest-side, var(--hn-bloom), transparent);
+  opacity: 0;
+  animation: hanami-ask-halo 6.4s ease-in-out infinite !important;
+}
+
+/* the string sags below the word's baseline and snaps taut in the gust */
+.fx[data-fx='hanami'] .hn-string {
+  position: absolute;
+  left: -0.2em;
+  top: 74%;
+  width: calc(100% + 0.4em);
+  height: 0.5em;
+  overflow: visible;
+  transform-origin: 50% 0;
+  opacity: 0;
+  animation: hanami-string 6.4s ease-in-out infinite !important;
+}
+
+.fx[data-fx='hanami'] .hn-string-line,
+.fx[data-fx='hanami'] .hn-string-hi {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.fx[data-fx='hanami'] .hn-string-line {
+  stroke: var(--hn-red);
+  stroke-width: 1.5px;
+}
+
+.fx[data-fx='hanami'] .hn-string-hi {
+  stroke: color-mix(in oklab, var(--hn-red) 35%, var(--hn-spark));
+  stroke-width: 0.6px;
+  opacity: 0.75;
+}
+
+/* the little bead where the slip's cord is looped over the string */
+.fx[data-fx='hanami'] .hn-ask-knot {
+  position: absolute;
+  left: calc(68% + 0.07em);
+  top: calc(74% + 0.3em);
+  width: 0.2em;
+  height: 0.2em;
+  margin: -0.1em 0 0 -0.1em;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--hn-spark), var(--hn-red) 55%);
+  box-shadow: 0 0.04em 0.08em var(--hn-shadow);
+  opacity: 0;
+  animation: hanami-ask-knot 6.4s ease-in-out infinite !important;
+}
+
+.fx[data-fx='hanami'] .hn-slip {
+  --ox: 53%;
+  --oy: 29%;
+  position: absolute;
+  width: 4.2em;
+  left: calc(68% + 0.07em - 0.53 * 4.2em);
+  top: calc(74% + 0.3em - 0.29 * 4.2em);
+  transform-origin: var(--ox) var(--oy);
+  opacity: 0;
+  animation: hanami-slip 6.4s ease-in-out infinite !important;
+}
+
+.fx[data-fx='hanami'] .hn-slip-glint {
+  left: 53%;
+  top: 29%;
+  animation: hanami-glint-ask 6.4s ease-out infinite !important;
+}
+
+/* ============================== "blush" ================================== */
+
+.fx[data-fx='hanami'] .hn-blush-glow {
+  position: absolute;
+  left: -0.7em;
+  right: -0.7em;
+  top: -0.2em;
+  bottom: -0.1em;
+  background: radial-gradient(closest-side, var(--hn-bloom), transparent);
+  opacity: 0;
+  animation: hanami-blush-glow 7.2s ease-in-out infinite !important;
+}
+
+.fx[data-fx='hanami'] .hn-bloom {
+  position: absolute;
+  left: calc(var(--k) * 100%);
+  top: var(--y);
+  width: var(--sz);
+  margin-left: calc(var(--sz) / -2);
+  opacity: 0;
+  animation: hanami-bloom 7.2s cubic-bezier(0.3, 0.7, 0.3, 1) var(--d) infinite backwards !important;
+}
+
+.fx[data-fx='hanami'] .hn-bloom-sway {
+  display: block;
+  animation: hanami-bloom-sway var(--sway) var(--fx-ease-sine) infinite alternate !important;
+}
+
+.fx[data-fx='hanami'] .hn-shed {
+  position: absolute;
+  left: calc(var(--k) * 100%);
+  top: 0.1em;
+  width: 0.7em;
+  opacity: 0;
+  animation: hanami-shed 7.2s ease-in var(--d) infinite backwards !important;
+}
+
+/* ============================== "fate" =================================== */
+
+.fx[data-fx='hanami'] .hn-fate-glow {
+  position: absolute;
+  left: -0.5em;
+  right: -0.5em;
+  top: -0.3em;
+  bottom: -0.3em;
+  background: radial-gradient(closest-side, var(--hn-bloom), transparent);
+  opacity: 0;
+  animation: hanami-fate-glow 6.8s ease-in-out infinite !important;
+}
+
+.fx[data-fx='hanami'] .hn-thread {
+  position: absolute;
+  left: -0.45em;
+  top: calc(50% - 1em);
+  width: calc(var(--hn-w) * 0.04em);
+  height: calc(var(--hn-h) * 0.04em);
+  overflow: visible;
+  animation: hanami-thread-fade 6.8s ease-in-out infinite !important;
+}
+
+.fx[data-fx='hanami'] .hn-thread path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+  animation: hanami-thread-draw 6.8s cubic-bezier(0.45, 0, 0.35, 1) infinite !important;
+}
+
+.fx[data-fx='hanami'] .hn-thread-back {
+  stroke: color-mix(in oklab, var(--hn-red) 38%, transparent);
+  stroke-width: 3.4px;
+}
+
+.fx[data-fx='hanami'] .hn-thread-line {
+  stroke: var(--hn-red);
+  stroke-width: 1.5px;
+}
+
+.fx[data-fx='hanami'] .hn-thread-hi {
+  stroke: color-mix(in oklab, var(--hn-red) 30%, var(--hn-spark));
+  stroke-width: 0.55px;
+  opacity: 0.8;
+}
+
+.fx[data-fx='hanami'] .hn-bow {
+  --bs: 4.6em;
+  position: absolute;
+  width: var(--bs);
+  left: calc(-0.45em + var(--ex) * 0.04em - 0.6 * var(--bs));
+  top: calc(50% - 1em + var(--ey) * 0.04em - 0.34 * var(--bs));
+  transform-origin: 60% 34%;
+  opacity: 0;
+  animation: hanami-bow 6.8s ease-in-out infinite !important;
+}
+
+.fx[data-fx='hanami'] .hn-bow-img {
+  transform-origin: 60% 34%;
+  animation: hanami-bow-swing 2.3s var(--fx-ease-sine) infinite alternate !important;
+}
+
+.fx[data-fx='hanami'] .hn-bow-glint {
+  left: 60%;
+  top: 34%;
+  animation: hanami-glint-bow 6.8s ease-out infinite !important;
+}
+
+/* ===================== fallback: lantern and petals ====================== */
+
+.fx[data-fx='hanami'] .hn-lantern-glow {
+  position: absolute;
+  left: -0.4em;
+  right: -0.4em;
+  top: -0.9em;
+  bottom: -0.1em;
+  background: radial-gradient(closest-side, var(--hn-soft), transparent);
+  opacity: 0;
+  animation: hanami-lantern-glow 8.6s ease-in-out infinite !important;
+}
+
+.fx[data-fx='hanami'] .hn-lantern {
+  position: absolute;
+  left: calc(50% - 1.25em);
+  top: -2.6em;
+  width: 2.5em;
+  transform-origin: 50% 0;
+  animation: hanami-lantern 4.4s var(--fx-ease-sine) infinite alternate !important;
+}
+
+.fx[data-fx='hanami'] .hn-fall {
+  position: absolute;
+  left: calc(var(--k) * 100%);
+  top: -0.2em;
+  width: 0.5em;
+  opacity: 0;
+  animation: hanami-fall 8.6s ease-in var(--d) infinite backwards !important;
+}
+
+/* a petal: one notched-leaf shape from border radii, shaded blush to rose */
+.fx[data-fx='hanami'] .hn-petal {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1.25;
+  border-radius: 100% 6% 100% 6%;
+  background: linear-gradient(135deg, var(--hn-spark), color-mix(in oklab, var(--t-accent) 30%, var(--t-glow)) 58%, color-mix(in oklab, var(--t-accent) 52%, var(--t-glow)));
+  filter: drop-shadow(0 0.06em 0.08em var(--hn-shadow));
+}
+
+/* =========================== keyframes =================================== */
+
+@keyframes hanami-fill-ask {
+  0%,
+  16% {
+    background-position: 0% 50%;
+  }
+  34% {
+    background-position: 100% 50%;
+  }
+  62% {
+    background-position: 100% 50%;
+  }
+  86%,
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes hanami-fill-blush {
+  0%,
+  10% {
+    background-position: 0% 50%;
+    filter: drop-shadow(0 0 0 transparent);
+  }
+  40% {
+    background-position: 100% 50%;
+    filter: drop-shadow(0 0 0.3em var(--hn-bloom));
+  }
+  70% {
+    background-position: 100% 50%;
+    filter: drop-shadow(0 0 0.24em var(--hn-bloom));
+  }
+  94%,
+  100% {
+    background-position: 0% 50%;
+    filter: drop-shadow(0 0 0 transparent);
+  }
+}
+
+@keyframes hanami-fill-fate {
+  0%,
+  30% {
+    background-position: 0% 50%;
+  }
+  54% {
+    background-position: 100% 50%;
+  }
+  80% {
+    background-position: 100% 50%;
+  }
+  96%,
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes hanami-fill-drift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 62% 50%;
+  }
+}
+
+@keyframes hanami-ask-halo {
+  0%,
+  14% {
+    opacity: 0;
+  }
+  28% {
+    opacity: 0.85;
+  }
+  60% {
+    opacity: 0.4;
+  }
+  88%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes hanami-string {
+  0% {
+    opacity: 0;
+    transform: scaleY(1);
+  }
+  8%,
+  16% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  26% {
+    transform: scaleY(0.42);
+  }
+  42% {
+    transform: scaleY(1.18);
+  }
+  60% {
+    transform: scaleY(0.94);
+  }
+  76% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  92%,
+  100% {
+    opacity: 0;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes hanami-ask-knot {
+  0%,
+  6% {
+    opacity: 0;
+  }
+  12%,
+  76% {
+    opacity: 1;
+  }
+  92%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes hanami-slip {
+  0% {
+    opacity: 0;
+    transform: translateY(-0.5em) scale(0.6) rotate(0deg);
+  }
+  9% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+  16% {
+    transform: perspective(26em) rotate(4deg) rotateY(0deg);
+  }
+  25% {
+    transform: perspective(26em) rotate(-17deg) rotateY(38deg) skewX(-3deg);
+  }
+  33% {
+    transform: perspective(26em) rotate(12deg) rotateY(-26deg) skewX(2deg);
+  }
+  41% {
+    transform: perspective(26em) rotate(-8deg) rotateY(16deg) skewX(-1deg);
+  }
+  49% {
+    transform: perspective(26em) rotate(5deg) rotateY(-8deg);
+  }
+  57% {
+    transform: perspective(26em) rotate(-2.5deg) rotateY(4deg);
+  }
+  66% {
+    transform: perspective(26em) rotate(1deg) rotateY(-1.5deg);
+  }
+  76% {
+    opacity: 1;
+    transform: perspective(26em) rotate(0deg) rotateY(0deg);
+  }
+  92% {
+    opacity: 0;
+    transform: translateY(0.12em) scale(0.97);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-0.5em) scale(0.6);
+  }
+}
+
+@keyframes hanami-glint-ask {
+  0%,
+  58% {
+    opacity: 0;
+    transform: scale(0.2) rotate(0deg);
+  }
+  64% {
+    opacity: 1;
+    transform: scale(1) rotate(25deg);
+  }
+  74%,
+  100% {
+    opacity: 0;
+    transform: scale(0.4) rotate(50deg);
+  }
+}
+
+@keyframes hanami-blush-glow {
+  0%,
+  10% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  72% {
+    opacity: 0.6;
+    transform: scale(1.04);
+  }
+  94%,
+  100% {
+    opacity: 0;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes hanami-bloom {
+  0% {
+    opacity: 0;
+    transform: rotate(calc(var(--rot) - 70deg)) scale(0.08);
+  }
+  9% {
+    opacity: 1;
+    transform: rotate(calc(var(--rot) + 7deg)) scale(1.1);
+  }
+  14% {
+    opacity: 1;
+    transform: rotate(var(--rot)) scale(1);
+  }
+  60% {
+    opacity: 1;
+    transform: rotate(calc(var(--rot) - 3deg)) scale(1);
+  }
+  74% {
+    opacity: 0;
+    transform: rotate(calc(var(--rot) + 12deg)) scale(0.9) translateY(0.12em);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(calc(var(--rot) + 12deg)) scale(0.9) translateY(0.12em);
+  }
+}
+
+@keyframes hanami-bloom-sway {
+  from {
+    transform: perspective(18em) rotateX(calc(var(--tilt) * -0.8)) rotateY(calc(var(--tilt) * 0.6)) translateY(-0.03em);
+  }
+  to {
+    transform: perspective(18em) rotateX(calc(var(--tilt) * 0.8)) rotateY(calc(var(--tilt) * -0.6)) translateY(0.05em);
+  }
+}
+
+@keyframes hanami-shed {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0deg);
+  }
+  5% {
+    opacity: 1;
+  }
+  18% {
+    transform: translate(calc(var(--dx) * -0.6), 0.7em) rotate(calc(var(--spin) * 0.35));
+  }
+  30% {
+    opacity: 0.9;
+    transform: translate(calc(var(--dx) * 0.8), 1.3em) rotate(calc(var(--spin) * 0.7));
+  }
+  38%,
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), 1.8em) rotate(var(--spin));
+  }
+}
+
+@keyframes hanami-fate-glow {
+  0%,
+  40% {
+    opacity: 0;
+  }
+  54% {
+    opacity: 0.95;
+  }
+  80% {
+    opacity: 0.5;
+  }
+  94%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes hanami-thread-fade {
+  0%,
+  78% {
+    opacity: 1;
+  }
+  93%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes hanami-thread-draw {
+  0%,
+  6% {
+    stroke-dashoffset: 1;
+  }
+  44%,
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes hanami-bow {
+  0%,
+  42% {
+    opacity: 0;
+    transform: rotate(-34deg) scale(0.15);
+  }
+  49% {
+    opacity: 1;
+    transform: rotate(7deg) scale(1.13);
+  }
+  55% {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: rotate(-1deg) scale(1);
+  }
+  93%,
+  100% {
+    opacity: 0;
+    transform: rotate(2deg) scale(0.96);
+  }
+}
+
+@keyframes hanami-bow-swing {
+  from {
+    transform: rotate(-3.5deg);
+  }
+  to {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes hanami-glint-bow {
+  0%,
+  47% {
+    opacity: 0;
+    transform: scale(0.2) rotate(0deg);
+  }
+  53% {
+    opacity: 1;
+    transform: scale(1.1) rotate(20deg);
+  }
+  64%,
+  100% {
+    opacity: 0;
+    transform: scale(0.4) rotate(45deg);
+  }
+}
+
+@keyframes hanami-lantern-glow {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  30% {
+    opacity: 0.8;
+  }
+  46% {
+    opacity: 0.5;
+  }
+  70% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes hanami-lantern {
+  from {
+    transform: rotate(-4deg);
+  }
+  to {
+    transform: rotate(4deg);
+  }
+}
+
+@keyframes hanami-fall {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0deg);
+  }
+  6% {
+    opacity: 1;
+  }
+  40% {
+    transform: translate(calc(var(--dx) * -0.7), 0.9em) rotate(calc(var(--spin) * 0.45));
+  }
+  64% {
+    opacity: 0.95;
+    transform: translate(calc(var(--dx) * 0.6), 1.6em) rotate(calc(var(--spin) * 0.8));
+  }
+  72%,
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), 2em) rotate(var(--spin));
+  }
+}

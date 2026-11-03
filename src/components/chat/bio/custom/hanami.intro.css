@@ -1,0 +1,224 @@
+/* Hanami's opening gust: a perspective stage over the whole frame. Everything
+   is scoped under .hanami-intro; keyframes are prefixed hanami-intro-.
+   Distances use container units (cqw/cqh) of the stage itself, so the storm
+   fits a phone column and a wide window alike. Transform, opacity and filter
+   only; the text sway is done on the paragraph by hanami.intro.tsx. */
+
+.hanami-intro {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  container-type: size;
+  perspective: 520px;
+  perspective-origin: 50% 45%;
+  z-index: 5;
+  --hi-spark: color-mix(in oklab, var(--t-glow, currentColor) 28%, var(--t-canvas, currentColor));
+  --hi-shadow: color-mix(in oklab, var(--t-ink, currentColor) 36%, transparent);
+}
+
+/* the gust front: a soft band of warm light that sweeps left to right */
+.hanami-i-wash {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    transparent 32%,
+    color-mix(in oklab, var(--t-glow, currentColor) 60%, transparent) 50%,
+    transparent 68%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: hanami-intro-wash 1.5s cubic-bezier(0.4, 0, 0.5, 1) both;
+}
+
+/* wind streaks */
+.hanami-i-gust {
+  position: absolute;
+  left: 0;
+  top: var(--y);
+  width: var(--w);
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--hi-spark) 85%, transparent) 62%, transparent);
+  filter: drop-shadow(0 0 3px color-mix(in oklab, var(--t-accent, currentColor) 40%, transparent));
+  opacity: 0;
+  transform: translateX(-70cqw) rotate(var(--a));
+  animation: hanami-intro-gust var(--t) cubic-bezier(0.4, 0, 0.8, 0.6) var(--d) both;
+}
+
+/* every flying thing: rides the gust left to right at its own depth */
+.hanami-i-p {
+  position: absolute;
+  left: 0;
+  top: var(--y);
+  width: var(--sz);
+  opacity: 0;
+  filter: blur(var(--blur, 0px));
+  transform: translate3d(-30cqw, 0, var(--z));
+  animation: hanami-intro-ride var(--t) cubic-bezier(0.28, 0.1, 0.55, 1) var(--d) both;
+}
+
+.hanami-i-flutter {
+  display: block;
+  animation: hanami-intro-flutter var(--wt) cubic-bezier(0.37, 0, 0.63, 1) var(--d) infinite alternate;
+}
+
+.hanami-i-petal {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1.25;
+  border-radius: 100% 6% 100% 6%;
+  background: linear-gradient(135deg, var(--hi-spark), color-mix(in oklab, var(--t-accent, currentColor) 30%, var(--t-glow, currentColor)) 58%, color-mix(in oklab, var(--t-accent, currentColor) 52%, var(--t-glow, currentColor)));
+  filter: drop-shadow(0 0.05cqw 0.08cqw var(--hi-shadow));
+  animation: hanami-intro-spin var(--t) linear var(--d) both;
+}
+
+.hanami-i-petal[data-tone='rose'] {
+  background: linear-gradient(135deg, color-mix(in oklab, var(--t-accent, currentColor) 22%, var(--t-canvas, currentColor)), color-mix(in oklab, var(--t-accent, currentColor) 46%, var(--t-glow, currentColor)) 60%, color-mix(in oklab, var(--t-accent, currentColor) 70%, var(--t-glow, currentColor)));
+}
+
+.hanami-i-petal[data-tone='cream'] {
+  background: linear-gradient(135deg, var(--t-canvas, currentColor), var(--hi-spark) 50%, color-mix(in oklab, var(--t-accent, currentColor) 18%, var(--t-glow, currentColor)));
+}
+
+.hanami-i-bloom-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 0.4cqw 0.7cqw var(--hi-shadow));
+  animation: hanami-intro-spin var(--t) cubic-bezier(0.3, 0.1, 0.5, 1) var(--d) both;
+}
+
+/* lanterns lift on the same wind, swaying from their handle */
+.hanami-i-lantern {
+  position: absolute;
+  left: var(--x);
+  bottom: calc(var(--sz) * -1.4);
+  width: var(--sz);
+  margin-left: calc(var(--sz) / -2);
+  opacity: 0;
+  animation: hanami-intro-rise var(--t) cubic-bezier(0.3, 0.2, 0.4, 1) var(--d) both;
+}
+
+.hanami-i-lantern-glow {
+  position: absolute;
+  left: -60%;
+  right: -60%;
+  top: -40%;
+  bottom: -40%;
+  background: radial-gradient(circle, color-mix(in oklab, var(--t-glow, currentColor) 75%, transparent), color-mix(in oklab, var(--t-accent, currentColor) 26%, transparent) 42%, transparent 70%);
+  animation: hanami-intro-flicker 0.42s steps(2, end) infinite;
+}
+
+.hanami-i-lantern-img {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: auto;
+  transform-origin: 50% 8%;
+  filter: drop-shadow(0 0.5cqw 0.8cqw var(--hi-shadow));
+  animation: hanami-intro-lantern-sway 0.7s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate;
+}
+
+@keyframes hanami-intro-wash {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes hanami-intro-gust {
+  0% {
+    opacity: 0;
+    transform: translateX(-70cqw) rotate(var(--a));
+  }
+  25% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(150cqw) rotate(var(--a));
+  }
+}
+
+@keyframes hanami-intro-ride {
+  0% {
+    opacity: 0;
+    transform: translate3d(-30cqw, 0, var(--z));
+  }
+  8% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(150cqw, var(--dy), var(--z));
+  }
+}
+
+@keyframes hanami-intro-flutter {
+  from {
+    transform: translateY(calc(var(--wob) * -1));
+  }
+  to {
+    transform: translateY(var(--wob));
+  }
+}
+
+@keyframes hanami-intro-spin {
+  from {
+    transform: rotate3d(var(--ax), var(--ay), 0.6, 0deg);
+  }
+  to {
+    transform: rotate3d(var(--ax), var(--ay), 0.6, calc(var(--turns) * 360deg));
+  }
+}
+
+@keyframes hanami-intro-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+  20% {
+    opacity: 1;
+  }
+  78% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(var(--sw) * 0.9cqw), -108cqh, 0);
+  }
+}
+
+@keyframes hanami-intro-lantern-sway {
+  from {
+    transform: rotate(calc(var(--sw) * -1));
+  }
+  to {
+    transform: rotate(var(--sw));
+  }
+}
+
+@keyframes hanami-intro-flicker {
+  0% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.86;
+  }
+}
