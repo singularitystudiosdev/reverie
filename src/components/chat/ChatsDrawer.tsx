@@ -9,6 +9,9 @@
     the panel tracks the finger directly, projects along its velocity on
     release, and settles on the nearer rest (open or gone), the same physics
     as the profile sheet. The scrim lightens as the panel is pulled left.
+  - Rows rise in with a 30ms stagger (first 10) when the drawer opens, and
+    the open chat's highlight is a shared layout element that slides between
+    rows. Reduced motion: no stagger, the highlight jumps.
   - Rows carry 12px of padding inside the pressed/hover state layer (v4), so
     the highlight never hugs the name or preview.
   - Focus moves in (to the open chat's row) and returns to the hamburger on
@@ -37,12 +40,12 @@ import {
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { Avatar } from '../Avatar';
-import { dur, ease, instant } from '../../lib/motion';
+import { dur, ease, instant, rowStagger, spring } from '../../lib/motion';
 import { isoTime, relativeTime } from '../../lib/time';
 import { useApp } from '../../state/store';
 import { chatEntries, previewText, useNow } from './chatData';
 import { trapTab } from './focus';
-import { stateLayer, stateLayerSelected } from './stateLayer';
+import { stateLayer } from './stateLayer';
 import { TypingDots } from './TypingDots';
 import { UnreadBadge } from './UnreadBadge';
 
@@ -253,21 +256,41 @@ function DrawerPanel(props: {
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto pb-16">
           <ul className="px-8">
-            {entries.map(({ character, convo, last }) => {
+            {entries.map(({ character, convo, last }, index) => {
               const current = character.id === currentId;
               const typing = Boolean(state.typing[character.id]);
               return (
-                <li key={character.id}>
+                <motion.li
+                  key={character.id}
+                  initial={reduce ? false : { opacity: 0, y: rowStagger.riseY }}
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                    transition: {
+                      duration: dur.base,
+                      ease: ease.enter,
+                      delay: Math.min(index, rowStagger.max - 1) * rowStagger.gap,
+                    },
+                  }}
+                >
                   <button
                     type="button"
                     aria-current={current ? 'page' : undefined}
                     onClick={() => onPick(character.id)}
                     className={clsx(
                       stateLayer,
-                      current && stateLayerSelected,
                       'relative flex min-h-[var(--target-touch)] w-full items-center gap-12 rounded-20 px-12 py-12 text-left'
                     )}
                   >
+                    {current ? (
+                      <motion.span
+                        aria-hidden="true"
+                        layoutId="drawer-current-row"
+                        data-slot="drawer-current"
+                        className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-current opacity-[var(--state-layer-focus)]"
+                        transition={reduce ? instant : spring.snappy}
+                      />
+                    ) : null}
                     <Avatar character={character} size="sm" />
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="flex items-baseline gap-8">
@@ -299,7 +322,7 @@ function DrawerPanel(props: {
                     </span>
                     {current ? <span className="sr-only">, open now</span> : null}
                   </button>
-                </li>
+                </motion.li>
               );
             })}
           </ul>

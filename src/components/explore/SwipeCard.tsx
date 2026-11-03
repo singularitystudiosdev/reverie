@@ -22,6 +22,7 @@ import {
   useMotionValue,
   useMotionValueEvent,
   useReducedMotion,
+  useSpring,
   useTransform,
   type MotionValue,
   type PanInfo,
@@ -101,6 +102,12 @@ export function SwipeCard(props: SwipeCardProps): JSX.Element {
     );
   const likeOpacity = useTransform(x, (v) => stamp(v / threshold()));
   const passOpacity = useTransform(x, (v) => stamp(-v / threshold()));
+  // Stamps spring in: the scale follows the same progress through a spring, so
+  // they overshoot a touch instead of popping. Reduced motion: opacity only.
+  const likeProgress = useSpring(likeOpacity, spring.snappy);
+  const passProgress = useSpring(passOpacity, spring.snappy);
+  const likeScale = useTransform(likeProgress, (v) => deckConfig.stampFrom + (1 - deckConfig.stampFrom) * v);
+  const passScale = useTransform(passProgress, (v) => deckConfig.stampFrom + (1 - deckConfig.stampFrom) * v);
 
   // The card's place in the stack.
   const stackScale = useTransform(() =>
@@ -222,16 +229,16 @@ export function SwipeCard(props: SwipeCardProps): JSX.Element {
 
         <motion.span
           aria-hidden="true"
-          style={{ opacity: likeOpacity }}
-          className="pointer-events-none absolute top-16 left-16 inline-flex h-[var(--deck-stamp-h)] items-center gap-6 rounded-full bg-accent px-12 text-label text-on-accent"
+          style={{ opacity: likeOpacity, scale: reduce ? 1 : likeScale }}
+          className="pointer-events-none absolute top-16 left-16 origin-top-left inline-flex h-[var(--deck-stamp-h)] items-center gap-6 rounded-full bg-accent px-12 text-label text-on-accent"
         >
           <Check className="size-16" />
           Like
         </motion.span>
         <motion.span
           aria-hidden="true"
-          style={{ opacity: passOpacity }}
-          className="pointer-events-none absolute top-16 right-16 inline-flex h-[var(--deck-stamp-h)] items-center gap-6 rounded-full border border-hairline bg-surface-strong px-12 text-label text-ink"
+          style={{ opacity: passOpacity, scale: reduce ? 1 : passScale }}
+          className="pointer-events-none absolute top-16 right-16 origin-top-right inline-flex h-[var(--deck-stamp-h)] items-center gap-6 rounded-full border border-hairline bg-surface-strong px-12 text-label text-ink"
         >
           <X className="size-16" />
           Pass

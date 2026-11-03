@@ -1,7 +1,7 @@
 /*
   Portrait: her animated portrait, the "animated gif" of the app. Every place a
   character's portrait shows (swipe cards, avatars, the profile hero, the
-  instant-match modal) renders this instead of a bare image.
+  match notice) renders this instead of a bare image.
 
   - A muted, looping, inline <video> (public/characters/<id>-loop.mp4, encoded
     by scripts/encode-loops.sh) over her still portrait. The still is the

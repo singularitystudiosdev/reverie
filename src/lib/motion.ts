@@ -95,7 +95,7 @@ export const BUILD_TAG = 'v4';
 
 /**
  * The chance a right swipe is an INSTANT match (her opener is already in the
- * chat and the "You Matched!" modal shows). Otherwise the like becomes a
+ * chat and a match notice shows). Otherwise the like becomes a
  * pending match that resolves after `matchDelayMs`. The very first like ever
  * is always instant; the `?instant=1|0` URL hook overrides the roll.
  */
@@ -110,14 +110,18 @@ export const matchDelayMs = {
 /** How long after her reply the clip video message arrives. */
 export const clipDelayMs = 1500 /* deliberate */;
 
-/** How long "<Name> matched with you" stays up (one at a time). */
-export const matchToastMs = 5000 /* deliberate */;
-
 /** The locked Chats tab: a short horizontal nudge, then a hint bubble. */
 export const lockedTab = {
   nudgeX: 6,
   nudgeS: dur.quick,
   hintMs: 2000 /* deliberate */,
+} as const;
+
+/** Drawer rows rise in one after another: this gap (s), for at most `max` rows. */
+export const rowStagger = {
+  gap: 0.03,
+  max: 10,
+  riseY: 8,
 } as const;
 
 /**

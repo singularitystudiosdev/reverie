@@ -13,8 +13,9 @@
     or dismissed); the scrim lightens as she is pulled down. Escape and the
     scrim dismiss. Focus moves into the sheet on open, Tab stays inside, and
     focus returns to the trigger as it closes.
-  - Motion: in on the base band (enter easing), out on the quick band. Reduced
-    motion: fades only; a drag still follows the finger.
+  - Motion: in on the base band (enter easing), out on the quick band. The hero
+    eases in with a slight scale, then the bio fades up after it. Reduced
+    motion: fades only, no scale or rise; a drag still follows the finger.
 */
 import {
   AnimatePresence,
@@ -116,7 +117,7 @@ function Sheet(props: { character: Character }): JSX.Element {
           tabIndex={-1}
           onKeyDown={trapTab}
           data-slot="profile-sheet"
-          className="pointer-events-auto flex max-h-[var(--sheet-max-h)] w-full flex-col overflow-y-auto overscroll-contain rounded-t-20 land:mx-auto land:max-w-[var(--sheet-max-w)] border-t border-hairline surface-solid text-ink"
+          className="pointer-events-auto flex max-h-[var(--sheet-max-h)] w-full flex-col overflow-y-auto overscroll-contain rounded-t-20 border-t border-hairline surface-solid text-ink"
           style={{ y }}
           drag="y"
           dragListener={false}
@@ -144,12 +145,18 @@ function Sheet(props: { character: Character }): JSX.Element {
             onPointerDown={(e) => controls.start(e)}
             className="relative aspect-square min-h-[var(--avatar-xl)] w-full shrink touch-none overflow-hidden bg-surface select-none"
           >
-            <Portrait
-              character={character}
-              priority
-              className="size-full"
-              style={{ objectPosition: character.avatarPosition }}
-            />
+            <motion.div
+              className="size-full origin-center"
+              initial={reduce ? false : { scale: 1.06, opacity: 0.6 }}
+              animate={{ scale: 1, opacity: 1, transition: { duration: dur.slow, ease: ease.enter } }}
+            >
+              <Portrait
+                character={character}
+                priority
+                className="size-full"
+                style={{ objectPosition: character.avatarPosition }}
+              />
+            </motion.div>
             <span
               aria-hidden="true"
               className="absolute top-8 left-1/2 h-4 w-32 -translate-x-1/2 rounded-full bg-neutral-0 shadow-2"
@@ -161,9 +168,17 @@ function Sheet(props: { character: Character }): JSX.Element {
             </div>
           </div>
 
-          <div className="flex flex-col px-24 pt-16 pb-[calc(var(--spacing-24)+var(--safe-bottom))]">
+          <motion.div
+            className="flex flex-col px-24 pt-16 pb-[calc(var(--spacing-24)+var(--safe-bottom))]"
+            initial={reduce ? false : { opacity: 0, y: 12 }}
+            animate={{
+              opacity: 1,
+              y: 0,
+              transition: { duration: dur.base, ease: ease.enter, delay: dur.quick },
+            }}
+          >
             <AnimatedBio text={character.bio} style={character.style} />
-          </div>
+          </motion.div>
         </motion.div>
       </div>
     </motion.div>
