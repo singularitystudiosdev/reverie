@@ -56,7 +56,6 @@ export interface Character {
   theme: ThemeId;
   tagline: string;        // one line on the swipe card
   bio: string;            // 2-3 sentences, profile sheet
-  interests: string[];    // exactly 3 chips
   portrait: string;       // /characters/<id>.webp         900x1600
   portraitSm: string;     // /characters/<id>-sm.webp      360x640
   loop: string;           // /characters/<id>-loop.mp4     720x1280, muted seamless loop

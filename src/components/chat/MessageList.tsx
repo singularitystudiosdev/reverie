@@ -151,7 +151,7 @@ function MessageBody(props: { message: Message; character: Character; fresh: boo
     return <CardGroup cards={message.cards} from={character.name} animateIn={fresh} />;
   }
   if (message.kind === 'video' && message.src) {
-    return <VideoBubble message={message} name={character.name} reduce={reduce} />;
+    return <VideoBubble message={message} name={character.name} />;
   }
   const mine = message.from === 'me';
   return (
@@ -178,7 +178,7 @@ function MessageBody(props: { message: Message; character: Character; fresh: boo
  * resumes it; a clip the user paused stays paused until they tap it again. The
  * bubble is the video alone: v4 removed the caption line under it.
  */
-function VideoBubble(props: { message: Message; name: string; reduce: boolean }): JSX.Element {
+function VideoBubble(props: { message: Message; name: string }): JSX.Element {
   const { message, name } = props;
   const frame = useRef<HTMLButtonElement>(null);
   const video = useRef<HTMLVideoElement>(null);

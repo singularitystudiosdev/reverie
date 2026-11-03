@@ -71,7 +71,13 @@ async function chatBursts(label, text) {
 }
 
 async function openChat(name) {
-  await tap(page.locator('[data-slot="tab"]', { hasText: 'Chats' }));
+  // Explore returns through its back button; the chat list is the chat header's drawer.
+  const back = page.locator('button[aria-label="Back to chats"]');
+  if (await back.isVisible().catch(() => false)) {
+    await tap(back);
+    await sleep(700);
+  }
+  await tap(page.locator('button[aria-label="Chats"]'));
   await sleep(700);
   await tap(page.locator('[data-slot="chat-row"]', { hasText: name }));
   await sleep(900);
@@ -106,7 +112,7 @@ async function dragPreview(label) {
 }
 
 // Grove: Explore with Sylvara on top, idle, then the next world under the finger.
-await tap(page.locator('[data-slot="tab"]', { hasText: 'Explore' }));
+await tap(page.locator('button[aria-label="Explore new people"]'));
 await sleep(2200);
 await burst(page, 'grove-explore-idle');
 await dragPreview('grove');
@@ -124,7 +130,7 @@ await openChat('Nova');
 await chatBursts('neon', 'What are you hacking tonight?');
 
 // Sunflower: pass four, Clementine on top, like her, chat.
-await tap(page.locator('[data-slot="tab"]', { hasText: 'Explore' }));
+await tap(page.locator('button[aria-label="Explore new people"]'));
 await sleep(900);
 for (let i = 0; i < 6; i++) {
   const name = (await topCard().getAttribute('aria-label'))?.split(',')[0];

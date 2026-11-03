@@ -29,7 +29,7 @@ const topName = () =>
 const frameTheme = () => page.evaluate(() => getComputedStyle(document.querySelector('[data-frame]')).getPropertyValue('--t-accent').trim());
 
 // 1. Explore, drag Sylvara past the commit threshold to like her.
-await tap(page.locator('[data-slot="tab"]', { hasText: 'Explore' }));
+await tap(page.locator('button[aria-label="Explore new people"]'));
 await sleep(1200);
 ok('Explore opens with Sylvara on top', (await topName()) === 'Sylvara', await topName());
 const card = page.locator('[aria-label$="View profile"]:not([inert] *)').first();
@@ -100,7 +100,7 @@ ok('A drawer pick switches the chat', now === 'Nova' && !(await drawer.isVisible
 ok('The frame is themed to Nova', (await frameTheme()) !== '', await frameTheme());
 
 // 6. Filter chips.
-await tap(page.locator('[data-slot="tab"]', { hasText: 'Explore' }));
+await tap(page.locator('button[aria-label="Explore new people"]'));
 await sleep(900);
 await tap(page.getByRole('button', { name: 'Goth', exact: true }));
 await sleep(700);
@@ -137,7 +137,7 @@ await tap(page.locator('[data-slot="chat-row"]', { hasText: 'Sylvara' }));
 await sleep(900);
 const persisted = await page.locator('[data-slot="message-list"] ol > li').count();
 ok('Reload keeps her conversation', persisted >= after + 2, `${persisted} messages`);
-await tap(page.locator('[data-slot="tab"]', { hasText: 'Explore' }));
+await tap(page.locator('button[aria-label="Explore new people"]'));
 await sleep(900);
 ok('Reload keeps passes (same top card)', (await topName()) === topBeforeReload, `${await topName()} vs ${topBeforeReload}`);
 
@@ -181,9 +181,7 @@ await browser.close().catch(() => {});
   const chatStops = await tabStops(6);
   ok('Keyboard: every chat stop draws the 2px ring', chatStops.every((s) => s.ring), chatStops.map((s) => `${s.name}${s.ring ? '' : ' (no ring)'}`).join(', '));
   await p2.keyboard.press('Escape');
-  await p2.locator('[data-slot="tab"]', { hasText: 'Chats' }).click();
-  await sleep(600);
-  await p2.locator('[data-slot="tab"]', { hasText: 'Explore' }).click();
+  await p2.locator('button[aria-label="Explore new people"]').click();
   await sleep(1200);
   const name0 = await p2.evaluate(() => [...document.querySelectorAll('[aria-label$="View profile"]')].find((el) => !el.closest('[inert]'))?.getAttribute('aria-label').split(',')[0]);
   await p2.keyboard.press('ArrowLeft');
