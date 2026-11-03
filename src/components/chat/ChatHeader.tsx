@@ -18,6 +18,7 @@ import { Images, Menu } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useRef, useState, type JSX, type Ref } from 'react';
 import { Avatar } from '../Avatar';
+import { FxRing } from '../fx/FxSurface';
 import { thoughts, type Thought } from '../../data/thoughts';
 import type { Character } from '../../data/types';
 import { dur, ease, instant, lens, spring, useReducedMotion } from '../../lib/motion';
@@ -151,7 +152,10 @@ export function ChatHeader(props: {
           onClick={onProfile}
           className={clsx(stateLayer, 'relative flex min-h-[var(--target-touch)] flex-col items-center rounded-20 p-4 text-ink')}
         >
-          <Avatar character={character} size="md" eager />
+          <span className="relative flex shrink-0">
+            <Avatar character={character} size="md" eager />
+            <FxRing character={character} />
+          </span>
           <motion.span
             aria-hidden="true"
             layout={!reduce}
