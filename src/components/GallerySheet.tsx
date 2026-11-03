@@ -1,24 +1,27 @@
 /*
   Gallery sheet: every image and clip she has sent, in one place (v4, opened
   from the photos button at the top right of the chat header).
-  - Sources, read from her messages: her video messages (the clip, with a play
-    badge) and every image in her cards messages (her scene / portrait plates).
+  - Sources, read from her messages: her video messages (the clip, autoplaying
+    muted on a loop while on screen, no badge; reduced motion keeps the poster
+    and a play badge) and every image in her cards messages (her scene / portrait plates).
     Deduplicated by source and shown newest first, two columns of 9:16 tiles.
   - Tapping a tile opens it full-frame INSIDE the same sheet: the media fills
     the sheet, with the sender ("From <Name>") and a close control that returns
-    to the grid. Escape closes the preview first, then the sheet; the scrim and
+    to the grid. A clip autoplays muted on a loop; a tap pauses or resumes it. Escape closes the preview first, then the sheet; the scrim and
     the header close control close the sheet.
   - Empty state: one sentence and one action back to the chat.
   - An opaque sheet (surface-solid, no blur), rendered into the frame's UI
     layer through a portal so it covers the floating tab bar. Focus moves in,
     Tab stays inside, and focus returns to the trigger on close.
   - Motion: the sheet enters on the base band from below and leaves on the
-    quick band; the preview cross-fades. Reduced motion: fades only.
+    quick band; the preview cross-fades; tiles stagger in (40ms, at most 8).
+    Reduced motion: fades only, no autoplay, no stagger.
+  - No title line: the grid starts right under the close control.
 */
 import { clsx } from 'clsx';
-import { Pause, Play, X } from 'lucide-react';
+import { Play, X } from 'lucide-react';
 import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'motion/react';
-import { useEffect, useId, useMemo, useRef, useState, type JSX, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type JSX, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { artSize } from '../data/characters';
 import type { Character, Message } from '../data/types';
@@ -97,7 +100,6 @@ function Sheet(props: {
   const isPresent = useIsPresent();
   const dialog = useRef<HTMLDivElement>(null);
   const returnTo = useRef<HTMLElement | null>(null);
-  const titleId = useId();
   const [previewId, setPreviewId] = useState<string | null>(null);
   const previewClose = useRef<HTMLButtonElement>(null);
   const tiles = useRef(new Map<string, HTMLButtonElement>());
@@ -155,8 +157,7 @@ function Sheet(props: {
           ref={dialog}
           role="dialog"
           aria-modal="true"
-          aria-labelledby={preview ? undefined : titleId}
-          aria-label={preview ? `Media from ${character.name}` : undefined}
+          aria-label={preview ? `Media from ${character.name}` : `${character.name}'s gallery`}
           tabIndex={-1}
           onKeyDown={trapTab}
           data-slot="gallery-sheet"
@@ -194,10 +195,7 @@ function Sheet(props: {
               </button>
             </div>
           ) : (
-            <header className="flex shrink-0 items-center justify-between gap-8 px-16 pt-12 pb-8">
-              <h2 id={titleId} className="min-w-0 truncate font-display text-title">
-                {character.name} sent you
-              </h2>
+            <header className="flex shrink-0 items-center justify-end px-16 pt-8">
               <button
                 type="button"
                 aria-label={`Close ${character.name}'s gallery`}
@@ -229,6 +227,8 @@ function Sheet(props: {
                 key="grid"
                 character={character}
                 items={items}
+                active={isPresent}
+                reduce={reduce}
                 onClose={onClose}
                 onPreview={setPreviewId}
                 registerTile={(id, el) => {
@@ -247,11 +247,14 @@ function Sheet(props: {
 function Grid(props: {
   character: Character;
   items: GalleryItem[];
+  /** False once the sheet is leaving: every tile clip pauses. */
+  active: boolean;
+  reduce: boolean;
   onClose(): void;
   onPreview(id: string): void;
   registerTile(id: string, el: HTMLButtonElement | null): void;
 }): JSX.Element {
-  const { character, items, onClose, onPreview, registerTile } = props;
+  const { character, items, active, reduce, onClose, onPreview, registerTile } = props;
 
   if (items.length === 0) {
     return (
@@ -277,8 +280,16 @@ function Grid(props: {
       aria-label={`Media from ${character.name}`}
       className="grid min-h-0 flex-1 grid-cols-2 content-start gap-8 overflow-y-auto overscroll-contain px-16 pt-8 pb-[calc(var(--spacing-24)+var(--safe-bottom))]"
     >
-      {items.map((item) => (
-        <li key={item.id}>
+      {items.map((item, index) => (
+        <motion.li
+          key={item.id}
+          initial={reduce ? false : { opacity: 0, y: 8 }}
+          animate={{
+            opacity: 1,
+            y: 0,
+            transition: { duration: dur.base, ease: ease.enter, delay: Math.min(index, 7) * 0.04 },
+          }}
+        >
           <button
             ref={(el) => registerTile(item.id, el)}
             type="button"
@@ -295,28 +306,7 @@ function Grid(props: {
             style={{ aspectRatio: 'var(--aspect-media)' }}
           >
             {item.kind === 'video' ? (
-              item.poster ? (
-                <img
-                  src={item.poster}
-                  alt=""
-                  aria-hidden="true"
-                  width={artSize.sm.width}
-                  height={artSize.sm.height}
-                  decoding="async"
-                  loading="lazy"
-                  draggable={false}
-                  className="absolute inset-0 size-full object-cover"
-                />
-              ) : (
-                <video
-                  src={item.src}
-                  aria-hidden="true"
-                  muted
-                  playsInline
-                  preload="metadata"
-                  className="absolute inset-0 size-full object-cover"
-                />
-              )
+              <TileVideo item={item} active={active} reduce={reduce} />
             ) : (
               <img
                 src={item.src}
@@ -330,7 +320,7 @@ function Grid(props: {
                 className="absolute inset-0 size-full object-cover"
               />
             )}
-            {item.kind === 'video' ? (
+            {item.kind === 'video' && reduce ? (
               <span
                 aria-hidden="true"
                 className="absolute inset-0 grid place-items-center bg-[color-mix(in_oklab,var(--t-ink)_var(--media-veil-mix),transparent)]"
@@ -341,9 +331,50 @@ function Grid(props: {
               </span>
             ) : null}
           </button>
-        </li>
+        </motion.li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * A grid clip: muted, looping, no controls, playing only while it is on screen
+ * and the sheet is open. Reduced motion keeps the poster and never plays.
+ */
+function TileVideo(props: { item: GalleryItem; active: boolean; reduce: boolean }): JSX.Element {
+  const { item, active, reduce } = props;
+  const video = useRef<HTMLVideoElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = video.current;
+    if (!el || reduce) return;
+    const observer = new IntersectionObserver(([entry]) => setVisible(entry?.isIntersecting ?? false), {
+      threshold: 0.25,
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [reduce]);
+
+  useEffect(() => {
+    const el = video.current;
+    if (!el || reduce) return;
+    if (visible && active) void el.play().catch(() => undefined);
+    else el.pause();
+  }, [visible, active, reduce]);
+
+  return (
+    <video
+      ref={video}
+      src={item.src}
+      poster={item.poster}
+      aria-hidden="true"
+      muted
+      loop
+      playsInline
+      preload={reduce ? 'metadata' : 'auto'}
+      className="absolute inset-0 size-full object-cover"
+    />
   );
 }
 
@@ -372,27 +403,27 @@ function Preview(props: { item: GalleryItem; character: Character }): JSX.Elemen
 }
 
 /**
- * The clip, full-frame: the poster until the user presses play, then the
- * muted loop with no browser chrome. Tap the frame to pause. It never
- * autoplays, so reduced motion always gets the still and a play control.
+ * The clip, full-frame: autoplays muted on a loop with no browser chrome; a
+ * tap pauses or resumes. Reduced motion keeps the poster and a play control
+ * until the user starts it.
  */
 function PreviewVideo(props: { item: GalleryItem; name: string }): JSX.Element {
   const { item, name } = props;
+  const reduce = useReducedMotion() ?? false;
   const video = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
+
+  useEffect(() => {
+    const el = video.current;
+    if (!el || reduce) return;
+    void el.play().catch(() => undefined);
+  }, [reduce]);
 
   const toggle = () => {
     const el = video.current;
     if (!el) return;
-    if (el.paused) {
-      void el
-        .play()
-        .then(() => setPlaying(true))
-        .catch(() => setPlaying(false));
-    } else {
-      el.pause();
-      setPlaying(false);
-    }
+    if (el.paused) void el.play().catch(() => undefined);
+    else el.pause();
   };
 
   return (
@@ -405,7 +436,8 @@ function PreviewVideo(props: { item: GalleryItem; name: string }): JSX.Element {
         muted
         loop
         playsInline
-        preload="metadata"
+        autoPlay={!reduce}
+        preload="auto"
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onError={() => setPlaying(false)}
@@ -426,7 +458,7 @@ function PreviewVideo(props: { item: GalleryItem; name: string }): JSX.Element {
             playing ? 'opacity-0' : 'opacity-100'
           )}
         >
-          {playing ? <Pause aria-hidden="true" className="size-20" /> : <Play aria-hidden="true" className="size-20 translate-x-1" />}
+          <Play aria-hidden="true" className="size-20 translate-x-1" />
         </span>
       </button>
     </div>

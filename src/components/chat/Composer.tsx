@@ -7,9 +7,9 @@
   - The input is 16px (no iOS zoom), Enter sends (form submit).
   - The send button (accent circle, arrow up) scales in once there is text:
     a snappy spring on scale, opacity tweened; reduced motion fades only.
-  - Focus: the ring lives on the INPUT itself (2px accent, 2px offset), shown
-    only while the field has keyboard focus. The resting pill keeps only its
-    hairline border, never an outline.
+  - Focus: ONE indication. The pill carries a 2px accent ring on :focus-within,
+    inset so it hugs the pill's own radius. The input itself draws no outline
+    (the pill's ring is its focus indication).
 */
 import { clsx } from 'clsx';
 import { ArrowUp, Plus, X } from 'lucide-react';
@@ -87,7 +87,10 @@ export function Composer(props: { name: string; onSend(text: string): void }): J
 
       <form
         onSubmit={submit}
-        className="flex items-center gap-4 rounded-full border border-hairline bg-surface-strong p-4 text-ink backdrop-blur-[var(--blur-ui)]"
+        className={clsx(
+          'flex items-center gap-4 rounded-full border border-hairline bg-surface-strong p-4 text-ink backdrop-blur-[var(--blur-ui)]',
+          'focus-within:ring-[length:var(--focus-ring-width)] focus-within:ring-inset focus-within:ring-accent'
+        )}
       >
         <button
           type="button"
@@ -114,11 +117,7 @@ export function Composer(props: { name: string; onSend(text: string): void }): J
           placeholder="Message"
           autoComplete="off"
           enterKeyHint="send"
-          className={clsx(
-            'h-[var(--target)] min-w-0 flex-1 rounded-full bg-transparent px-4 text-body text-ink placeholder:text-muted',
-            'focus-visible:outline-solid focus-visible:outline-[length:var(--focus-ring-width)]',
-            'focus-visible:outline-accent focus-visible:outline-offset-[var(--focus-ring-offset)]'
-          )}
+          className="h-[var(--target)] min-w-0 flex-1 rounded-full bg-transparent px-4 text-body text-ink outline-none placeholder:text-muted"
         />
         <AnimatePresence initial={false}>
           {hasText ? (
@@ -129,7 +128,8 @@ export function Composer(props: { name: string; onSend(text: string): void }): J
               // Keep focus (and the phone keyboard) on the field.
               onPointerDown={(e) => e.preventDefault()}
               className="grid size-[var(--target)] shrink-0 place-items-center rounded-full bg-accent text-on-accent"
-              initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0 }}
+              initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
+              whileTap={reduce ? undefined : { scale: 0.88, transition: spring.snappy }}
               animate={{
                 opacity: 1,
                 scale: 1,
@@ -137,7 +137,7 @@ export function Composer(props: { name: string; onSend(text: string): void }): J
               }}
               exit={{
                 opacity: 0,
-                scale: reduce ? 1 : 0,
+                scale: reduce ? 1 : 0.6,
                 transition: { duration: dur.quick, ease: ease.exit },
               }}
             >
