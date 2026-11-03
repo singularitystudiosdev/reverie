@@ -1,21 +1,21 @@
 /*
   Profile sheet: a bottom sheet over a scrim (reads state.profileId; App
-  renders it above the tab bar). Opened from her avatar or name in the
-  chat header, or a tap on a swipe card; no theme change, it opens over a frame already
-  themed to her.
-  - Content: her animated portrait (Portrait) as the tall header image with her name (--text-name)
-    over a bottom scrim; kind, style, bio, the 3 interest chips; a primary
-    "Message" when matched (opens the chat), else "Close".
+  renders it above the tab bar). Opened from her avatar or name in the chat
+  header, or a tap on a swipe card; no theme change, it opens over a frame
+  already themed to her.
+  - Content (v4, slimmed): her animated portrait (Portrait) as the header
+    image with her name (--text-name) over a bottom scrim, then her bio with
+    AnimatedBio. No interest chips, no Message button, no close button, no
+    kind or style lines.
   - Mechanics after design-web sheet.tsx: the header image is the drag handle
     and tracks the finger directly (no easing while dragging); on release the
     position is projected along the velocity and the nearer rest wins (open
-    or dismissed); the scrim lightens as she is pulled down. Escape, the scrim
-    and the close button dismiss. Focus moves into the sheet on open, Tab
-    stays inside, and focus returns to the trigger as it closes.
+    or dismissed); the scrim lightens as she is pulled down. Escape and the
+    scrim dismiss. Focus moves into the sheet on open, Tab stays inside, and
+    focus returns to the trigger as it closes.
   - Motion: in on the base band (enter easing), out on the quick band. Reduced
     motion: fades only; a drag still follows the finger.
 */
-import { X } from 'lucide-react';
 import {
   AnimatePresence,
   motion,
@@ -27,9 +27,8 @@ import {
   type PanInfo,
 } from 'motion/react';
 import { useEffect, useId, useRef, type JSX } from 'react';
-import { clsx } from 'clsx';
 import { trapTab } from './chat/focus';
-import { stateLayer } from './chat/stateLayer';
+import { AnimatedBio } from './chat/AnimatedBio';
 import type { Character } from '../data/types';
 import { dur, ease, spring } from '../lib/motion';
 import { useApp, useCharacter } from '../state/store';
@@ -38,17 +37,12 @@ import { Portrait } from './Portrait';
 export function ProfileSheet(): JSX.Element {
   const { state } = useApp();
   const character = useCharacter(state.profileId);
-  const matched = character ? state.matchIds.includes(character.id) : false;
 
-  return (
-    <AnimatePresence>
-      {character ? <Sheet key={character.id} character={character} matched={matched} /> : null}
-    </AnimatePresence>
-  );
+  return <AnimatePresence>{character ? <Sheet key={character.id} character={character} /> : null}</AnimatePresence>;
 }
 
-function Sheet(props: { character: Character; matched: boolean }): JSX.Element {
-  const { character, matched } = props;
+function Sheet(props: { character: Character }): JSX.Element {
+  const { character } = props;
   const { actions } = useApp();
   const reduce = useReducedMotion() ?? false;
   const isPresent = useIsPresent();
@@ -94,11 +88,6 @@ function Sheet(props: { character: Character; matched: boolean }): JSX.Element {
     const h = dialog.current?.offsetHeight ?? 0;
     const projected = info.offset.y + info.velocity.y * dur.base;
     if (Math.abs(h - projected) < Math.abs(projected)) close();
-  };
-
-  const message = () => {
-    close();
-    actions.openChat(character.id);
   };
 
   return (
@@ -165,18 +154,6 @@ function Sheet(props: { character: Character; matched: boolean }): JSX.Element {
               aria-hidden="true"
               className="absolute top-8 left-1/2 h-4 w-32 -translate-x-1/2 rounded-full bg-neutral-0 shadow-2"
             />
-            <button
-              type="button"
-              aria-label="Close profile"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={close}
-              className={clsx(
-                stateLayer,
-                'absolute top-16 right-16 z-1 grid size-[var(--target-touch)] place-items-center rounded-full border border-hairline bg-surface-strong text-ink'
-              )}
-            >
-              <X aria-hidden="true" className="size-20" />
-            </button>
             <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-linear-to-t from-[var(--scrim)] via-[var(--scrim)] to-transparent px-24 pt-48 pb-16 text-neutral-0">
               <h2 id={nameId} className="font-display text-name">
                 {character.name}
@@ -184,39 +161,8 @@ function Sheet(props: { character: Character; matched: boolean }): JSX.Element {
             </div>
           </div>
 
-          <div className="flex min-h-0 shrink-0 flex-col gap-16 overflow-y-auto px-24 pt-16 pb-[calc(var(--spacing-24)+var(--safe-bottom))]">
-            <div className="flex flex-col">
-              <p className="text-heading">{character.kind}</p>
-              <p className="text-label font-normal text-muted">{character.style} style</p>
-            </div>
-            <p className="max-w-[var(--measure)] text-body">{character.bio}</p>
-            <ul aria-label="Interests" className="flex flex-wrap gap-8">
-              {character.interests.map((interest) => (
-                <li key={interest} className="rounded-12 border border-hairline px-12 py-4 text-label">
-                  {interest}
-                </li>
-              ))}
-            </ul>
-            {matched ? (
-              <button
-                type="button"
-                onClick={message}
-                className="min-h-[var(--target-touch)] w-full rounded-full bg-accent px-24 text-label text-on-accent"
-              >
-                Message
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={close}
-                className={clsx(
-                  stateLayer,
-                  'relative min-h-[var(--target-touch)] w-full rounded-full border border-hairline bg-surface px-24 text-label text-ink'
-                )}
-              >
-                Close
-              </button>
-            )}
+          <div className="flex flex-col px-24 pt-16 pb-[calc(var(--spacing-24)+var(--safe-bottom))]">
+            <AnimatedBio text={character.bio} style={character.style} />
           </div>
         </motion.div>
       </div>

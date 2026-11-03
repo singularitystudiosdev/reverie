@@ -2,11 +2,12 @@
   The chat header, after the reference: a round liquid-glass hamburger at the
   left (opens the chats drawer, aria-expanded), her avatar centered with her
   name in a small pill under it. Her avatar and name are ONE button that opens
-  her profile sheet ("View <name>'s profile"). The right side is an empty cell
-  that balances the grid so the avatar stays centered. There is no Profile pill.
+  her profile sheet ("View <name>'s profile"). At the top right, a second
+  liquid-glass button with the photos icon opens her gallery sheet. There is
+  no Profile pill.
 */
 import { clsx } from 'clsx';
-import { Menu } from 'lucide-react';
+import { Images, Menu } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import type { JSX, Ref } from 'react';
 import { Avatar } from '../Avatar';
@@ -20,12 +21,14 @@ const pill = 'border border-hairline bg-surface-strong text-ink backdrop-blur-[v
 export function ChatHeader(props: {
   character: Character;
   drawerOpen: boolean;
+  galleryOpen: boolean;
   menuRef: Ref<HTMLButtonElement>;
   titleRef: Ref<HTMLButtonElement>;
   onMenu(): void;
   onProfile(): void;
+  onGallery(): void;
 }): JSX.Element {
-  const { character, drawerOpen, menuRef, titleRef, onMenu, onProfile } = props;
+  const { character, drawerOpen, galleryOpen, menuRef, titleRef, onMenu, onProfile, onGallery } = props;
   const reduce = useReducedMotion() ?? false;
   return (
     <header data-slot="chat-header" className="pt-[var(--statusbar-h)]">
@@ -60,8 +63,18 @@ export function ChatHeader(props: {
           </span>
         </button>
 
-        {/* Empty on purpose: it balances the menu button so the avatar stays centered. */}
-        <span aria-hidden="true" />
+        <motion.button
+          type="button"
+          aria-label={`Open ${character.name}'s gallery`}
+          aria-haspopup="dialog"
+          aria-expanded={galleryOpen}
+          onClick={onGallery}
+          whileTap={reduce ? undefined : { scale: lens.pressScale }}
+          transition={spring.snappy}
+          className="liquid-glass grid size-[var(--target-touch)] place-items-center justify-self-end rounded-full"
+        >
+          <Images aria-hidden="true" className="size-20" />
+        </motion.button>
       </div>
     </header>
   );

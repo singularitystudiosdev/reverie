@@ -16,7 +16,8 @@
   - bloom when her message lands (never for the history present at mount):
     1 for the first of a batch, 0.4 for later ones, 0.6 for 3 words or fewer.
 */
-import { useEffect, useRef, type JSX } from 'react';
+import { useEffect, useRef, useState, type JSX } from 'react';
+import { GallerySheet } from '../components/GallerySheet';
 import { ChatHeader } from '../components/chat/ChatHeader';
 import { ChatsDrawer, takeDrawerFocus } from '../components/chat/ChatsDrawer';
 import { Composer } from '../components/chat/Composer';
@@ -33,6 +34,7 @@ export function ChatView(props: { characterId: string }): JSX.Element {
   const menuRef = useRef<HTMLButtonElement>(null);
   const titleRef = useRef<HTMLButtonElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
+  const [galleryOpen, setGalleryOpen] = useState(false);
 
   const messages = state.conversations[characterId]?.messages ?? [];
   const typing = Boolean(state.typing[characterId]);
@@ -43,6 +45,11 @@ export function ChatView(props: { characterId: string }): JSX.Element {
   // Latest values for the mount effect without re-running it.
   const live = useRef({ affinity, typing });
   live.current = { affinity, typing };
+
+  // The gallery belongs to the chat on screen; a chat switch starts it closed.
+  useEffect(() => {
+    setGalleryOpen(false);
+  }, [characterId]);
 
   useEffect(() => {
     if (!character) return;
@@ -130,14 +137,22 @@ export function ChatView(props: { characterId: string }): JSX.Element {
       <ChatHeader
         character={character}
         drawerOpen={drawerOpen && isOpen}
+        galleryOpen={galleryOpen}
         menuRef={menuRef}
         titleRef={titleRef}
         onMenu={() => actions.setDrawer(true)}
         onProfile={() => actions.openProfile(character.id)}
+        onGallery={() => setGalleryOpen(true)}
       />
       <MessageList character={character} messages={messages} typing={typing} />
       <Composer name={character.name} onSend={send} />
       <ChatsDrawer currentId={character.id} anchor={menuRef} />
+      <GallerySheet
+        character={character}
+        open={galleryOpen}
+        anchor={sectionRef}
+        onClose={() => setGalleryOpen(false)}
+      />
     </section>
   );
 }

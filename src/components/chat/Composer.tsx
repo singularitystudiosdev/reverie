@@ -7,8 +7,9 @@
   - The input is 16px (no iOS zoom), Enter sends (form submit).
   - The send button (accent circle, arrow up) scales in once there is text:
     a snappy spring on scale, opacity tweened; reduced motion fades only.
-  - Focus: the pill draws the 2px accent ring while the field has focus, so
-    the ring follows the pill's shape instead of boxing the bare input.
+  - Focus: the ring lives on the INPUT itself (2px accent, 2px offset), shown
+    only while the field has keyboard focus. The resting pill keeps only its
+    hairline border, never an outline.
 */
 import { clsx } from 'clsx';
 import { ArrowUp, Plus, X } from 'lucide-react';
@@ -86,11 +87,7 @@ export function Composer(props: { name: string; onSend(text: string): void }): J
 
       <form
         onSubmit={submit}
-        className={clsx(
-          'flex items-center gap-4 rounded-full border border-hairline bg-surface-strong p-4 text-ink backdrop-blur-[var(--blur-ui)]',
-          'has-[input:focus-visible]:outline-solid has-[input:focus-visible]:outline-[length:var(--focus-ring-width)]',
-          'has-[input:focus-visible]:outline-accent has-[input:focus-visible]:outline-offset-[var(--focus-ring-offset)]'
-        )}
+        className="flex items-center gap-4 rounded-full border border-hairline bg-surface-strong p-4 text-ink backdrop-blur-[var(--blur-ui)]"
       >
         <button
           type="button"
@@ -117,7 +114,11 @@ export function Composer(props: { name: string; onSend(text: string): void }): J
           placeholder="Message"
           autoComplete="off"
           enterKeyHint="send"
-          className="h-[var(--target)] min-w-0 flex-1 bg-transparent px-4 text-body text-ink placeholder:text-muted focus-visible:outline-none!"
+          className={clsx(
+            'h-[var(--target)] min-w-0 flex-1 rounded-full bg-transparent px-4 text-body text-ink placeholder:text-muted',
+            'focus-visible:outline-solid focus-visible:outline-[length:var(--focus-ring-width)]',
+            'focus-visible:outline-accent focus-visible:outline-offset-[var(--focus-ring-offset)]'
+          )}
         />
         <AnimatePresence initial={false}>
           {hasText ? (

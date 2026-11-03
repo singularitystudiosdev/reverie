@@ -311,6 +311,35 @@
      opacity is unpublished) */
   --scrim: rgba(8, 6, 12, 0.5);
 
+  /* Media tiles (the gallery grid and its full-frame view): her plates and
+     clips are 9:16. The veil sits over a clip's poster so the play badge
+     reads on any frame. */
+  --aspect-media: 9 / 16;
+  --media-veil-mix: 16%;
+
+  /* Profile bio, the sheet's one bold element: each word rises in, then a
+     narrow band of her world's accent travels across the words on a loop.
+     The band is offset word by word (--bio-stagger) so it reads as one wave
+     moving through the paragraph, never as gradient text at rest (the
+     gradient's base stops are ink). Anime adds drifting petal sparks, goth a
+     slow ember glow behind the words, every other world a wider soft band.
+     All of it is stilled below under prefers-reduced-motion. */
+  --bio-rise: 420ms;
+  --bio-rise-distance: 6px;
+  --bio-stagger: 34ms;
+  --bio-glint-duration: 6.6s; /* deliberate */
+  --bio-glint-delay-step: 58ms;
+  --bio-glint-size: 320% 100%;
+  --bio-spark-size: 6px;
+  --bio-spark-duration: 5.8s; /* deliberate */
+  --bio-spark-travel: 240px;
+  --bio-spark-low: 6px;
+  --bio-ember-inset: 12px;
+  --bio-ember-blur: 18px;
+  --bio-ember-opacity: 0.5;
+  --bio-ember-drift: 6px;
+  --bio-ember-duration: 7.4s; /* deliberate */
+
   /* Frame. Portrait phone (< 600px): the app fills the viewport, safe areas
      from env(). Everywhere else: an exact 9:16 rounded rectangle, see the media
      block below. No bezel, no status bar. */
@@ -359,5 +388,187 @@
     --safe-left: 0px;
     --safe-right: 0px;
     --notch-left: 0px;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Profile bio motion (the profile sheet's one bold element)
+   The words are inline-block so the rise can transform them. The glint is a
+   background clipped to each word's glyphs, with ink at every stop except the
+   band, so the resting text is her ink and only the band moves. The per-word
+   delay (--bio-word, set inline by the component) makes the band travel.
+   ------------------------------------------------------------------------- */
+.bio {
+  --bio-band: 6%;
+  --bio-ink: var(--t-ink);
+  --bio-band-color: var(--t-accent);
+  --bio-gradient: linear-gradient(
+    100deg,
+    var(--bio-ink) 0%,
+    var(--bio-ink) calc(50% - var(--bio-band)),
+    color-mix(in oklab, var(--bio-band-color) 72%, var(--bio-ink)) calc(50% - var(--bio-band) * 0.5),
+    var(--bio-band-color) 50%,
+    color-mix(in oklab, var(--bio-band-color) 72%, var(--bio-ink)) calc(50% + var(--bio-band) * 0.5),
+    var(--bio-ink) calc(50% + var(--bio-band)),
+    var(--bio-ink) 100%
+  );
+}
+
+.bio[data-sweep='anime'] {
+  --bio-band: 5%;
+}
+
+.bio[data-sweep='goth'] {
+  --bio-band: 13%;
+  --bio-band-color: color-mix(in oklab, var(--t-accent) 78%, var(--t-ink));
+  --bio-glint-duration: 8.4s; /* deliberate */
+}
+
+.bio[data-sweep='soft'] {
+  --bio-band: 11%;
+  --bio-band-color: color-mix(in oklab, var(--t-accent) 55%, var(--t-ink));
+  --bio-glint-duration: 7.2s; /* deliberate */
+}
+
+.bio-word {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(var(--bio-rise-distance));
+  background-image: var(--bio-gradient);
+  background-size: var(--bio-glint-size);
+  background-position: 200% 50%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation-name: bio-rise, bio-glint;
+  animation-duration: var(--bio-rise), var(--bio-glint-duration);
+  animation-timing-function: var(--ease-emphasized-decelerate), var(--ease-linear);
+  animation-iteration-count: 1, infinite;
+  animation-fill-mode: forwards, none;
+  animation-delay:
+    calc(var(--bio-word, 0) * var(--bio-stagger)),
+    calc(var(--bio-rise) + var(--bio-word, 0) * var(--bio-glint-delay-step));
+}
+
+@keyframes bio-rise {
+  from {
+    opacity: 0;
+    transform: translateY(var(--bio-rise-distance));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bio-glint {
+  from {
+    background-position: 200% 50%;
+  }
+  to {
+    background-position: -100% 50%;
+  }
+}
+
+/* Anime: petal / sparkle drift over the words. */
+.bio-spark {
+  position: absolute;
+  left: 4%;
+  width: var(--bio-spark-size);
+  height: var(--bio-spark-size);
+  border-radius: 50% 0 50% 50%;
+  background-color: color-mix(in oklab, var(--t-accent) 80%, var(--t-glow));
+  opacity: 0;
+  pointer-events: none;
+  animation: bio-drift var(--bio-spark-duration) var(--ease-linear) infinite;
+}
+
+.bio-spark[data-spark='1'] {
+  top: 12%;
+  animation-delay: 0ms;
+}
+
+.bio-spark[data-spark='2'] {
+  top: 46%;
+  animation-delay: calc(var(--bio-spark-duration) / 3);
+}
+
+.bio-spark[data-spark='3'] {
+  top: 74%;
+  animation-delay: calc(var(--bio-spark-duration) / 3 * 2);
+}
+
+@keyframes bio-drift {
+  0% {
+    opacity: 0;
+    transform: translate(0, var(--bio-spark-low)) rotate(0deg) scale(0.6);
+  }
+  18% {
+    opacity: 0.85;
+  }
+  82% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--bio-spark-travel), calc(var(--bio-spark-low) * -1)) rotate(150deg) scale(0.9);
+  }
+}
+
+/* Goth: a slow ember glow behind the words. */
+.bio-ember {
+  position: absolute;
+  inset: calc(var(--bio-ember-inset) * -1);
+  z-index: 0;
+  border-radius: var(--radius-20);
+  background: radial-gradient(
+    60% 70% at 35% 45%,
+    color-mix(in oklab, var(--t-accent) 30%, transparent),
+    transparent 72%
+  );
+  filter: blur(var(--bio-ember-blur));
+  opacity: var(--bio-ember-opacity);
+  pointer-events: none;
+  animation: bio-ember-pulse var(--bio-ember-duration) var(--ease-standard) infinite;
+}
+
+@keyframes bio-ember-pulse {
+  0%,
+  100% {
+    opacity: calc(var(--bio-ember-opacity) * 0.55);
+    transform: translateX(var(--bio-ember-drift)) scale(0.97);
+  }
+  50% {
+    opacity: var(--bio-ember-opacity);
+    transform: translateX(calc(var(--bio-ember-drift) * -1)) scale(1.03);
+  }
+}
+
+/* Reduced motion: the bio simply appears, ink on her surface, no sweep, no
+   stagger, no sparks, no ember. */
+@media (prefers-reduced-motion: reduce) {
+  .bio-word {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    background-image: none;
+    -webkit-background-clip: border-box;
+    background-clip: border-box;
+    color: var(--t-ink);
+  }
+
+  .bio-spark,
+  .bio-ember {
+    display: none;
+  }
+}
+
+/* Forced colors: the clipped gradient would render the words invisible. */
+@media (forced-colors: active) {
+  .bio-word {
+    background-image: none;
+    -webkit-background-clip: border-box;
+    background-clip: border-box;
+    color: CanvasText;
   }
 }

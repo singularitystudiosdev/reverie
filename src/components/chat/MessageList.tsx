@@ -234,11 +234,6 @@ function VideoBubble(props: { message: Message; name: string }): JSX.Element {
           </span>
         </span>
       </button>
-      {message.caption ? (
-        <p data-slot="video-caption" className="px-12 py-8 text-caption text-muted">
-          {message.caption}
-        </p>
-      ) : null}
     </div>
   );
 }

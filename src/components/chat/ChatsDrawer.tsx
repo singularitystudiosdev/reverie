@@ -5,23 +5,39 @@
     avatar sm, name, preview, time, unread; the open chat is marked
     (aria-current + the selected state layer). With one chat the list says how
     to get more (one sentence, one Explore action).
-  - Closes on a pick, the scrim, the close button or Escape. Focus moves in
-    (to the open chat's row) and returns to the hamburger on close; Tab stays
-    inside while open. aria-expanded lives on the hamburger (ChatHeader).
+  - Closes on a pick, the scrim, the close button, Escape, or a LEFT swipe:
+    the panel tracks the finger directly, projects along its velocity on
+    release, and settles on the nearer rest (open or gone), the same physics
+    as the profile sheet. The scrim lightens as the panel is pulled left.
+  - Rows carry 12px of padding inside the pressed/hover state layer (v4), so
+    the highlight never hugs the name or preview.
+  - Focus moves in (to the open chat's row) and returns to the hamburger on
+    close; Tab stays inside while open. aria-expanded lives on the hamburger
+    (ChatHeader).
   - Rendered into the frame's UI layer (the parent of <main>) through a
     portal, so it covers the floating tab bar (z-20) and stays under the
     profile sheet (z-30). Opaque panel (surface-solid): no blur, per the
     blur budget.
   - Motion: the panel slides in on the base band with enter easing and leaves
-    on the quick band; the scrim fades. Reduced motion: fades only.
+    on the quick band; the scrim fades. Reduced motion: fades only, and a
+    released drag settles without springing.
 */
 import { clsx } from 'clsx';
 import { X } from 'lucide-react';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import {
+  AnimatePresence,
+  animate,
+  motion,
+  useAnimationControls,
+  useMotionValue,
+  useReducedMotion,
+  useTransform,
+  type PanInfo,
+} from 'motion/react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { Avatar } from '../Avatar';
-import { dur, ease } from '../../lib/motion';
+import { dur, ease, instant } from '../../lib/motion';
 import { isoTime, relativeTime } from '../../lib/time';
 import { useApp } from '../../state/store';
 import { chatEntries, previewText, useNow } from './chatData';
@@ -82,15 +98,6 @@ export function ChatsDrawer(props: {
     <AnimatePresence>
       {open ? (
         <motion.div key="drawer" data-slot="chats-drawer-layer" className="absolute inset-0 z-25">
-          <motion.div
-            aria-hidden="true"
-            data-slot="drawer-scrim"
-            className="absolute inset-0 bg-[var(--scrim)]"
-            onClick={close}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1, transition: { duration: dur.base, ease: ease.enter } }}
-            exit={{ opacity: 0, transition: { duration: dur.quick, ease: ease.exit } }}
-          />
           <DrawerPanel
             currentId={currentId}
             reduce={reduce}
@@ -117,6 +124,11 @@ function DrawerPanel(props: {
   const { state, actions } = useApp();
   const now = useNow();
   const panel = useRef<HTMLDivElement>(null);
+  const controls = useAnimationControls();
+  const [width, setWidth] = useState(0);
+  // 0 at rest, -1 fully off to the left: drives the scrim's lightening.
+  const dragProgress = useMotionValue(0);
+  const scrimOpacity = useTransform(dragProgress, (v) => Math.min(1, Math.max(0, 1 + v)));
   const entries = useMemo(
     () => chatEntries(matchIds, state.conversations),
     [matchIds, state.conversations]
@@ -130,25 +142,89 @@ function DrawerPanel(props: {
     (current ?? el).focus({ preventScroll: true });
   }, []);
 
+  useLayoutEffect(() => {
+    const el = panel.current;
+    if (!el) return;
+    const update = () => setWidth(el.offsetWidth);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // In on the base band with enter easing (reduced motion: a fade).
+  useEffect(() => {
+    void controls.start(
+      reduce
+        ? { opacity: 1, transition: { duration: dur.quick } }
+        : { x: 0, transition: { duration: dur.base, ease: ease.enter } }
+    );
+  }, [controls, reduce]);
+
+  const onDrag = (_: unknown, info: PanInfo) => {
+    const w = panel.current?.offsetWidth ?? 0;
+    dragProgress.set(w ? info.offset.x / w : 0);
+  };
+
+  // Release: project along the velocity, settle on the nearer rest (0 or -width).
+  const onDragEnd = (_: unknown, info: PanInfo) => {
+    const w = panel.current?.offsetWidth ?? 0;
+    const projected = info.offset.x + info.velocity.x * dur.base;
+    if (Math.abs(projected + w) < Math.abs(projected)) {
+      onClose();
+      return;
+    }
+    if (reduce) {
+      dragProgress.set(0);
+      void controls.start({ x: 0, transition: instant });
+      return;
+    }
+    void animate(dragProgress, 0, { duration: dur.base, ease: ease.enter });
+    void controls.start({ x: 0, transition: { duration: dur.base, ease: ease.enter } });
+  };
+
   return (
-    <motion.div
-      ref={panel}
-      id={chatsDrawerId}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="chats-drawer-title"
-      tabIndex={-1}
-      onKeyDown={trapTab}
-      data-slot="chats-drawer"
-      className="absolute inset-y-0 left-0 right-48 flex flex-col rounded-r-20 border-r border-hairline surface-solid pt-[var(--statusbar-h)] pb-[var(--safe-bottom)] pl-[var(--notch-left)] text-ink"
-      initial={reduce ? { opacity: 0 } : { x: '-100%' }}
-      animate={reduce ? { opacity: 1, transition: { duration: dur.quick } } : { x: 0, transition: { duration: dur.base, ease: ease.enter } }}
-      exit={
-        reduce
-          ? { opacity: 0, transition: { duration: dur.quick } }
-          : { x: '-100%', transition: { duration: dur.quick, ease: ease.exit } }
-      }
-    >
+    <>
+      <motion.div
+        aria-hidden="true"
+        className="absolute inset-0"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1, transition: { duration: dur.base, ease: ease.enter } }}
+        exit={{ opacity: 0, transition: { duration: dur.quick, ease: ease.exit } }}
+      >
+        <motion.div
+          data-slot="drawer-scrim"
+          className="absolute inset-0 bg-[var(--scrim)]"
+          style={{ opacity: scrimOpacity }}
+          onClick={onClose}
+        />
+      </motion.div>
+      <motion.div
+        ref={panel}
+        id={chatsDrawerId}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="chats-drawer-title"
+        tabIndex={-1}
+        onKeyDown={trapTab}
+        data-slot="chats-drawer"
+        className="absolute inset-y-0 left-0 right-48 flex flex-col rounded-r-20 border-r border-hairline surface-solid pt-[var(--statusbar-h)] pb-[var(--safe-bottom)] pl-[var(--notch-left)] text-ink"
+        initial={reduce ? { opacity: 0 } : { x: '-100%' }}
+        animate={controls}
+        drag="x"
+        dragListener
+        dragDirectionLock
+        dragConstraints={{ left: -width, right: 0 }}
+        dragMomentum={false}
+        onDrag={onDrag}
+        onDragEnd={onDragEnd}
+        style={{ touchAction: 'pan-y' }}
+        exit={
+          reduce
+            ? { opacity: 0, transition: { duration: dur.quick } }
+            : { x: '-100%', transition: { duration: dur.quick, ease: ease.exit } }
+        }
+      >
       <div className="flex items-center justify-between gap-8 py-8 pr-8 pl-16">
         <h2 id="chats-drawer-title" className="font-display text-title">
           Chats
@@ -189,7 +265,7 @@ function DrawerPanel(props: {
                     className={clsx(
                       stateLayer,
                       current && stateLayerSelected,
-                      'relative flex min-h-[var(--target-touch)] w-full items-center gap-12 rounded-20 p-8 text-left'
+                      'relative flex min-h-[var(--target-touch)] w-full items-center gap-12 rounded-20 px-12 py-12 text-left'
                     )}
                   >
                     <Avatar character={character} size="sm" />
@@ -241,6 +317,7 @@ function DrawerPanel(props: {
           ) : null}
         </div>
       )}
-    </motion.div>
+      </motion.div>
+    </>
   );
 }
