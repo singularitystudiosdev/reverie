@@ -75,7 +75,7 @@ export function MatchOverlay(): JSX.Element {
           aria-labelledby="match-title"
           aria-describedby="match-opener"
           onKeyDown={trapTab}
-          className="safe-x absolute inset-0 z-40 flex flex-col items-center justify-center gap-24 bg-canvas/(--match-veil) pt-[var(--statusbar-h)] pb-[var(--tabbar-h)] text-center text-ink"
+          className="safe-x absolute inset-0 z-40 flex flex-col items-center justify-center gap-24 bg-canvas/(--match-veil) pt-[var(--statusbar-h)] pb-[var(--tabbar-h)] text-center text-ink land:gap-16"
           initial={{ opacity: 0 }}
           animate={{
             opacity: 1,
@@ -84,7 +84,7 @@ export function MatchOverlay(): JSX.Element {
           exit={{ opacity: 0, transition: { duration: dur.quick, ease: ease.exit } }}
         >
           <motion.div
-            className="flex w-full flex-col items-center gap-24"
+            className="flex w-full flex-col items-center gap-24 land:flex-row land:gap-16 land:text-left"
             initial={reduce ? false : { y: 'var(--match-rise)' }}
             animate={{ y: 0, transition: reduce ? instant : spring.gentle }}
           >
@@ -95,19 +95,22 @@ export function MatchOverlay(): JSX.Element {
               <Avatar character={character} size="xl" ring eager />
             </motion.div>
 
-            <h2 id="match-title" className="font-display text-name">
-              {character.name} likes you too
-            </h2>
+            {/* Land: beside her portrait, left-aligned, so the moment fits the short height. */}
+            <div className="flex flex-col items-center gap-24 land:min-w-0 land:flex-1 land:items-start land:gap-12">
+              <h2 id="match-title" className="font-display text-name">
+                {character.name} likes you too
+              </h2>
 
-            <blockquote
-              id="match-opener"
-              className="max-w-[var(--match-quote-max)] rounded-20 border border-hairline bg-surface px-16 py-12 text-body text-ink"
-            >
-              {`“${character.opener}”`}
-            </blockquote>
+              <blockquote
+                id="match-opener"
+                className="max-w-[var(--match-quote-max)] rounded-20 border border-hairline bg-surface px-16 py-12 text-body text-ink"
+              >
+                {`“${character.opener}”`}
+              </blockquote>
+            </div>
           </motion.div>
 
-          <div className="flex w-full flex-col gap-8">
+          <div className="flex w-full flex-col gap-8 land:flex-row land:*:flex-1">
             <button
               ref={sayHi}
               type="button"

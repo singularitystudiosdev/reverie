@@ -1,0 +1,15 @@
+{
+  "note": "Reverie stated deviations, BRIEF.md 'Stated deviations' and 'RTPC integration rules': the user asked for a themed, living atmosphere behind every character screen. Inside src/theme/** (and its stylesheet src/styles/theme.css) gradients, glow, blur and translucent layers ARE the product. Only the chat header pills, the composer and the tab bar may blur what is behind them (backdrop-filter at --blur-ui, 12px max), for legibility over moving particles. The desktop phone bezel uses --radius-48: a device mockup, not UI, and no check here grades radii. Nothing else gets glass, glow or gradients, except the dark legibility scrim under type on a photo (swipe card, profile hero), after the brief's Tinder reference.",
+  "overrides": [
+    {
+      "files": ["src/theme/**", "src/styles/theme.css"],
+      "allow": ["blurred-orb", "glassmorphism", "purple-indigo-gradient"],
+      "reason": "The atmosphere engine and its overlays: scene plates, light washes, fog, god-rays and glows are each world's art (celestial and neon worlds use violet light by design)."
+    },
+    {
+      "files": ["src/components/chat/ChatHeader.tsx", "src/components/chat/Composer.tsx", "src/components/TabBar.tsx"],
+      "allow": ["glassmorphism"],
+      "reason": "The three surfaces the blur budget allows: header pills, composer and tab bar float over a canvas that redraws every frame and blur at --blur-ui so their labels stay legible."
+    }
+  ]
+}

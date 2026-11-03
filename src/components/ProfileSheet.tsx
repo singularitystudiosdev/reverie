@@ -128,7 +128,7 @@ function Sheet(props: { character: Character; matched: boolean }): JSX.Element {
           tabIndex={-1}
           onKeyDown={trapTab}
           data-slot="profile-sheet"
-          className="pointer-events-auto flex max-h-[var(--sheet-max-h)] w-full flex-col overflow-hidden rounded-t-20 border-t border-hairline surface-solid text-ink"
+          className="pointer-events-auto flex max-h-[var(--sheet-max-h)] w-full flex-col overflow-y-auto overscroll-contain rounded-t-20 land:mx-auto land:max-w-[var(--sheet-max-w)] border-t border-hairline surface-solid text-ink"
           style={{ y }}
           drag="y"
           dragListener={false}
@@ -181,12 +181,12 @@ function Sheet(props: { character: Character; matched: boolean }): JSX.Element {
               onClick={close}
               className={clsx(
                 stateLayer,
-                'absolute top-16 right-16 grid size-[var(--target-touch)] place-items-center rounded-full border border-hairline bg-surface-strong text-ink'
+                'absolute top-16 right-16 z-1 grid size-[var(--target-touch)] place-items-center rounded-full border border-hairline bg-surface-strong text-ink'
               )}
             >
               <X aria-hidden="true" className="size-20" />
             </button>
-            <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-[var(--scrim)] via-[var(--scrim)] to-transparent px-24 pt-48 pb-16 text-neutral-0">
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-linear-to-t from-[var(--scrim)] via-[var(--scrim)] to-transparent px-24 pt-48 pb-16 text-neutral-0">
               <h2 id={nameId} className="font-display text-name">
                 {character.name}
               </h2>

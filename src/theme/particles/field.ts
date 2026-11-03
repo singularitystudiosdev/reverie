@@ -56,6 +56,9 @@ export interface FieldWorld {
   windY: number;
   /** Reserve (burst, bloom emit) live count. */
   reserve: number;
+  /** A light-scheme world: additive light vanishes on its bright plate, so
+      its glow kinds (pollen, sparkle) are drawn as plain sprites instead. */
+  light: boolean;
 }
 
 export type SpawnMode = 'field' | 'edge' | 'burst' | 'emit';
@@ -666,7 +669,7 @@ export class ParticleField {
       const L = w?.layers[this.layer[i]];
       if (!w || !L) continue;
       const d = L.def;
-      if (d.additive !== additive || d.code === K.rain) continue;
+      if ((d.additive && !w.light) !== additive || d.code === K.rain) continue;
       const reserve = this.flags[i] & FLAG_RESERVE;
       let a = this.al[i] * this.envelope(i, d) * L.alphaMul * (reserve ? w.reserveWeight : w.weight);
       let s = this.sc[i];

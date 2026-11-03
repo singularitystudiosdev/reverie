@@ -256,7 +256,15 @@ export class AtmosphereEngine {
       slot = this.slots.findIndex((s) => s === null);
     }
     const resp = compiledResponse(spec.id);
-    const fw: FieldWorld = { layers: [], weight: 0, reserveWeight: 0, windX: 0, windY: 0, reserve: 0 };
+    const fw: FieldWorld = {
+      layers: [],
+      weight: 0,
+      reserveWeight: 0,
+      windX: 0,
+      windY: 0,
+      reserve: 0,
+      light: spec.scheme === 'light',
+    };
     for (const pl of spec.particles) {
       fw.layers.push(this.makeLayer(pl.kind, pl.colors, pl.density, pl.speed ?? 1, pl.size ?? 1, resp, true));
     }

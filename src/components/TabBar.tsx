@@ -4,6 +4,10 @@
   snappy spring on transform; instant under reduced motion), and the unread
   total on Chats. One of the three surfaces allowed a backdrop blur
   (--blur-ui, 12px max).
+  A short landscape screen (`land:`: a phone on its side, a short or zoomed
+  desktop window) has no height to spare: the pill turns into a vertical
+  rail at the left edge, each item an icon over its label, so the height
+  goes to content (screens pad their left past it through --safe-left).
 */
 import { MessageCircle, Search, type LucideIcon } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
@@ -28,9 +32,12 @@ export function TabBar(): JSX.Element {
     <nav
       aria-label="Primary"
       data-slot="tab-bar"
-      className="pointer-events-none absolute inset-x-0 bottom-[calc(var(--tabbar-gap)+var(--safe-bottom))] z-20 flex justify-center"
+      className={cn(
+        'pointer-events-none absolute inset-x-0 bottom-[calc(var(--tabbar-gap)+var(--safe-bottom))] z-20 flex justify-center',
+        'land:inset-x-auto land:inset-y-0 land:left-[calc(var(--notch-left)+var(--tabbar-gap))] land:items-center'
+      )}
     >
-      <ul className="pointer-events-auto flex h-[var(--tabbar-pill-h)] items-center gap-4 rounded-full border border-hairline bg-surface-strong p-[var(--tabbar-pad)] shadow-8 backdrop-blur-[var(--blur-ui)]">
+      <ul className="pointer-events-auto flex h-[var(--tabbar-pill-h)] items-center gap-4 rounded-full border border-hairline bg-surface-strong p-[var(--tabbar-pad)] shadow-8 backdrop-blur-[var(--blur-ui)] land:h-auto land:flex-col">
         {items.map(({ tab, label, icon: Icon }) => {
           const isActive = active === tab;
           return (
@@ -42,6 +49,7 @@ export function TabBar(): JSX.Element {
                 onClick={() => actions.setTab(tab)}
                 className={cn(
                   'relative flex h-[var(--target-touch)] min-w-[var(--target-touch)] items-center gap-8 rounded-full px-16 text-label',
+                  'land:h-auto land:w-[var(--rail-item)] land:flex-col land:gap-4 land:px-0 land:py-6',
                   'transition-colors duration-[var(--duration-150)] ease-standard',
                   isActive ? 'text-on-accent' : 'text-muted hover:text-ink'
                 )}
@@ -61,6 +69,7 @@ export function TabBar(): JSX.Element {
                     data-slot="tab-badge"
                     className={cn(
                       'relative inline-flex h-[var(--badge-size)] min-w-[var(--badge-size)] items-center justify-center rounded-full px-6 text-caption tabular-nums',
+                      'land:absolute land:top-4 land:right-4',
                       isActive ? 'bg-on-accent text-accent' : 'bg-accent text-on-accent'
                     )}
                   >

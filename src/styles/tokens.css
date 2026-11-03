@@ -155,10 +155,6 @@
      Stay on 4 / 8 / 12 / 16 / 24 / 32 / 48. */
   --spacing: 1px;
 
-  /* The desktop phone mockup starts at 600px (M3 "medium" window class):
-     the `frame:` variant. */
-  --breakpoint-frame: 600px;
-
   /* Two families. Display: Instrument Serif (names, screen titles, match
      moment). Everything else: Geist Variable. */
   --font-sans: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -201,6 +197,16 @@
     }
   }
 }
+
+/* Layout variants (they partition every viewport with the plain phone fill).
+   - frame: the phone mockup on a desktop or tablet: at least 600px wide (M3
+     "medium") AND 640px tall, so the 9:16 phone is never under 320px wide.
+   - land: anything landscape and shorter than that: a phone on its side, or
+     a desktop window that is short or zoomed to 200%. It fills the screen in
+     its own layout: the tab bar becomes a rail at the left and Explore splits
+     into two columns, so the short height goes to content. */
+@custom-variant frame (@media (width >= 600px) and (height >= 640px));
+@custom-variant land (@media (orientation: landscape) and (height < 640px));
 
 :root {
   /* Avatars (round crops) and thumbnails */
@@ -271,6 +277,20 @@
   --tabbar-pill-h: calc(var(--target-touch) + var(--tabbar-pad) * 2);
   --tabbar-gap: 12px;
   --tabbar-h: calc(var(--tabbar-pill-h) + var(--tabbar-gap) * 2 + var(--safe-bottom));
+
+  /* The pure left inset (the notch side in landscape). Layers that cover the
+     nav rail (drawer, sheet) pad with this; screens pad with --safe-left,
+     which on a landscape phone also clears the rail. */
+  --notch-left: env(safe-area-inset-left, 0px);
+  /* A zero inset, for a layout that already padded for the safe area and
+     resets --safe-left / --safe-right for its children. */
+  --inset-none: 0px;
+  /* Landscape phone: the tab bar is a vertical rail at the left edge. */
+  --rail-item: 64px;
+  --rail-w: calc(var(--rail-item) + var(--tabbar-pad) * 2);
+  /* Width caps for the drawer and the profile sheet on wide, short screens */
+  --drawer-max: 400px;
+  --sheet-max-w: 480px;
 }
 
 @media (pointer: coarse) {
@@ -279,7 +299,8 @@
   }
 }
 
-@media (min-width: 600px) {
+/* Same condition as the `frame:` variant above. */
+@media (width >= 600px) and (height >= 640px) {
   :root {
     --frame-h: min(100dvh - var(--frame-gutter) * 2 - var(--frame-bezel) * 2, var(--frame-max-h));
     --frame-w: calc(var(--frame-h) * 9 / 16);
@@ -288,5 +309,16 @@
     --safe-bottom: 8px;
     --safe-left: 0px;
     --safe-right: 0px;
+    --notch-left: 0px;
+  }
+}
+
+/* Same condition as the `land:` variant above: the rail replaces the bottom
+   bar, so screens pad their left past it and their bottom only clears the
+   home indicator. */
+@media (orientation: landscape) and (height < 640px) {
+  :root {
+    --safe-left: calc(var(--notch-left) + var(--tabbar-gap) * 2 + var(--rail-w));
+    --tabbar-h: calc(var(--tabbar-gap) + var(--safe-bottom));
   }
 }

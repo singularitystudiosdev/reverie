@@ -98,7 +98,8 @@ export function ChatList(): JSX.Element {
                   <h2 id="messages-title" className="safe-x text-label text-muted">
                     Messages
                   </h2>
-                  <ul className="flex flex-col px-8">
+                  {/* Rows carry their own 8px inset; the list adds the rest of the safe gutter. */}
+                  <ul className="flex flex-col pr-[max(var(--spacing-8),calc(var(--safe-right)-var(--spacing-8)))] pl-[max(var(--spacing-8),calc(var(--safe-left)-var(--spacing-8)))]">
                     {entries.map((entry, i) => (
                       <motion.li
                         key={entry.character.id}

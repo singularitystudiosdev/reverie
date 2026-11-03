@@ -268,8 +268,9 @@ export const themes: Record<ThemeId, ThemeSpec> = {
       glow: '#FFE58A',
     },
     particles: [
-      { kind: 'pollen', density: 8, colors: ['#FFE58A', '#FFFFFF'], speed: 1 },
-      { kind: 'butterfly', density: 1.2, colors: ['#F2A93B', '#7CC0F0', '#FFFFFF'], speed: 1 },
+      // Gold motes: drawn as plain sprites on this light plate, so they read against sky and grass.
+      { kind: 'pollen', density: 8, colors: ['#E9A51C', '#F6C945'], speed: 1 },
+      { kind: 'butterfly', density: 1.8, colors: ['#F2A93B', '#7CC0F0', '#FFFFFF'], speed: 1 },
     ],
     overlays: ['sunbeam', 'grain'],
     sceneOpacity: 0.64,

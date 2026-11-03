@@ -138,7 +138,7 @@ function DrawerPanel(props: {
       tabIndex={-1}
       onKeyDown={trapTab}
       data-slot="chats-drawer"
-      className="absolute inset-y-0 left-0 right-48 flex flex-col rounded-r-20 border-r border-hairline surface-solid pt-[var(--statusbar-h)] pb-[var(--safe-bottom)] text-ink"
+      className="absolute inset-y-0 left-0 right-48 flex flex-col rounded-r-20 border-r border-hairline surface-solid pt-[var(--statusbar-h)] pb-[var(--safe-bottom)] pl-[var(--notch-left)] text-ink land:max-w-[var(--drawer-max)]"
       initial={reduce ? { opacity: 0 } : { x: '-100%' }}
       animate={reduce ? { opacity: 1, transition: { duration: dur.quick } } : { x: 0, transition: { duration: dur.base, ease: ease.enter } }}
       exit={
@@ -155,7 +155,7 @@ function DrawerPanel(props: {
           type="button"
           aria-label="Close chats"
           onClick={onClose}
-          className={clsx(stateLayer, 'relative grid size-[var(--target-touch)] place-items-center rounded-full')}
+          className={clsx(stateLayer, 'relative grid size-[var(--target-touch)] shrink-0 place-items-center rounded-full')}
         >
           <X aria-hidden="true" className="size-20" />
         </button>

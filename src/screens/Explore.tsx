@@ -15,6 +15,9 @@
 
   Entrance: the top card rises in, once, on the first visit (not under reduced
   motion).
+
+  A short landscape screen (`land:`) is too short for one column: the card takes
+  the left column at full height, the title, filter and buttons the right.
 */
 import { Check, X } from 'lucide-react';
 import { motion, useMotionValue, useReducedMotion } from 'motion/react';
@@ -132,22 +135,28 @@ export function Explore(): JSX.Element {
       inert={!!state.pendingMatchId}
       className={cn(
         'flex h-full flex-col pt-[var(--statusbar-h)] pb-[var(--tabbar-h)]',
+        // Land: the section carries the safe insets (rail and notch) and its
+        // columns reset them, so each column keeps the plain gutter.
+        top &&
+          'land:grid land:grid-cols-2 land:grid-rows-[auto_minmax(0,1fr)] land:gap-x-16 land:pr-[var(--safe-right)] land:pl-[var(--safe-left)] land:*:[--safe-left:var(--inset-none)] land:*:[--safe-right:var(--inset-none)]',
         // The match moment owns the frame: the deck steps back behind it.
         'transition-opacity duration-[var(--duration-300)] ease-standard motion-reduce:transition-none',
         state.pendingMatchId && 'opacity-0'
       )}
     >
-      <header className="safe-x pt-16 pb-8">
-        <h1 id="explore-title" className="font-display text-title text-ink">
-          Explore
-        </h1>
-      </header>
-      <StyleFilter value={state.filter} onChange={actions.setFilter} />
+      <div className="land:col-start-2 land:row-start-1 land:min-w-0">
+        <header className="safe-x pt-16 pb-8">
+          <h1 id="explore-title" className="font-display text-title text-ink">
+            Explore
+          </h1>
+        </header>
+        <StyleFilter value={state.filter} onChange={actions.setFilter} />
+      </div>
 
       {top ? (
         <>
           <motion.div
-            className="safe-x min-h-0 flex-1 pt-12 pb-[var(--deck-peek)]"
+            className="safe-x min-h-0 flex-1 pt-12 pb-[var(--deck-peek)] land:col-start-1 land:row-span-2 land:row-start-1 land:px-0"
             initial={rise ? { opacity: 0, y: deckConfig.riseY } : false}
             animate={{
               opacity: 1,
@@ -177,7 +186,7 @@ export function Explore(): JSX.Element {
           <p aria-live="polite" className="sr-only">
             {`${top.name}, ${top.kind}`}
           </p>
-          <div className="flex items-center justify-center gap-24 pt-12 pb-12">
+          <div className="flex items-center justify-center gap-24 pt-12 pb-12 land:col-start-2 land:row-start-2 land:self-center">
             <button
               type="button"
               aria-label={`Pass on ${top.name}`}
