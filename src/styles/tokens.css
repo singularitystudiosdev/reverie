@@ -317,6 +317,16 @@
   --aspect-media: 9 / 16;
   --media-veil-mix: 16%;
 
+  /* Chats drawer rows: the open chat's fill is this share of the ink colour
+     (never the ink at full strength), and secondary text (preview, time) is
+     the muted colour pulled toward ink (--drawer-muted-mix) so it holds 4.5:1 on that fill in every
+     world, hover and press layers included. */
+  --drawer-current-mix: 8%;
+  --drawer-muted-mix: 60%; /* share of --t-muted, the rest is --t-ink; the mix itself lives on the text (a var() here would freeze at :root) */
+
+  /* Composer focus: the pill darkens toward ink instead of drawing a ring. */
+  --composer-focus-mix: 7%;
+
   /* Frame. Portrait phone (< 600px): the app fills the viewport, safe areas
      from env(). Everywhere else: an exact 9:16 rounded rectangle, see the media
      block below. No bezel, no status bar. */

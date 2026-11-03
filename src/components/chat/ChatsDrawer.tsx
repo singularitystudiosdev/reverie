@@ -3,15 +3,19 @@
   the LEFT over a scrim, for quick switching (state.drawerOpen / setDrawer).
   - The only list of chats (there is no Chats screen): compact rows with
     avatar sm, name, preview, time, unread; the open chat is marked
-    (aria-current + the selected state layer). With one chat the list says how
-    to get more (one sentence, one Explore action).
+    (aria-current + a fill of the ink colour at --drawer-current-mix, never the
+    ink at full strength). Preview and time use --drawer-muted-mix so they hold
+    4.5:1 on that fill in every world. A clip as the last message reads "Sent
+    you a video". No heading: the dialog is labelled with aria-label, and only
+    the close button sits in the top row. With one chat the list says how to
+    get more (one sentence, one Explore action).
   - Closes on a pick, the scrim, the close button, Escape, or a LEFT swipe:
     the panel tracks the finger directly, projects along its velocity on
     release, and settles on the nearer rest (open or gone), the same physics
     as the profile sheet. The scrim lightens as the panel is pulled left.
   - Rows rise in with a 30ms stagger (first 10) when the drawer opens, and
     the open chat's highlight is a shared layout element that slides between
-    rows. Reduced motion: no stagger, the highlight jumps.
+    rows.
   - Rows carry 12px of padding inside the pressed/hover state layer (v4), so
     the highlight never hugs the name or preview.
   - Focus moves in (to the open chat's row) and returns to the hamburger on
@@ -22,8 +26,7 @@
     profile sheet (z-30). Opaque panel (surface-solid): no blur, per the
     blur budget.
   - Motion: the panel slides in on the base band with enter easing and leaves
-    on the quick band; the scrim fades. Reduced motion: fades only, and a
-    released drag settles without springing.
+    on the quick band; the scrim fades.
 */
 import { clsx } from 'clsx';
 import { X } from 'lucide-react';
@@ -39,6 +42,7 @@ import {
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { Avatar } from '../Avatar';
+import type { Message } from '../../data/types';
 import { dur, ease, instant, rowStagger, spring, useReducedMotion } from '../../lib/motion';
 import { isoTime, relativeTime } from '../../lib/time';
 import { useApp } from '../../state/store';
@@ -49,6 +53,12 @@ import { TypingDots } from './TypingDots';
 import { UnreadBadge } from './UnreadBadge';
 
 export const chatsDrawerId = 'chats-drawer';
+
+/** The row's last line: a clip has no text, so it says what was sent. */
+function rowPreview(last: Message | undefined, name: string): string {
+  if (last?.kind === 'video') return last.from === 'me' ? 'You: Sent a video' : 'Sent you a video';
+  return previewText(last, name);
+}
 
 /* Set when a pick switches to another chat: the incoming chat view focuses
    its own hamburger, since the one that opened the drawer is leaving. */
@@ -206,7 +216,7 @@ function DrawerPanel(props: {
         id={chatsDrawerId}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="chats-drawer-title"
+        aria-label="Chats"
         tabIndex={-1}
         onKeyDown={trapTab}
         data-slot="chats-drawer"
@@ -227,10 +237,7 @@ function DrawerPanel(props: {
             : { x: '-100%', transition: { duration: dur.quick, ease: ease.exit } }
         }
       >
-      <div className="flex items-center justify-between gap-8 py-8 pr-8 pl-16">
-        <h2 id="chats-drawer-title" className="font-display text-title">
-          Chats
-        </h2>
+      <div className="flex items-center justify-end py-8 pr-8 pl-16">
         <button
           type="button"
           aria-label="Close chats"
@@ -286,7 +293,7 @@ function DrawerPanel(props: {
                         aria-hidden="true"
                         layoutId="drawer-current-row"
                         data-slot="drawer-current"
-                        className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-current opacity-[var(--state-layer-focus)]"
+                        className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-[color-mix(in_oklab,var(--t-ink)_var(--drawer-current-mix),transparent)]"
                         transition={reduce ? instant : spring.snappy}
                       />
                     ) : null}
@@ -295,14 +302,14 @@ function DrawerPanel(props: {
                       <span className="flex items-baseline gap-8">
                         <span className="min-w-0 flex-1 truncate text-label">{character.name}</span>
                         {last ? (
-                          <time dateTime={isoTime(last.at)} className="shrink-0 text-caption text-muted tabular-nums">
+                          <time dateTime={isoTime(last.at)} className="shrink-0 text-caption text-[color-mix(in_oklab,var(--t-muted)_var(--drawer-muted-mix),var(--t-ink))] tabular-nums">
                             {relativeTime(last.at, now)}
                           </time>
                         ) : null}
                       </span>
                       <span className="flex items-center gap-8">
                         {typing ? (
-                          <span className="flex min-w-0 flex-1 items-center gap-8 text-label font-normal text-muted">
+                          <span className="flex min-w-0 flex-1 items-center gap-8 text-label font-normal text-[color-mix(in_oklab,var(--t-muted)_var(--drawer-muted-mix),var(--t-ink))]">
                             <TypingDots size="sm" />
                             <span>typing</span>
                           </span>
@@ -310,10 +317,10 @@ function DrawerPanel(props: {
                           <span
                             className={clsx(
                               'min-w-0 flex-1 truncate text-label',
-                              convo.unread > 0 ? 'text-ink' : 'font-normal text-muted'
+                              convo.unread > 0 ? 'text-ink' : 'font-normal text-[color-mix(in_oklab,var(--t-muted)_var(--drawer-muted-mix),var(--t-ink))]'
                             )}
                           >
-                            {previewText(last, character.name)}
+                            {rowPreview(last, character.name)}
                           </span>
                         )}
                         <UnreadBadge count={convo.unread} />

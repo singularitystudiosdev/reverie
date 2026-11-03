@@ -17,7 +17,7 @@
     1 for the first of a batch, 0.4 for later ones, 0.6 for 3 words or fewer.
 */
 import { useEffect, useRef, useState, type JSX } from 'react';
-import { GallerySheet } from '../components/GallerySheet';
+import { GallerySheet, hasGalleryMedia } from '../components/GallerySheet';
 import { ChatHeader } from '../components/chat/ChatHeader';
 import { ChatsDrawer, takeDrawerFocus } from '../components/chat/ChatsDrawer';
 import { Composer } from '../components/chat/Composer';
@@ -138,6 +138,7 @@ export function ChatView(props: { characterId: string }): JSX.Element {
         character={character}
         drawerOpen={drawerOpen && isOpen}
         galleryOpen={galleryOpen}
+        hasGallery={hasGalleryMedia(messages)}
         menuRef={menuRef}
         titleRef={titleRef}
         onMenu={() => actions.setDrawer(true)}

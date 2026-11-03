@@ -3,8 +3,10 @@
   left (opens the chats drawer, aria-expanded), her avatar centered with her
   name in a small pill under it. Her avatar and name are ONE button that opens
   her profile sheet ("View <name>'s profile"). At the top right, a second
-  liquid-glass button with the photos icon opens her gallery sheet. There is
-  no Profile pill.
+  liquid-glass button with the photos icon opens her gallery sheet; it is only
+  there once she has sent an image or a clip in this chat, and springs in when
+  the first one arrives (never on a chat that already has media). There is no
+  Profile pill.
 
   The name pill carries a second line, her thought: an emoji and a short
   teasing action. It shows while she types, for ~4s after she speaks, and for
@@ -111,13 +113,15 @@ export function ChatHeader(props: {
   character: Character;
   drawerOpen: boolean;
   galleryOpen: boolean;
+  /** She has sent at least one image or clip: the gallery button shows. */
+  hasGallery: boolean;
   menuRef: Ref<HTMLButtonElement>;
   titleRef: Ref<HTMLButtonElement>;
   onMenu(): void;
   onProfile(): void;
   onGallery(): void;
 }): JSX.Element {
-  const { character, drawerOpen, galleryOpen, menuRef, titleRef, onMenu, onProfile, onGallery } = props;
+  const { character, drawerOpen, galleryOpen, hasGallery, menuRef, titleRef, onMenu, onProfile, onGallery } = props;
   const reduce = useReducedMotion();
   const thought = useThought(character.id);
   return (
@@ -176,18 +180,25 @@ export function ChatHeader(props: {
           </motion.span>
         </button>
 
-        <motion.button
-          type="button"
-          aria-label={`Open ${character.name}'s gallery`}
-          aria-haspopup="dialog"
-          aria-expanded={galleryOpen}
-          onClick={onGallery}
-          whileTap={reduce ? undefined : { scale: lens.pressScale }}
-          transition={spring.snappy}
-          className="liquid-glass grid size-[var(--target-touch)] place-items-center justify-self-end rounded-full"
-        >
-          <Images aria-hidden="true" className="size-20" />
-        </motion.button>
+        <AnimatePresence initial={false}>
+          {hasGallery ? (
+            <motion.button
+              key="gallery"
+              type="button"
+              aria-label={`Open ${character.name}'s gallery`}
+              aria-haspopup="dialog"
+              aria-expanded={galleryOpen}
+              onClick={onGallery}
+              initial={{ opacity: 0, scale: 0.6 }}
+              animate={{ opacity: 1, scale: 1, transition: { scale: spring.snappy, opacity: { duration: dur.quick } } }}
+              exit={{ opacity: 0, scale: 0.6, transition: { duration: dur.quick, ease: ease.exit } }}
+              whileTap={reduce ? undefined : { scale: lens.pressScale }}
+              className="liquid-glass grid size-[var(--target-touch)] place-items-center justify-self-end rounded-full"
+            >
+              <Images aria-hidden="true" className="size-20" />
+            </motion.button>
+          ) : null}
+        </AnimatePresence>
       </div>
     </header>
   );
