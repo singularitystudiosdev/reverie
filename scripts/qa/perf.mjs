@@ -138,7 +138,8 @@ const out = [];
 out.push(await scene('chats-base', async () => {}));
 out.push(
   await scene('explore', async (page) => {
-    await page.locator('[data-slot="tab"]', { hasText: 'Explore' }).tap();
+    const toExplore = page.locator('button[aria-label="Explore new people"]');
+    if (await toExplore.isVisible().catch(() => false)) await toExplore.tap();
     await sleep(1500);
   })
 );
@@ -173,7 +174,8 @@ out.push(
   await scene(
     'explore-drag',
     async (page) => {
-      await page.locator('[data-slot="tab"]', { hasText: 'Explore' }).tap();
+      const toExplore = page.locator('button[aria-label="Explore new people"]');
+      if (await toExplore.isVisible().catch(() => false)) await toExplore.tap();
       await sleep(1500);
     },
     dragLoop

@@ -95,7 +95,7 @@ await page.screenshot({ path: d });
 ok('After a reply the world is still again', mae(c, d) < 0.0005, `MAE ${(mae(c, d) * 100).toFixed(3)}%`);
 
 // Explore: swipe still works, the card fades instead of flying.
-await page.locator('[data-slot="tab"]', { hasText: 'Explore' }).tap();
+await page.locator('button[aria-label="Explore new people"]').tap();
 await sleep(1200);
 await page.screenshot({ path: join(SHOTS, 'reduced-explore.png') });
 const card = page.locator('[aria-label$="View profile"]:not([inert] *)').first();

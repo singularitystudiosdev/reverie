@@ -112,10 +112,8 @@ async function measure(page) {
     }
     // Safe areas: where the top/bottom chrome actually sits.
     const q = (s) => document.querySelector(s)?.getBoundingClientRect();
-    const tab = q('[data-slot="tab-bar"] ul');
     const head = q('[data-slot="chat-header"] button') ?? q('h1');
     out.chrome = {
-      tabBottomGap: tab ? Math.round((dev?.getBoundingClientRect().bottom ?? innerHeight) - tab.bottom) : null,
       headTop: head ? Math.round(head.top - (dev?.getBoundingClientRect().top ?? 0)) : null,
       safeTop: getComputedStyle(document.documentElement).getPropertyValue('--statusbar-h').trim(),
     };
@@ -173,14 +171,14 @@ async function runDevice(browser, key, opts) {
   await sleep(500);
 
   // Explore: Sylvara on top.
-  await press(page, page.locator('[data-slot="tab"]', { hasText: 'Explore' }));
+  await press(page, page.locator('button[aria-label="Explore new people"]'));
   await sleep(1400);
   await shot(page, key, 'explore', results);
 
   // Mid-drag, below the commit threshold, then let it spring back.
   const card = page.locator('[aria-label$="View profile"]:not([inert] *)').first();
   const box = await card.boundingBox();
-  // The card stays portrait: height / width >= 4/3 on every viewport (landscape rail aside).
+  // The card stays portrait: height / width >= 4/3 on every viewport.
   const ratio = box.height / box.width;
   results[results.length - 1].cardRatio = Number(ratio.toFixed(3));
   console.log(`${key.padEnd(14)} card      ${Math.round(box.width)}x${Math.round(box.height)} h/w=${ratio.toFixed(2)} ${ratio >= 4 / 3 - 0.01 ? 'portrait ok' : 'FLAG card wider than 3:4'}`);

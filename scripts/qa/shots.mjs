@@ -39,7 +39,7 @@ for (const [key, opts, insets] of SETS) {
   await shot('profile');
   await press(page, page.locator('button[aria-label="Close profile"]'));
   await sleep(500);
-  await press(page, page.locator('[data-slot="tab"]', { hasText: 'Explore' }));
+  await press(page, page.locator('button[aria-label="Explore new people"]'));
   await sleep(1800);
   await shot('explore');
   const card = page.locator('[aria-label$="View profile"]:not([inert] *)').first();

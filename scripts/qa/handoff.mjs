@@ -30,7 +30,9 @@ const ok = (name, pass, detail = '') => {
 };
 
 async function likeByDrag(page) {
-  await page.locator('[data-slot="tab"]', { hasText: 'Explore' }).first().tap();
+  // A fresh store opens on Explore; from a chat, the header magnifier gets there.
+  const toExplore = page.locator('button[aria-label="Explore new people"]');
+  if (await toExplore.isVisible().catch(() => false)) await toExplore.tap();
   await sleep(2600); // the first card's world is up and the second armed and decoded
   const card = page.locator('[aria-label$="View profile"]:not([inert] *)').first();
   const box = await card.boundingBox();
