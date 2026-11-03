@@ -1,15 +1,25 @@
-// STUB: replaced by the chats unit
 /*
-  One conversation: header (back, her avatar + name pill, profile pill),
-  messages (text bubbles and the grouped card message), a composer that calls
-  send. Focus theme: her theme + her scene.
+  One conversation, after the reference image: header (hamburger, her avatar
+  + name pill, Profile pill), messages (bubbles, the grouped card message,
+  the typing bubble), the composer pill, and the chats drawer. The floating
+  tab bar stays visible below (the composer pads with --tabbar-h).
+  Focus theme: her theme + her scene plate; the UI over her world stays quiet.
+
+  Atmosphere wiring (RTPC model; refs only, never per-frame state):
+  - mount: setTheme(her theme, her scene) FIRST (it zeroes typing and drag),
+    then affinity and typing, in that one effect; unmount parks affinity.
+  - affinity = min(1, messages / 40) whenever the history grows.
+  - typing 1/0 whenever her typing state flips.
+  - gust when I send: 0.5 + min(0.5, chars / 120), capped at 0.6 when more
+    than 2 sends land within 3s.
+  - bloom when her message lands (never for the history present at mount):
+    1 for the first of a batch, 0.4 for later ones, 0.6 for 3 words or fewer.
 */
-import { ChevronLeft, SendHorizontal } from 'lucide-react';
-import { useEffect, useRef, useState, type FormEvent, type JSX } from 'react';
-import { Avatar } from '../components/Avatar';
-import { artSize } from '../data/characters';
-import type { CardItem, Message } from '../data/types';
-import { cn } from '../lib/cn';
+import { useEffect, useRef, type JSX } from 'react';
+import { ChatHeader } from '../components/chat/ChatHeader';
+import { ChatsDrawer, takeDrawerFocus } from '../components/chat/ChatsDrawer';
+import { Composer } from '../components/chat/Composer';
+import { MessageList } from '../components/chat/MessageList';
 import { pulseStrength } from '../lib/motion';
 import { useApp, useCharacter } from '../state/store';
 import { useFrameTheme } from '../theme/ThemeProvider';
@@ -19,19 +29,20 @@ export function ChatView(props: { characterId: string }): JSX.Element {
   const { state, actions } = useApp();
   const character = useCharacter(characterId);
   const { setTheme, setParam, pulse } = useFrameTheme();
-  const [draft, setDraft] = useState('');
-  const scroller = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLButtonElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
 
   const messages = state.conversations[characterId]?.messages ?? [];
   const typing = Boolean(state.typing[characterId]);
   const affinity = Math.min(1, messages.length / pulseStrength.affinityMessagesForMax);
+  const drawerOpen = state.drawerOpen;
+  const isOpen = state.openChatId === characterId;
 
   // Latest values for the mount effect without re-running it.
   const live = useRef({ affinity, typing });
   live.current = { affinity, typing };
 
-  // RTPC call order: setTheme FIRST (it zeroes typing and drag), then the
-  // params. Leaving the chat parks affinity at rest.
   useEffect(() => {
     if (!character) return;
     setTheme(character.theme, character.scene);
@@ -48,7 +59,7 @@ export function ChatView(props: { characterId: string }): JSX.Element {
     setParam('affinity', affinity);
   }, [affinity, setParam]);
 
-  // Her reply lands: bloom. Never on the initial render.
+  // Her reply lands: bloom. Never for the history present at mount.
   const seen = useRef(messages.length);
   useEffect(() => {
     const fresh = messages.slice(seen.current).filter((m) => m.from === 'her');
@@ -65,21 +76,47 @@ export function ChatView(props: { characterId: string }): JSX.Element {
     });
   }, [messages, pulse]);
 
-  const sends = useRef<number[]>([]);
-
+  // Drawer focus contract: focus returns to the hamburger when the drawer
+  // closes over this chat. A pick that switches chats hands focus to the
+  // incoming view's hamburger instead (takeDrawerFocus).
+  const wasOpen = useRef(drawerOpen);
   useEffect(() => {
-    const el = scroller.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length, typing]);
+    if (wasOpen.current && !drawerOpen && isOpen) menuRef.current?.focus({ preventScroll: true });
+    wasOpen.current = drawerOpen;
+  }, [drawerOpen, isOpen]);
+
+  // Focus moves into the chat as it opens: the drawer pick lands on the
+  // hamburger; anything else (a row in the leaving list) on her name.
+  useEffect(() => {
+    if (takeDrawerFocus()) {
+      menuRef.current?.focus({ preventScroll: true });
+    } else if (!sectionRef.current?.contains(document.activeElement)) {
+      titleRef.current?.focus({ preventScroll: true });
+    }
+  }, []);
+
+  const sends = useRef<number[]>([]);
+  const send = (text: string) => {
+    if (!character) return;
+    actions.send(character.id, text);
+    const now = Date.now();
+    sends.current = [...sends.current.filter((t) => now - t < pulseStrength.sendBurstWindowMs), now];
+    const strength =
+      pulseStrength.sendBase + Math.min(pulseStrength.sendMaxExtra, text.length / pulseStrength.sendCharsForMax);
+    pulse(
+      'gust',
+      sends.current.length > pulseStrength.sendBurstCount ? Math.min(pulseStrength.sendBurstCap, strength) : strength
+    );
+  };
 
   if (!character) {
     return (
-      <section className="safe-x flex h-full flex-col items-center justify-center gap-16 text-center">
+      <section className="safe-x flex h-full flex-col items-center justify-center gap-16 pb-[var(--tabbar-h)] text-center">
         <p className="text-body text-muted">This conversation is no longer here.</p>
         <button
           type="button"
           onClick={actions.closeChat}
-          className="min-h-[var(--target)] rounded-full bg-accent px-16 text-label text-on-accent"
+          className="min-h-[var(--target)] rounded-full bg-accent px-24 text-label text-on-accent"
         >
           Back to Chats
         </button>
@@ -87,146 +124,19 @@ export function ChatView(props: { characterId: string }): JSX.Element {
     );
   }
 
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    const text = draft.trim();
-    if (!text) return;
-    actions.send(character.id, text);
-    const now = Date.now();
-    sends.current = [...sends.current.filter((t) => now - t < pulseStrength.sendBurstWindowMs), now];
-    const strength =
-      pulseStrength.sendBase +
-      Math.min(pulseStrength.sendMaxExtra, text.length / pulseStrength.sendCharsForMax);
-    pulse(
-      'gust',
-      sends.current.length > pulseStrength.sendBurstCount ? Math.min(pulseStrength.sendBurstCap, strength) : strength
-    );
-    setDraft('');
-  };
-
   return (
-    <section aria-label={`Chat with ${character.name}`} className="flex h-full flex-col">
-      <header className="safe-x grid grid-cols-[1fr_auto_1fr] items-start gap-8 pt-[calc(var(--statusbar-h)+var(--spacing-8))] pb-8">
-        <button
-          type="button"
-          aria-label="Back to Chats"
-          onClick={actions.closeChat}
-          className="grid size-[var(--target-touch)] place-items-center justify-self-start rounded-full border border-hairline bg-surface-strong text-ink"
-        >
-          <ChevronLeft aria-hidden="true" className="size-20" />
-        </button>
-        <div className="flex flex-col items-center gap-4">
-          <Avatar character={character} size="md" layoutId={`avatar-${character.id}`} eager />
-          <h1 className="rounded-full bg-surface-strong px-12 py-2 text-label">{character.name}</h1>
-        </div>
-        <button
-          type="button"
-          onClick={() => actions.openProfile(character.id)}
-          className="h-[var(--target-touch)] justify-self-end rounded-full border border-hairline bg-surface-strong px-16 text-label text-ink"
-        >
-          Profile
-        </button>
-      </header>
-
-      <div
-        ref={scroller}
-        role="region"
-        aria-label="Messages"
-        tabIndex={0}
-        className="safe-x min-h-0 flex-1 overflow-y-auto py-12"
-      >
-        <ol className="flex flex-col gap-8" aria-live="polite" aria-relevant="additions">
-          {messages.map((m) => (
-            <li key={m.id} className={cn('flex', m.from === 'me' ? 'justify-end' : 'justify-start')}>
-              <MessageBody message={m} />
-            </li>
-          ))}
-        </ol>
-        {typing ? (
-          <p className="pt-8 text-caption text-muted" role="status">
-            {character.name} is typing
-          </p>
-        ) : null}
-      </div>
-
-      <form onSubmit={submit} className="safe-x flex items-center gap-8 pt-8 pb-[var(--tabbar-h)]">
-        <label htmlFor="composer" className="sr-only">
-          Message {character.name}
-        </label>
-        <input
-          id="composer"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="Message"
-          autoComplete="off"
-          enterKeyHint="send"
-          className="h-[var(--target-touch)] min-w-0 flex-1 rounded-full border border-hairline bg-surface-strong px-16 text-body text-ink placeholder:text-muted"
-        />
-        <button
-          type="submit"
-          aria-label="Send"
-          className="grid size-[var(--target-touch)] shrink-0 place-items-center rounded-full bg-accent text-on-accent"
-        >
-          <SendHorizontal aria-hidden="true" className="size-20" />
-        </button>
-      </form>
+    <section ref={sectionRef} aria-label={`Chat with ${character.name}`} className="flex h-full flex-col">
+      <ChatHeader
+        character={character}
+        drawerOpen={drawerOpen && isOpen}
+        menuRef={menuRef}
+        titleRef={titleRef}
+        onMenu={() => actions.setDrawer(true)}
+        onProfile={() => actions.openProfile(character.id)}
+      />
+      <MessageList character={character} messages={messages} typing={typing} />
+      <Composer name={character.name} onSend={send} />
+      <ChatsDrawer currentId={character.id} anchor={menuRef} />
     </section>
-  );
-}
-
-function MessageBody(props: { message: Message }): JSX.Element {
-  const { message } = props;
-  if (message.kind === 'cards' && message.cards?.length) {
-    return (
-      <ul className="w-[var(--bubble-max)] rounded-20 bg-surface p-8">
-        {message.cards.map((card) => (
-          <CardRow key={card.title} card={card} />
-        ))}
-      </ul>
-    );
-  }
-  const mine = message.from === 'me';
-  return (
-    <p
-      className={cn(
-        'max-w-[var(--bubble-max)] rounded-20 px-16 py-12 text-body',
-        mine ? 'bg-me text-on-me' : 'bg-surface text-ink'
-      )}
-    >
-      {message.text}
-    </p>
-  );
-}
-
-function CardRow(props: { card: CardItem }): JSX.Element {
-  const { card } = props;
-  const [ok, setOk] = useState(true);
-  return (
-    <li className="flex items-center gap-12 p-8">
-      <span className="relative size-[var(--thumb)] shrink-0 overflow-hidden rounded-12 bg-surface-strong">
-        {ok && card.image ? (
-          <img
-            src={card.image}
-            alt=""
-            width={artSize.sm.width}
-            height={artSize.sm.height}
-            decoding="async"
-            loading="lazy"
-            onError={() => setOk(false)}
-            className="size-full object-cover"
-            style={{
-              objectPosition: card.imagePosition,
-              transform: card.imageScale ? `scale(${card.imageScale})` : undefined,
-              transformOrigin: card.imagePosition,
-            }}
-          />
-        ) : null}
-      </span>
-      <span className="flex min-w-0 flex-col">
-        <span className="truncate text-label text-ink">{card.title}</span>
-        <span className="truncate text-caption text-muted">{card.subtitle}</span>
-        <span className="truncate text-caption text-muted">{card.meta}</span>
-      </span>
-    </li>
   );
 }
