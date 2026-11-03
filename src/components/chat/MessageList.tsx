@@ -7,7 +7,7 @@
     springs in (scale .92 to 1 from its own side, a slight rise); a clip or
     card group fades up; the history present at mount renders still. The typing
     bubble leaves the flow as it fades so her reply takes its slot (a
-    crossfade, no jump). A tap squishes a bubble gently. Reduced motion: a
+    crossfade, no jump). A tap squishes a text bubble gently; a tap on a clip only pauses or plays it, with no motion. Reduced motion: a
     fade only, no squish.
   - Spacing groups a run of one sender (4px) and opens up between senders.
   - Auto-scroll: the newest message stays in view (instant on mount and under
@@ -29,7 +29,6 @@ const motionSpec = {
   rise: 8,
   scaleFrom: 0.92,
   press: 0.97,
-  pressVideo: 0.98,
   spring: { type: 'spring', stiffness: 380, damping: 28, mass: 0.8 },
 } as const;
 
@@ -180,7 +179,7 @@ function MessageBody(props: { message: Message; character: Character; fresh: boo
  * bubble is the video alone: v4 removed the caption line under it.
  */
 function VideoBubble(props: { message: Message; name: string; reduce: boolean }): JSX.Element {
-  const { message, name, reduce } = props;
+  const { message, name } = props;
   const frame = useRef<HTMLButtonElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const onScreen = useRef(false);
@@ -222,11 +221,8 @@ function VideoBubble(props: { message: Message; name: string; reduce: boolean })
   const label = playing ? `Pause ${name}'s video message` : `Play ${name}'s video message`;
 
   return (
-    <motion.div
+    <div
       data-slot="video-message"
-      whileTap={reduce ? undefined : { scale: motionSpec.pressVideo }}
-      transition={{ duration: dur.quick, ease: ease.continuous }}
-      style={{ originX: 0, originY: 0.5 }}
       className="w-224 overflow-hidden rounded-20 border border-hairline bg-surface shadow-8"
     >
       <button
@@ -268,6 +264,6 @@ function VideoBubble(props: { message: Message; name: string; reduce: boolean })
           )}
         />
       </button>
-    </motion.div>
+    </div>
   );
 }
