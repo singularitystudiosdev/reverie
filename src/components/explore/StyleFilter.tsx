@@ -12,10 +12,11 @@ export const styleFilters: StyleFilterValue[] = ['All', 'Anime', 'Goth', 'Realis
 export function StyleFilter(props: {
   value: StyleFilterValue;
   onChange(value: StyleFilterValue): void;
+  className?: string;
 }): JSX.Element {
-  const { value, onChange } = props;
+  const { value, onChange, className } = props;
   return (
-    <div role="group" aria-label="Filter by style" className="deck-scroll-x flex gap-8 overflow-x-auto safe-x py-4">
+    <div role="group" aria-label="Filter by style" className={cn('deck-scroll-x flex gap-8 overflow-x-auto safe-x py-4', className)}>
       {styleFilters.map((style) => {
         const pressed = style === value;
         return (

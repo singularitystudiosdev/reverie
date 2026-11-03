@@ -207,6 +207,9 @@
      into two columns, so the short height goes to content. */
 @custom-variant frame (@media (width >= 600px) and (height >= 640px));
 @custom-variant land (@media (orientation: landscape) and (height < 640px));
+/* A short portrait screen, measured on the nearest size container (the Explore section
+   is one), not the window: the desktop frame is short whenever the window is. */
+@custom-variant short (@container (height < 720px) and (aspect-ratio < 1));
 
 :root {
   /* Avatars (round crops) and thumbnails */

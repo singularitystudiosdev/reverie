@@ -65,10 +65,16 @@ export function Explore(): JSX.Element {
   //   (pendingMatchId clears, effect above sets top's theme, this re-arms the
   //   second card) the engine promotes the armed top world instead.
   const armTarget = state.pendingMatchId ? top : next;
+  //
+  // The match moment opening is a dependency too, though the armed card does
+  // not change (after a DRAG the second card is already armed, and the finger
+  // left its weight near 1): re-arming at weight 0 eases that world back out,
+  // so the match shows in HER world, not the next card's.
+  const matchOpen = !!state.pendingMatchId;
   useEffect(() => {
     if (armTarget) setPreview(armTarget.theme, armTarget.scene, 0);
     else setPreview(null);
-  }, [armTarget, setPreview]);
+  }, [armTarget, matchOpen, setPreview]);
 
   // Leaving Explore disarms the preview and releases the drag.
   useEffect(
@@ -134,7 +140,7 @@ export function Explore(): JSX.Element {
       aria-labelledby="explore-title"
       inert={!!state.pendingMatchId}
       className={cn(
-        'flex h-full flex-col pt-[var(--statusbar-h)] pb-[var(--tabbar-h)]',
+        'flex h-full flex-col pt-[var(--statusbar-h)] pb-[var(--tabbar-h)] [container-type:size]',
         // Land: the section carries the safe insets (rail and notch) and its
         // columns reset them, so each column keeps the plain gutter.
         top &&
@@ -144,19 +150,23 @@ export function Explore(): JSX.Element {
         state.pendingMatchId && 'opacity-0'
       )}
     >
-      <div className="land:col-start-2 land:row-start-1 land:min-w-0">
-        <header className="safe-x pt-16 pb-8">
+      <div className="land:col-start-2 land:row-start-1 land:min-w-0 short:flex short:items-center short:pt-8">
+        <header className="safe-x pt-16 pb-8 short:shrink-0 short:pt-0 short:pr-12 short:pb-0">
           <h1 id="explore-title" className="font-display text-title text-ink">
             Explore
           </h1>
         </header>
-        <StyleFilter value={state.filter} onChange={actions.setFilter} />
+        <StyleFilter
+          value={state.filter}
+          onChange={actions.setFilter}
+          className="short:min-w-0 short:flex-1 short:pl-0"
+        />
       </div>
 
       {top ? (
         <>
           <motion.div
-            className="safe-x min-h-0 flex-1 pt-12 pb-[var(--deck-peek)] land:col-start-1 land:row-span-2 land:row-start-1 land:px-0"
+            className="safe-x min-h-0 flex-1 pt-12 pb-[var(--deck-peek)] short:pt-8 land:col-start-1 land:row-span-2 land:row-start-1 land:px-0"
             initial={rise ? { opacity: 0, y: deckConfig.riseY } : false}
             animate={{
               opacity: 1,
@@ -167,7 +177,10 @@ export function Explore(): JSX.Element {
               },
             }}
           >
-            <div className="relative size-full">
+            {/* The card sizes from the room it has: full width, but never wider
+                than 3:4 of its height, so a short phone keeps a portrait card. */}
+            <div className="size-full [container-type:size]">
+              <div className="relative mx-auto h-full w-[min(100cqw,calc(100cqh*var(--deck-card-ratio)))]">
               {cards.map((c, i) => (
                 <SwipeCard
                   key={c.id}
@@ -181,17 +194,18 @@ export function Explore(): JSX.Element {
                   onOpen={() => actions.openProfile(c.id)}
                 />
               ))}
+              </div>
             </div>
           </motion.div>
           <p aria-live="polite" className="sr-only">
             {`${top.name}, ${top.kind}`}
           </p>
-          <div className="flex items-center justify-center gap-24 pt-12 pb-12 land:col-start-2 land:row-start-2 land:self-center">
+          <div className="flex items-center justify-center gap-24 pt-12 pb-12 short:pt-8 short:pb-8 land:col-start-2 land:row-start-2 land:self-center">
             <button
               type="button"
               aria-label={`Pass on ${top.name}`}
               onClick={() => topHandle.current?.swipe('pass', 'fly')}
-              className="grid size-[var(--deck-button)] place-items-center rounded-full border border-hairline bg-surface-strong text-ink transition-opacity duration-[var(--duration-150)] ease-standard active:opacity-80"
+              className="grid size-[var(--deck-button)] short:size-[var(--deck-button-short)] place-items-center rounded-full border border-hairline bg-surface-strong text-ink transition-opacity duration-[var(--duration-150)] ease-standard active:opacity-80"
             >
               <X aria-hidden="true" className="size-24" />
             </button>
@@ -199,7 +213,7 @@ export function Explore(): JSX.Element {
               type="button"
               aria-label={`Like ${top.name}`}
               onClick={() => topHandle.current?.swipe('like', 'fly')}
-              className="grid size-[var(--deck-button)] place-items-center rounded-full bg-accent text-on-accent transition-opacity duration-[var(--duration-150)] ease-standard active:opacity-80"
+              className="grid size-[var(--deck-button)] short:size-[var(--deck-button-short)] place-items-center rounded-full bg-accent text-on-accent transition-opacity duration-[var(--duration-150)] ease-standard active:opacity-80"
             >
               <Check aria-hidden="true" className="size-24" />
             </button>

@@ -27,8 +27,15 @@ const FONT_SIZES = [
   'label-large',
 ]
 
+/* The radius scale from tokens.css (--radius-<n>, project values 12/20/28/48 and
+   the rest of the ladder). tailwind-merge only knows rounded-sm/md/lg/..., so
+   `rounded-20 rounded-full` would keep both. Declared as members of its
+   `radius` theme scale, so every rounded-<n> (and the side/corner variants)
+   conflicts with every other. Keep in step with the --radius-* tokens. */
+const RADII = ['0', '2', '4', '6', '8', '12', '16', '20', '24', '28', '32', '48']
+
 const twMerge = extendTailwindMerge({
-  extend: { theme: { text: FONT_SIZES } },
+  extend: { theme: { text: FONT_SIZES, radius: RADII } },
 })
 
 export function cn(...inputs: ClassValue[]) {

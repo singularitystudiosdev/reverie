@@ -8,13 +8,18 @@
 // Usage: PLAYWRIGHT_MODULE=... node scripts/qa/matrix.mjs [prefix=qa] [device-key...]
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { MATRIX, SHOTS, contextOptions, dragBy, freshPage, launch, press, sleep } from './pw.mjs';
+import { MATRIX, SHOTS, devices, contextOptions, dragBy, freshPage, launch, press, sleep } from './pw.mjs';
 
 const prefix = process.argv[2] ?? 'qa';
 const only = process.argv.slice(3);
 
 // A 320px-wide phone for the reflow floor (WCAG 1.4.10).
 const EXTRA = [
+  // iPhone 15 in Safari with the toolbars showing: 393x659 visible, no safe-area insets. The
+  // swipe card must stay portrait here (>= 3:4), narrower and centred rather than wide.
+  ['iphone15-safari', { ...devices['iPhone 15'], viewport: { width: 393, height: 659 } }],
+  // iPhone 15 full screen (standalone / bars hidden): 393x852 with the real insets.
+  ['iphone15-full', { ...devices['iPhone 15'], viewport: { width: 393, height: 852 } }],
   ['w320', { viewport: { width: 320, height: 640 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }],
   // The 1440x900 desktop at 200% browser zoom: 720x450 CSS px at 2 device px each.
   ['desktop-zoom200', { viewport: { width: 720, height: 450 }, deviceScaleFactor: 2 }],
@@ -23,6 +28,7 @@ const EXTRA = [
 // iPhone 15 safe areas (portrait / landscape), applied through CDP where supported.
 const INSETS = {
   iphone15: { top: 59, bottom: 34, left: 0, right: 0 },
+  'iphone15-full': { top: 59, bottom: 34, left: 0, right: 0 },
   'iphone15-land': { top: 0, bottom: 21, left: 59, right: 59 },
   pixel7: { top: 24, bottom: 16, left: 0, right: 0 },
   'pixel7-land': { top: 0, bottom: 16, left: 24, right: 0 },
@@ -174,6 +180,10 @@ async function runDevice(browser, key, opts) {
   // Mid-drag, below the commit threshold, then let it spring back.
   const card = page.locator('[aria-label$="View profile"]:not([inert] *)').first();
   const box = await card.boundingBox();
+  // The card stays portrait: height / width >= 4/3 on every viewport (landscape rail aside).
+  const ratio = box.height / box.width;
+  results[results.length - 1].cardRatio = Number(ratio.toFixed(3));
+  console.log(`${key.padEnd(14)} card      ${Math.round(box.width)}x${Math.round(box.height)} h/w=${ratio.toFixed(2)} ${ratio >= 4 / 3 - 0.01 ? 'portrait ok' : 'FLAG card wider than 3:4'}`);
   const release = await dragBy(page, card, box.width * 0.26, { hold: true, steps: 14 });
   await sleep(450);
   await shot(page, key, 'middrag', results);

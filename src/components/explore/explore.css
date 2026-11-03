@@ -7,6 +7,11 @@
 :root {
   /* The next card sits behind the top one, peeking this far below it. */
   --deck-peek: 16px;
+  /* The card is never wider than this share of its height (3:4), so a short
+     phone gets a narrower, centred portrait card instead of a wide one. */
+  --deck-card-ratio: calc(3 / 4);
+  /* Round buttons on a short screen */
+  --deck-button-short: 56px;
   /* Photo cards sit on a dark scrim, so type on it is light in every theme. */
   --deck-on-photo: rgb(255 255 255);
   --deck-on-photo-soft: rgb(255 255 255 / 0.82);

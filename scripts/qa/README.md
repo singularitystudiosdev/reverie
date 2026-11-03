@@ -13,6 +13,9 @@ node scripts/qa/matrix.mjs final                 # iPhone 15, Pixel 7, iPad Mini
 node scripts/qa/flows.mjs                        # like -> match -> Say hi -> send -> typing -> reply; drawer; chips; Start over; reload; keys
 node scripts/qa/reduced.mjs                      # prefers-reduced-motion: still particles, no slides, swipe still works
 node scripts/qa/atmo.mjs final-atmo              # frame bursts: idle, gust, bloom, next world under the finger
+node scripts/qa/seams.mjs                        # focus ring per world, tab labels at 14px, rail labels fit, in a browser
+QA_DEV_URL=http://127.0.0.1:44581/ node scripts/qa/handoff.mjs   # post-match world hand-off + gust/typing/bloom, engine state per frame (dev build)
+node scripts/qa/shots.mjs verify                 # the review set: desktop frame, iPhone 15 (393x852), Safari (393x659)
 node scripts/qa/perf.mjs 4 http://127.0.0.1:44640/ '' --trace   # 4x CPU throttle, rAF intervals + compositor frames
 ```
 
