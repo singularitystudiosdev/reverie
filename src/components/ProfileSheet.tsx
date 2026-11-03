@@ -7,11 +7,12 @@
     image with her name (--text-name) over a bottom scrim, then her bio with
     AnimatedBio. No interest chips, no Message button, no close button, no
     kind or style lines.
-  - Mechanics after design-web sheet.tsx: the header image is the drag handle
-    and tracks the finger directly (no easing while dragging); on release the
-    position is projected along the velocity and the nearer rest wins (open
-    or dismissed); the scrim lightens as she is pulled down. Escape and the
-    scrim dismiss. Focus moves into the sheet on open, Tab stays inside, and
+  - Mechanics after design-web sheet.tsx: a swipe that starts anywhere on the
+    sheet, or on the scrim above it, drags the sheet and tracks the finger
+    directly (no easing while dragging); on release the position is projected
+    along the velocity and the nearer rest wins (open or dismissed); the scrim
+    lightens as she is pulled down. Escape and a tap on the scrim (one that
+    did not drag) dismiss. Focus moves into the sheet on open, Tab stays inside, and
     focus returns to the trigger as it closes.
   - Motion: in on the base band (enter easing), out on the quick band. The hero
     eases in with a slight scale, then the bio fades up after it. Reduced
@@ -26,7 +27,7 @@ import {
   useTransform,
   type PanInfo,
 } from 'motion/react';
-import { useEffect, useId, useRef, type JSX } from 'react';
+import { useEffect, useId, useRef, type JSX, type PointerEvent as ReactPointerEvent } from 'react';
 import { trapTab } from './chat/focus';
 import { AnimatedBio } from './chat/AnimatedBio';
 import type { Character } from '../data/types';
@@ -83,6 +84,14 @@ function Sheet(props: { character: Character }): JSX.Element {
     return () => document.removeEventListener('keydown', onKey);
   }, [isPresent, actions]);
 
+  // Any press on the sheet or the scrim can become the drag. `dragged` keeps a
+  // swipe that ends over the scrim from also counting as a tap that closes.
+  const dragged = useRef(false);
+  const startDrag = (e: ReactPointerEvent) => {
+    dragged.current = false;
+    controls.start(e);
+  };
+
   // Release: project along the velocity, settle on the nearer rest.
   const onDragEnd = (_: unknown, info: PanInfo) => {
     const h = dialog.current?.offsetHeight ?? 0;
@@ -101,9 +110,12 @@ function Sheet(props: { character: Character }): JSX.Element {
       >
         <motion.div
           data-slot="sheet-scrim"
-          className="absolute inset-0 bg-[var(--scrim)]"
+          className="absolute inset-0 touch-none bg-[var(--scrim)]"
           style={{ opacity: scrimOpacity }}
-          onClick={close}
+          onPointerDown={startDrag}
+          onClick={() => {
+            if (!dragged.current) close();
+          }}
         />
       </motion.div>
 
@@ -116,8 +128,12 @@ function Sheet(props: { character: Character }): JSX.Element {
           tabIndex={-1}
           onKeyDown={trapTab}
           data-slot="profile-sheet"
-          className="pointer-events-auto flex max-h-[var(--sheet-max-h)] w-full flex-col overflow-y-auto overscroll-contain rounded-t-20 border-t border-hairline surface-solid text-ink"
+          className="pointer-events-auto flex max-h-[var(--sheet-max-h)] w-full touch-none flex-col overflow-y-auto overscroll-contain rounded-t-20 border-t border-hairline surface-solid text-ink select-none"
           style={{ y }}
+          onPointerDown={startDrag}
+          onDragStart={() => {
+            dragged.current = true;
+          }}
           drag="y"
           dragListener={false}
           dragControls={controls}
@@ -138,10 +154,8 @@ function Sheet(props: { character: Character }): JSX.Element {
               : { y: '100%', transition: { duration: dur.quick, ease: ease.exit } }
           }
         >
-          {/* The header image is the drag handle. */}
           <div
             data-slot="profile-hero"
-            onPointerDown={(e) => controls.start(e)}
             className="relative aspect-square min-h-[var(--avatar-xl)] w-full shrink touch-none overflow-hidden bg-surface select-none"
           >
             <motion.div
