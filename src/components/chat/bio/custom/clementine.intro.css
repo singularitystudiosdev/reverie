@@ -1,0 +1,304 @@
+/* Clementine's opening cinematic: butterflies erupt, honey drips down the top
+   edge. A full-frame layer, pointer-events none, always animating (no
+   reduced-motion rule, by the user's call). Keyframes are prefixed
+   clementine-intro-. */
+
+.clementine-intro {
+  --ci-honey: color-mix(in oklab, var(--t-glow, currentColor) 52%, orange);
+  --ci-honey-deep: color-mix(in oklab, var(--ci-honey) 66%, brown);
+  --ci-honey-hi: color-mix(in oklab, var(--t-glow, currentColor) 70%, white);
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 40;
+  perspective: 600px;
+}
+
+/* ---- a golden bloom where the text sits ------------------------------------- */
+.clementine-intro-bloom {
+  position: absolute;
+  left: var(--cx);
+  top: var(--cy);
+  width: 140%;
+  aspect-ratio: 1;
+  margin: -70% 0 0 -70%;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in oklab, var(--t-glow, currentColor) 85%, white) 0%, color-mix(in oklab, var(--t-glow, currentColor) 40%, transparent) 22%, transparent 55%);
+  opacity: 0;
+  transform: scale(0.2);
+  animation: clementine-intro-bloom 1.5s linear both !important;
+}
+
+@keyframes clementine-intro-bloom {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1);
+  }
+  14% {
+    opacity: 0.85;
+    transform: scale(0.5);
+    animation-timing-function: ease-in-out;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+/* ---- butterflies --------------------------------------------------------------- */
+.clementine-intro-fly {
+  position: absolute;
+  left: var(--sx);
+  top: var(--sy);
+  width: var(--s);
+  height: var(--s);
+  margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2);
+  opacity: 0;
+  animation: clementine-intro-fly var(--dur) linear var(--delay) both !important;
+}
+
+.clementine-intro-tilt {
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: clementine-intro-tilt var(--dur) ease-in-out var(--delay) both !important;
+}
+
+.clementine-intro-wings {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  filter: drop-shadow(0 6px 5px color-mix(in oklab, black 40%, transparent));
+  animation: clementine-intro-flap var(--flap) ease-in-out var(--delay) infinite alternate !important;
+}
+
+/* pops out of the text with a squash, hangs a beat, then arcs away and grows */
+@keyframes clementine-intro-fly {
+  0% {
+    transform: translate3d(0, 0, 0) scale(0.1, 0.1);
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.3, 1.6, 0.5, 1);
+  }
+  7% {
+    transform: translate3d(0, -6px, 0) scale(1.28, 0.78);
+    opacity: 1;
+    animation-timing-function: ease-out;
+  }
+  13% {
+    transform: translate3d(0, -18px, 0) scale(0.92, 1.12);
+    opacity: 1;
+    animation-timing-function: ease-in-out;
+  }
+  19% {
+    transform: translate3d(0, -14px, 0) scale(1.02, 0.98);
+    opacity: 1;
+    animation-timing-function: ease-in-out;
+  }
+  52% {
+    transform: translate3d(var(--mx), var(--my), 0) scale(1.1);
+    opacity: 1;
+    animation-timing-function: ease-in;
+  }
+  100% {
+    transform: translate3d(var(--dx), var(--dy), 0) scale(var(--end));
+    opacity: 0;
+  }
+}
+
+.clementine-intro-fly[data-toward='1'] {
+  animation-name: clementine-intro-toward !important;
+}
+
+/* the two big ones fly straight at the viewer */
+@keyframes clementine-intro-toward {
+  0% {
+    transform: translate3d(0, 0, 0) scale(0.1, 0.1);
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.3, 1.6, 0.5, 1);
+  }
+  8% {
+    transform: translate3d(0, -8px, 0) scale(1.25, 0.8);
+    opacity: 1;
+    animation-timing-function: ease-out;
+  }
+  16% {
+    transform: translate3d(0, -22px, 0) scale(0.95, 1.1);
+    opacity: 1;
+    animation-timing-function: ease-in-out;
+  }
+  34% {
+    transform: translate3d(calc(var(--mx) * 0.3), calc(var(--my) * 0.5), 0) scale(1.05);
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.5);
+  }
+  100% {
+    transform: translate3d(var(--dx), var(--dy), 160px) scale(var(--end));
+    opacity: 0;
+  }
+}
+
+@keyframes clementine-intro-tilt {
+  0% {
+    transform: rotate(0deg);
+  }
+  20% {
+    transform: rotate(calc(var(--rot) * -0.6));
+  }
+  60% {
+    transform: rotate(var(--rot));
+  }
+  100% {
+    transform: rotate(calc(var(--rot) * 1.4));
+  }
+}
+
+@keyframes clementine-intro-flap {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0.22);
+  }
+}
+
+/* ---- honey down the edge --------------------------------------------------------- */
+.clementine-intro-honey {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 0;
+  animation: clementine-intro-honey 2.8s linear both !important;
+}
+
+@keyframes clementine-intro-honey {
+  0% {
+    transform: translateY(-110%);
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1.2);
+  }
+  14% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  74% {
+    transform: translateY(0);
+    opacity: 1;
+    animation-timing-function: ease-in;
+  }
+  100% {
+    transform: translateY(-30%);
+    opacity: 0;
+  }
+}
+
+.clementine-intro-seam {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 20px;
+  fill: var(--ci-honey);
+  filter: drop-shadow(0 4px 4px color-mix(in oklab, var(--ci-honey-deep) 55%, transparent));
+}
+
+.clementine-intro-drip {
+  position: absolute;
+  left: var(--x);
+  top: 8px;
+  width: 0;
+  height: 0;
+}
+
+.clementine-intro-strand {
+  position: absolute;
+  left: calc(var(--w) / -2);
+  top: 0;
+  width: var(--w);
+  height: var(--len);
+  border-radius: 0 0 var(--w) var(--w);
+  background: linear-gradient(90deg, var(--ci-honey-deep), var(--ci-honey) 40%, var(--ci-honey-hi) 56%, var(--ci-honey));
+  transform-origin: 50% 0;
+  transform: scale(1, 0);
+  animation: clementine-intro-strand var(--dur) linear var(--delay) both !important;
+}
+
+.clementine-intro-bead {
+  position: absolute;
+  left: calc(var(--w) * -0.8);
+  top: calc(var(--w) * -0.7);
+  width: calc(var(--w) * 1.6);
+  height: calc(var(--w) * 1.9);
+  border-radius: 50% 50% 50% 50% / 36% 36% 64% 64%;
+  background:
+    radial-gradient(circle at 34% 28%, white 0 10%, transparent 16%),
+    radial-gradient(circle at 50% 50%, var(--ci-honey) 0 55%, var(--ci-honey-deep) 100%);
+  transform: translateY(0) scale(0);
+  opacity: 0;
+  animation: clementine-intro-bead var(--dur) linear var(--delay) both !important;
+}
+
+/* the strand stretches slowly, overshoots, then thins as the bead lets go */
+@keyframes clementine-intro-strand {
+  0% {
+    transform: scale(1, 0);
+    opacity: 1;
+    animation-timing-function: ease-in-out;
+  }
+  50% {
+    transform: scale(0.9, 1.06);
+    animation-timing-function: ease-out;
+  }
+  58% {
+    transform: scale(1, 1);
+    animation-timing-function: ease-in;
+  }
+  72% {
+    transform: scale(0.5, 1.02);
+    opacity: 1;
+    animation-timing-function: ease-out;
+  }
+  80% {
+    transform: scale(0.5, 0.4);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(0.4, 0.05);
+    opacity: 0;
+  }
+}
+
+@keyframes clementine-intro-bead {
+  0% {
+    transform: translateY(0) scale(0);
+    opacity: 1;
+    animation-timing-function: ease-in-out;
+  }
+  50% {
+    transform: translateY(calc(var(--len) * 1.06)) scale(1);
+    opacity: 1;
+    animation-timing-function: ease-out;
+  }
+  58% {
+    transform: translateY(var(--len)) scale(1, 1);
+    opacity: 1;
+    animation-timing-function: ease-in-out;
+  }
+  72% {
+    transform: translateY(calc(var(--len) + 6px)) scale(0.82, 1.3);
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.55, 0, 0.9, 0.6);
+  }
+  97% {
+    transform: translateY(calc(var(--len) + 150px)) scale(0.7, 1.4);
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateY(calc(var(--len) + 170px)) scale(0.5, 1);
+    opacity: 0;
+  }
+}

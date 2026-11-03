@@ -1,0 +1,674 @@
+/* Maya: camera flash, film light leak, breathing amber bokeh. Scoped to her
+   word. One shared cycle (--maya-cycle) drives the flash, the streak, the leak
+   and the word's glow so they land together. The effect always plays (no
+   reduced-motion rule, by the user's call), so each animation is !important
+   against the global duration clamp. */
+
+.fx[data-fx='maya'] {
+  --maya-cycle: 7.2s;
+  --maya-cream: color-mix(in oklab, var(--t-ink) 86%, var(--t-accent));
+  --maya-amber: color-mix(in oklab, var(--t-accent) 88%, var(--t-ink));
+  --maya-orange: color-mix(in oklab, var(--t-accent) 62%, red);
+  --maya-teal: var(--fx-a2);
+}
+
+/* ---- the word: cream warming to amber, a leak crossing the glyphs --------- */
+.fx[data-fx='maya'] .fx-text {
+  background-image: linear-gradient(180deg, var(--maya-cream) 0%, var(--maya-cream) 30%, var(--maya-amber) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 0.14em color-mix(in oklab, var(--maya-amber) 38%, transparent));
+  animation: maya-word var(--maya-cycle) linear infinite !important;
+}
+
+.fx[data-fx='maya'] .fx-text::after {
+  content: attr(data-w);
+  content: attr(data-w) / '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  background-image: linear-gradient(
+    102deg,
+    transparent 0%,
+    transparent 34%,
+    color-mix(in oklab, var(--maya-orange) 80%, transparent) 44%,
+    var(--maya-orange) 50%,
+    color-mix(in oklab, var(--maya-amber) 85%, var(--maya-cream)) 56%,
+    transparent 66%,
+    transparent 100%
+  );
+  background-size: 320% 100%;
+  background-repeat: no-repeat;
+  background-position: 100% 0%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  pointer-events: none;
+  animation: maya-over var(--maya-cycle) linear infinite !important;
+}
+
+/* the flash lifts the word's glow for a beat, then it settles */
+@keyframes maya-word {
+  0%,
+  3% {
+    filter: drop-shadow(0 0 0.14em color-mix(in oklab, var(--maya-amber) 38%, transparent));
+  }
+  5% {
+    filter: drop-shadow(0 0 0.5em color-mix(in oklab, var(--maya-cream) 95%, transparent));
+  }
+  9% {
+    filter: drop-shadow(0 0 0.28em color-mix(in oklab, var(--maya-cream) 55%, transparent));
+  }
+  11% {
+    filter: drop-shadow(0 0 0.4em color-mix(in oklab, var(--maya-cream) 75%, transparent));
+  }
+  24%,
+  100% {
+    filter: drop-shadow(0 0 0.14em color-mix(in oklab, var(--maya-amber) 38%, transparent));
+  }
+}
+
+/* the leak crosses the letters after the flash, slowing as it exits */
+@keyframes maya-over {
+  0%,
+  13% {
+    background-position: 100% 0%;
+    animation-timing-function: cubic-bezier(0.3, 0.1, 0.5, 1);
+  }
+  62%,
+  100% {
+    background-position: 0% 0%;
+  }
+}
+
+/* ---- bokeh --------------------------------------------------------------- */
+.fx[data-fx='maya'] .maya-orb {
+  border-radius: 50%;
+  opacity: 0.3;
+  background:
+    radial-gradient(circle at 50% 50%, var(--maya-orb, var(--maya-amber)) 0 46%, transparent 47%),
+    radial-gradient(circle at 50% 50%, color-mix(in oklab, var(--maya-orb, var(--maya-amber)) 55%, transparent) 0 62%, transparent 70%);
+  box-shadow: 0 0 0 0.03em color-mix(in oklab, var(--maya-orb, var(--maya-amber)) 55%, transparent) inset;
+  animation: maya-breathe var(--t, 4.4s) var(--fx-ease-sine) var(--d, 0s) infinite alternate !important;
+}
+
+.fx[data-fx='maya'] .maya-orb[data-tone='amber'] {
+  --maya-orb: var(--maya-amber);
+}
+
+.fx[data-fx='maya'] .maya-orb[data-tone='teal'] {
+  --maya-orb: var(--maya-teal);
+}
+
+.fx[data-fx='maya'] .maya-orb[data-tone='cream'] {
+  --maya-orb: var(--maya-cream);
+}
+
+@keyframes maya-breathe {
+  from {
+    transform: translate(calc(var(--dx, 0.2em) * -1), calc(var(--dy, 0.1em) * -1)) scale(0.82);
+    opacity: 0.16;
+  }
+  to {
+    transform: translate(var(--dx, 0.2em), var(--dy, 0.1em)) scale(1.12);
+    opacity: 0.55;
+  }
+}
+
+/* ---- the flash ------------------------------------------------------------ */
+.fx[data-fx='maya'] .maya-flash {
+  position: absolute;
+  left: -0.5em;
+  right: -0.5em;
+  top: -0.55em;
+  bottom: -0.55em;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    color-mix(in oklab, var(--maya-cream) 96%, white) 0%,
+    color-mix(in oklab, var(--maya-cream) 62%, transparent) 26%,
+    color-mix(in oklab, var(--maya-amber) 30%, transparent) 52%,
+    transparent 72%
+  );
+  opacity: 0;
+  transform: scale(0.7);
+  animation: maya-flash var(--maya-cycle) linear infinite !important;
+}
+
+@keyframes maya-flash {
+  0%,
+  2% {
+    opacity: 0;
+    transform: scale(0.7);
+    animation-timing-function: ease-out;
+  }
+  5% {
+    opacity: 1;
+    transform: scale(1);
+    animation-timing-function: ease-in-out;
+  }
+  8% {
+    opacity: 0.35;
+    transform: scale(1.04);
+  }
+  10.5% {
+    opacity: 0.8;
+    transform: scale(1.08);
+    animation-timing-function: ease-out;
+  }
+  24%,
+  100% {
+    opacity: 0;
+    transform: scale(1.2);
+  }
+}
+
+/* a thin teal anamorphic streak that rides the flash */
+.fx[data-fx='maya'] .maya-streak {
+  position: absolute;
+  left: -0.7em;
+  right: -0.7em;
+  top: 50%;
+  height: 0.05em;
+  margin-top: -0.025em;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, var(--maya-teal) 70%, transparent) 25%,
+    color-mix(in oklab, var(--maya-cream) 95%, white) 50%,
+    color-mix(in oklab, var(--maya-teal) 70%, transparent) 75%,
+    transparent 100%
+  );
+  opacity: 0;
+  transform: scaleX(0.2);
+  animation: maya-streak var(--maya-cycle) linear infinite !important;
+}
+
+@keyframes maya-streak {
+  0%,
+  3% {
+    opacity: 0;
+    transform: scaleX(0.2);
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+  6% {
+    opacity: 0.95;
+    transform: scaleX(1);
+    animation-timing-function: ease-in;
+  }
+  15%,
+  100% {
+    opacity: 0;
+    transform: scaleX(1.1);
+  }
+}
+
+/* ---- the light leak behind the word ----------------------------------------- */
+.fx[data-fx='maya'] .maya-leak {
+  position: absolute;
+  left: 0;
+  top: -0.4em;
+  bottom: -0.4em;
+  width: 2.4em;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, var(--maya-orange) 55%, transparent) 38%,
+    color-mix(in oklab, var(--maya-amber) 70%, transparent) 55%,
+    transparent 100%
+  );
+  opacity: 0;
+  transform: translateX(-2.6em) skewX(-14deg);
+  animation: maya-leak var(--maya-cycle) linear infinite !important;
+}
+
+@keyframes maya-leak {
+  0%,
+  12% {
+    opacity: 0;
+    transform: translateX(-2.6em) skewX(-14deg);
+    animation-timing-function: cubic-bezier(0.3, 0.1, 0.5, 1);
+  }
+  22% {
+    opacity: 0.75;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  66%,
+  100% {
+    opacity: 0;
+    transform: translateX(calc(var(--fx-w) + 0.2em)) skewX(-14deg);
+  }
+}
+
+/* ======================= sprite scenes =======================
+   Per-word beats. The cycle length comes from the scene's data-word via
+   :has(), so each word loops on its own clock and neighbours never fire
+   together. */
+
+.fx[data-fx='maya'] {
+  --maya-shadow: drop-shadow(0 0.08em 0.07em color-mix(in oklab, black 55%, transparent));
+}
+
+.fx[data-fx='maya'] .maya-scene {
+  display: contents;
+}
+
+.fx[data-fx='maya']:has([data-word='city']) {
+  --maya-cycle: 6.8s;
+}
+
+.fx[data-fx='maya']:has([data-word='hold']) {
+  --maya-cycle: 6.4s;
+}
+
+.fx[data-fx='maya']:has([data-word='light']) {
+  --maya-cycle: 7.4s;
+}
+
+.fx[data-fx='maya'] :where(img) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+/* the leak overlay on the letters belongs to "light" and her signature only */
+.fx[data-fx='maya']:has([data-word='city']) .fx-text::after,
+.fx[data-fx='maya']:has([data-word='hold']) .fx-text::after {
+  content: none;
+}
+
+/* ---- city blurring gold: bokeh sharpens, swells, melts ------------------------ */
+.fx[data-fx='maya']:has([data-word='city']) .fx-text {
+  background-image: linear-gradient(180deg, var(--maya-cream) 0%, color-mix(in oklab, var(--maya-cream) 55%, var(--maya-amber)) 45%, var(--maya-amber) 100%);
+  animation: maya-focus var(--maya-cycle) var(--fx-ease-sine) infinite !important;
+}
+
+@keyframes maya-focus {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0.12em color-mix(in oklab, var(--maya-amber) 30%, transparent));
+  }
+  55% {
+    filter: drop-shadow(0 0 0.5em color-mix(in oklab, var(--maya-amber) 80%, transparent));
+  }
+  75% {
+    filter: drop-shadow(0 0 0.28em color-mix(in oklab, var(--maya-amber) 50%, transparent));
+  }
+}
+
+.fx[data-fx='maya'] .maya-haze {
+  position: absolute;
+  left: -0.8em;
+  right: -0.8em;
+  top: -0.7em;
+  bottom: -0.7em;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 50%, color-mix(in oklab, var(--maya-amber) 55%, transparent) 0%, transparent 70%);
+  opacity: 0.1;
+  animation: maya-haze var(--maya-cycle) var(--fx-ease-sine) infinite !important;
+}
+
+@keyframes maya-haze {
+  0%,
+  100% {
+    opacity: 0.08;
+    transform: scale(0.92);
+  }
+  55% {
+    opacity: 0.42;
+    transform: scale(1.06);
+  }
+}
+
+.fx[data-fx='maya'] .maya-gold {
+  opacity: 0;
+  animation: maya-gold var(--maya-cycle) linear var(--d, 0s) infinite !important;
+}
+
+.fx[data-fx='maya'] .maya-gold-img {
+  animation: maya-gold-blur var(--maya-cycle) linear var(--d, 0s) infinite !important;
+}
+
+@keyframes maya-gold {
+  0% {
+    transform: translate(0, 0.1em) scale(0.4);
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.3, 1.5, 0.5, 1);
+  }
+  14% {
+    transform: translate(0, 0) scale(0.7);
+    opacity: 0.95;
+    animation-timing-function: ease-in-out;
+  }
+  19% {
+    transform: translate(0, 0) scale(0.62);
+    opacity: 0.95;
+    animation-timing-function: ease-in-out;
+  }
+  40% {
+    transform: translate(0.05em, -0.08em) scale(0.66);
+    opacity: 0.95;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1.3);
+  }
+  62% {
+    transform: translate(0.12em, -0.14em) scale(1.35);
+    opacity: 0.6;
+    animation-timing-function: ease-in-out;
+  }
+  78% {
+    transform: translate(0.16em, -0.2em) scale(1.7);
+    opacity: 0.26;
+    animation-timing-function: ease-in;
+  }
+  94%,
+  100% {
+    transform: translate(0.2em, -0.26em) scale(0.5);
+    opacity: 0;
+  }
+}
+
+@keyframes maya-gold-blur {
+  0%,
+  36% {
+    filter: blur(0em) var(--maya-shadow);
+  }
+  62% {
+    filter: blur(0.07em) var(--maya-shadow);
+  }
+  80% {
+    filter: blur(0.15em) var(--maya-shadow);
+  }
+  100% {
+    filter: blur(0.15em) var(--maya-shadow);
+  }
+}
+
+.fx[data-fx='maya'] .maya-gold-small {
+  --maya-cycle: 7.4s;
+}
+
+/* ---- hold that look: the camera raises, flashes, a frame develops ---------------- */
+.fx[data-fx='maya']:has([data-word='hold']) .fx-text {
+  animation: maya-word-late var(--maya-cycle) linear infinite !important;
+}
+
+@keyframes maya-word-late {
+  0%,
+  42% {
+    filter: drop-shadow(0 0 0.14em color-mix(in oklab, var(--maya-amber) 38%, transparent));
+  }
+  46% {
+    filter: drop-shadow(0 0 0.55em color-mix(in oklab, var(--maya-cream) 95%, transparent));
+  }
+  52% {
+    filter: drop-shadow(0 0 0.28em color-mix(in oklab, var(--maya-cream) 55%, transparent));
+  }
+  54% {
+    filter: drop-shadow(0 0 0.4em color-mix(in oklab, var(--maya-cream) 75%, transparent));
+  }
+  70%,
+  100% {
+    filter: drop-shadow(0 0 0.14em color-mix(in oklab, var(--maya-amber) 38%, transparent));
+  }
+}
+
+.fx[data-fx='maya']:has([data-word='hold']) .maya-flash {
+  animation-name: maya-flash-late !important;
+}
+
+.fx[data-fx='maya']:has([data-word='hold']) .maya-streak {
+  animation-name: maya-streak-late !important;
+}
+
+@keyframes maya-flash-late {
+  0%,
+  43% {
+    opacity: 0;
+    transform: scale(0.7);
+    animation-timing-function: ease-out;
+  }
+  46% {
+    opacity: 1;
+    transform: scale(1);
+    animation-timing-function: ease-in-out;
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(1.04);
+  }
+  53% {
+    opacity: 0.8;
+    transform: scale(1.08);
+    animation-timing-function: ease-out;
+  }
+  68%,
+  100% {
+    opacity: 0;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes maya-streak-late {
+  0%,
+  44% {
+    opacity: 0;
+    transform: scaleX(0.2);
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+  47.5% {
+    opacity: 0.95;
+    transform: scaleX(1);
+    animation-timing-function: ease-in;
+  }
+  58%,
+  100% {
+    opacity: 0;
+    transform: scaleX(1.1);
+  }
+}
+
+.fx[data-fx='maya'] .maya-cam {
+  --x: 84%;
+  --y: -1.4em;
+  opacity: 0;
+  animation: maya-cam var(--maya-cycle) linear infinite !important;
+}
+
+@keyframes maya-cam {
+  0% {
+    transform: translateY(1.4em) rotate(18deg) scale(0.8);
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1);
+  }
+  9% {
+    opacity: 1;
+  }
+  21% {
+    transform: translateY(-0.28em) rotate(-7deg) scale(1.07);
+    animation-timing-function: ease-in-out;
+  }
+  27% {
+    transform: translateY(0.06em) rotate(4deg) scale(0.98);
+    animation-timing-function: ease-in-out;
+  }
+  32% {
+    transform: translateY(-0.02em) rotate(-2.5deg) scale(1);
+    animation-timing-function: ease-in-out;
+  }
+  37% {
+    transform: translateY(0) rotate(1.5deg) scale(1);
+    animation-timing-function: ease-in-out;
+  }
+  41% {
+    transform: translateY(0.03em) rotate(0deg) scale(0.97);
+    animation-timing-function: ease-out;
+  }
+  45% {
+    transform: translateY(-0.05em) rotate(-2deg) scale(1.06);
+    animation-timing-function: ease-in-out;
+  }
+  52% {
+    transform: translateY(0) rotate(0.8deg) scale(1);
+    animation-timing-function: ease-in-out;
+  }
+  80% {
+    transform: translateY(0) rotate(0deg) scale(1);
+    opacity: 1;
+    animation-timing-function: ease-in-out;
+  }
+  85% {
+    transform: translateY(-0.08em) rotate(-2deg) scale(1.03);
+    animation-timing-function: ease-in;
+  }
+  100% {
+    transform: translateY(1.4em) rotate(14deg) scale(0.8);
+    opacity: 0;
+  }
+}
+
+.fx[data-fx='maya'] .maya-cam-img {
+  filter: var(--maya-shadow);
+}
+
+.fx[data-fx='maya'] .maya-lens {
+  position: absolute;
+  left: 50%;
+  top: 56%;
+  width: 0.7em;
+  height: 0.7em;
+  margin: -0.35em 0 0 -0.35em;
+  border-radius: 50%;
+  background: radial-gradient(circle, white 0%, color-mix(in oklab, var(--maya-cream) 70%, transparent) 30%, transparent 68%);
+  opacity: 0;
+  transform: scale(0.2);
+  animation: maya-lens var(--maya-cycle) linear infinite !important;
+}
+
+@keyframes maya-lens {
+  0%,
+  43% {
+    opacity: 0;
+    transform: scale(0.2);
+    animation-timing-function: ease-out;
+  }
+  46% {
+    opacity: 1;
+    transform: scale(1.4);
+    animation-timing-function: ease-in;
+  }
+  56%,
+  100% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+
+.fx[data-fx='maya'] .maya-frame {
+  --x: 58%;
+  --y: calc(100% + 1em);
+  opacity: 0;
+  animation: maya-frame var(--maya-cycle) linear infinite !important;
+}
+
+.fx[data-fx='maya'] .maya-frame-img {
+  filter: grayscale(1) brightness(1.8) contrast(0.7) var(--maya-shadow);
+  animation: maya-develop var(--maya-cycle) linear infinite !important;
+}
+
+@keyframes maya-frame {
+  0%,
+  47% {
+    transform: translateY(-1em) rotate(-9deg) scale(0.6);
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1.3);
+  }
+  57% {
+    transform: translateY(0.1em) rotate(4deg) scale(1.05);
+    opacity: 1;
+    animation-timing-function: ease-in-out;
+  }
+  63% {
+    transform: translateY(-0.02em) rotate(-2deg) scale(1);
+    animation-timing-function: ease-in-out;
+  }
+  68% {
+    transform: translateY(0) rotate(-3deg) scale(1);
+    animation-timing-function: ease-in-out;
+  }
+  90% {
+    transform: translateY(0) rotate(-3deg) scale(1);
+    opacity: 1;
+    animation-timing-function: ease-in;
+  }
+  98%,
+  100% {
+    transform: translateY(0.3em) rotate(-6deg) scale(0.85);
+    opacity: 0;
+  }
+}
+
+/* the print develops: pale grey, then warm colour rising in */
+@keyframes maya-develop {
+  0%,
+  56% {
+    filter: grayscale(1) brightness(1.8) contrast(0.7) var(--maya-shadow);
+  }
+  70% {
+    filter: grayscale(0.6) brightness(1.3) contrast(0.85) var(--maya-shadow);
+  }
+  84%,
+  100% {
+    filter: grayscale(0) brightness(1) contrast(1) var(--maya-shadow);
+  }
+}
+
+/* ---- stay in this light: a warm leak washes across ------------------------------ */
+.fx[data-fx='maya']:has([data-word='light']) .fx-text {
+  animation: maya-glow var(--maya-cycle) var(--fx-ease-sine) infinite !important;
+}
+
+@keyframes maya-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0.12em color-mix(in oklab, var(--maya-amber) 34%, transparent));
+  }
+  40% {
+    filter: drop-shadow(0 0 0.42em color-mix(in oklab, var(--maya-orange) 70%, transparent));
+  }
+}
+
+.fx[data-fx='maya'] .maya-sweep {
+  --x: 0%;
+  --y: 50%;
+  opacity: 0;
+  animation: maya-sweep var(--maya-cycle) linear infinite !important;
+}
+
+@keyframes maya-sweep {
+  0%,
+  8% {
+    transform: translateX(-2.4em) rotate(-10deg) scale(0.8, 1);
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.3, 0.1, 0.5, 1);
+  }
+  20% {
+    opacity: 0.85;
+  }
+  48% {
+    opacity: 0.8;
+  }
+  70% {
+    transform: translateX(calc(var(--fx-w) + 0.8em)) rotate(-4deg) scale(1.3, 1);
+    opacity: 0;
+    animation-timing-function: linear;
+  }
+  100% {
+    transform: translateX(calc(var(--fx-w) + 0.8em)) rotate(-4deg) scale(1.3, 1);
+    opacity: 0;
+  }
+}
