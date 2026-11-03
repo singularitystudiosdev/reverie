@@ -13,18 +13,49 @@
   - bio.css owns the motion. By request it ignores prefers-reduced-motion: the
     word effects always play (bio.css overrides the global clamp).
 */
-import { useMemo, type CSSProperties, type JSX } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type JSX } from 'react';
+import { createPortal } from 'react-dom';
 import type { CharacterStyle } from '../../data/types';
 import { useFrameTheme } from '../../theme/ThemeProvider';
 import { atmosphereTints, getTheme } from '../../theme/themes';
 import '../../styles/bio.css';
 import { BioFx } from './bio';
-import { parseBio } from './bio/kinds';
+import { isCharacterFxId, parseBio } from './bio/kinds';
+
+/** What every character's opening cinematic receives. */
+export interface BioIntroProps {
+  /** The bio paragraph, so an intro can act on the text itself (slice it, freeze it, ignite it). */
+  bio: HTMLElement;
+  /** The frame element the intro is painted over (absolute, inset 0). */
+  frame: HTMLElement;
+}
+
+/* Opening cinematics, one per character: ./bio/custom/<id>.intro.tsx, default export. */
+const INTROS = import.meta.glob('./bio/custom/*.intro.tsx', { eager: true }) as Record<
+  string,
+  { default: (p: BioIntroProps) => JSX.Element | null }
+>;
+function introFor(id: string | null) {
+  return id ? INTROS[`./bio/custom/${id}.intro.tsx`]?.default ?? null : null;
+}
 
 export function AnimatedBio(props: { text: string; style: CharacterStyle }): JSX.Element {
   const { text, style } = props;
   const { themeId } = useFrameTheme();
   const segments = useMemo(() => parseBio(text), [text]);
+  // Her id is the one character tag in her own bio ({vesper:...}).
+  const ownerId = useMemo(() => {
+    for (const s of segments) if (s.type === 'fx' && isCharacterFxId(s.kind)) return s.kind;
+    return null;
+  }, [segments]);
+  const Intro = introFor(ownerId);
+  const bioRef = useRef<HTMLParagraphElement>(null);
+  const [hosts, setHosts] = useState<{ bio: HTMLElement; frame: HTMLElement } | null>(null);
+  useEffect(() => {
+    const bio = bioRef.current;
+    const frame = bio?.closest<HTMLElement>('[data-frame]') ?? null;
+    if (bio && frame) setHosts({ bio, frame });
+  }, []);
   const tint = atmosphereTints[themeId];
   const scheme = getTheme(themeId).scheme;
 
@@ -37,16 +68,27 @@ export function AnimatedBio(props: { text: string; style: CharacterStyle }): JSX
   } as CSSProperties;
 
   return (
-    <p
-      data-slot="profile-bio"
-      data-style={style}
-      data-scheme={scheme}
-      className="bio relative isolate max-w-[var(--measure)] text-body"
-      style={vars}
-    >
-      {segments.map((seg, i) =>
-        seg.type === 'fx' ? <BioFx key={i} kind={seg.kind} text={seg.text} /> : <span key={i}>{seg.text}</span>
-      )}
-    </p>
+    <>
+      <p
+        ref={bioRef}
+        data-slot="profile-bio"
+        data-style={style}
+        data-scheme={scheme}
+        className="bio relative isolate max-w-[var(--measure)] text-body"
+        style={vars}
+      >
+        {segments.map((seg, i) =>
+          seg.type === 'fx' ? <BioFx key={i} kind={seg.kind} text={seg.text} /> : <span key={i}>{seg.text}</span>
+        )}
+      </p>
+      {Intro && hosts
+        ? createPortal(
+            <div className="bio-intro pointer-events-none absolute inset-0 z-50 overflow-hidden" style={vars} aria-hidden="true">
+              <Intro bio={hosts.bio} frame={hosts.frame} />
+            </div>,
+            hosts.frame
+          )
+        : null}
+    </>
   );
 }
