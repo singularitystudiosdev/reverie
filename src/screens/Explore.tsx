@@ -9,7 +9,9 @@
   |drag|). A cancelled drag eases both back to 0 and leaves the next world
   armed; a commit gusts, then the new top card's theme is set (the engine
   promotes the armed preview). An empty deck is the base theme. While a match
-  moment shows, the overlay owns the theme.
+  moment shows, the overlay owns the theme, and the preview stays armed on the
+  top card (the deck has already advanced under it) so "Keep exploring"
+  promotes that decoded world instead of cold-crossfading to it.
 
   Entrance: the top card rises in, once, on the first visit (not under reduced
   motion).
@@ -48,11 +50,22 @@ export function Explore(): JSX.Element {
     else setTheme('base');
   }, [top, state.pendingMatchId, setTheme]);
 
-  // As soon as a second card exists, arm (and pre-decode) its world.
+  // Arm (and pre-decode) the world the frame goes to next, at weight 0. Order
+  // matters: this runs AFTER the focus-world effect above, because setTheme to
+  // the armed world is what promotes it, and re-arming first would replace it.
+  // - Normally that is the second card (drag-commit: the deck advances, the
+  //   effect above sets the new top's theme = the armed one, then this re-arms
+  //   the card behind it).
+  // - While a match moment shows, the liked card is already gone from the deck
+  //   and the overlay owns the theme, so the world to come back to is the top
+  //   card's. Arming the second card here would drop that world; on dismissal
+  //   (pendingMatchId clears, effect above sets top's theme, this re-arms the
+  //   second card) the engine promotes the armed top world instead.
+  const armTarget = state.pendingMatchId ? top : next;
   useEffect(() => {
-    if (next) setPreview(next.theme, next.scene, 0);
+    if (armTarget) setPreview(armTarget.theme, armTarget.scene, 0);
     else setPreview(null);
-  }, [next, setPreview]);
+  }, [armTarget, setPreview]);
 
   // Leaving Explore disarms the preview and releases the drag.
   useEffect(
@@ -66,7 +79,8 @@ export function Explore(): JSX.Element {
   // The deck advanced: the next card is now the top card, at rest.
   useLayoutEffect(() => {
     progress.set(0);
-  }, [top?.id, progress]);
+    setParam('drag', 0);
+  }, [top?.id, progress, setParam]);
 
   const onDrag = useCallback(
     (d: number) => {
