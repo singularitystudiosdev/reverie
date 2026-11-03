@@ -213,16 +213,6 @@ export function SwipeCard(props: SwipeCardProps): JSX.Element {
             <span className="font-display text-name">{character.name}</span>
             <span className="text-label text-(color:--deck-on-photo-soft)">{character.kind}</span>
             <span className="pt-4 text-body text-(color:--deck-on-photo)">{character.tagline}</span>
-            <span className="flex flex-wrap gap-8 pt-12">
-              {character.interests.map((interest) => (
-                <span
-                  key={interest}
-                  className="inline-flex h-[var(--deck-chip-h)] items-center rounded-12 bg-surface-strong px-8 text-caption text-ink"
-                >
-                  {interest}
-                </span>
-              ))}
-            </span>
           </span>
         </button>
 
