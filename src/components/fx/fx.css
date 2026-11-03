@@ -1,0 +1,93 @@
+/* fx.css: the rendered-effects player (v6). Imported by renderer.ts, FxSurface.tsx
+   and FxWords.tsx.
+
+   README: THE LAYER CONTRACT
+   ---------------------------------------------------------------------------
+   Every effect is a clip: a STACKED-ALPHA H.264 MP4 (colour in the top half of
+   the frame, the alpha mask as luma in the bottom half) made by
+   scripts/fx/render.mjs into public/fx/<id>/<clip>.mp4. A character unit adds
+   ONE file, src/components/fx/characters/<id>.ts:
+
+     import { defineCharacterFx } from '../types';
+     export default defineCharacterFx('cinder', {
+       cols: 2, rows: 2, gutter: 0.1,
+       cells: { closer: [0, 0], 'light up': [1, 0], burn: [0, 1], dare: [1, 1] },
+     });
+
+   The five clips (any may be missing; a missing one keeps v5's CSS effect):
+     intro   plays ONCE, full frame, zIndex 110        (Discord: loop false, start 0)
+     loop    seamless ambient, full frame, zIndex 100  (Discord: loop true, starts when
+             the intro ends; loopDelay is the blank between passes, default 0 =
+             native seamless loop, Discord used 3000)
+     frame   seamless transparent border art, zIndex 90
+     words   seamless cols x rows ATLAS: each cell holds one word's effect, zIndex 80
+     ring    seamless square avatar decoration, centre empty, zIndex 70
+
+   FxLayer { src, poster?, loop, duration (ms per pass, 0 = clip length), loopDelay? (ms),
+   zIndex?, cell?/cols?/rows? }. A layer list plays in order on ONE video: each
+   non-looping layer hands over to the next when it ends (or at `duration`).
+
+   Words: `cells` maps the lower-cased bio word to [col, row]. `gutter` is the
+   fraction of a cell left empty on every edge (paint >= 0.08 of key colour or
+   black); the sampler trims it so motion never crosses a cell edge. Each cell
+   is drawn ASPECT-PRESERVED and centred on its word, `scale` line heights
+   tall (default 3): paint each motif to read at 2 to 4 times the word's height.
+   YUV 4:2:0 smears colour across an edge, which is why the gutter exists.
+
+   How it draws: ONE WebGL2 context for the whole app, owned by ONE overlay
+   canvas (.fx-overlay) laid over [data-frame], above everything, pointer-events
+   none. Each FxSurface / FxWords / FxRing registers a rect and the cell it
+   samples; one pass draws every sprite, one instanced draw per clip. Rings and
+   words share one video + one texture per clip however many show it. In dev,
+   window.__fxContexts must read 1 (and <html data-fx-contexts="1">).
+
+   Rules: no reduced-motion branches (the app plays motion always); per-frame
+   parameters never write CSS custom properties; colour comes only from the
+   --t-* and --fx-* tokens (the clips carry their own pixels). */
+
+/* The overlay: the one canvas that owns the one GL context. */
+.fx-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2147483000;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* An anchor box a layer list is drawn into. */
+.fx-surface {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The transparent first-frame still, shown until the video presents a frame. */
+.fx-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+/* The avatar ring's anchor: the avatar's box grown by 10% a side (Discord's 288 on 240). */
+.fx-ring {
+  position: absolute;
+  inset: -10%;
+  pointer-events: none;
+}
+
+/* A tagged bio word that the atlas draws. It stays real, selectable text in
+   body flow; the effect is painted on the overlay at its rect. inline-block +
+   nowrap keeps one clean box per phrase, and it is NOT positioned, so the
+   paragraph stays the offsetParent that FxWords measures against. */
+.fxw {
+  display: inline-block;
+  white-space: nowrap;
+  color: var(--fx-word, var(--t-accent));
+  font-weight: var(--fx-weight, 500);
+}

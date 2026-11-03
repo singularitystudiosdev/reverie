@@ -7,9 +7,9 @@
   - The input is 16px (no iOS zoom), Enter sends (form submit).
   - The send button (accent circle, arrow up) scales in once there is text:
     a snappy spring on scale, opacity tweened; reduced motion fades only.
-  - Focus: ONE indication. The pill carries a 2px accent ring on :focus-within,
-    inset so it hugs the pill's own radius. The input itself draws no outline
-    (the pill's ring is its focus indication).
+  - Focus: no ring and no outline anywhere. On :focus-within the whole pill
+    (the + button and the field are one surface) darkens toward ink by
+    --composer-focus-mix, on the quick duration.
 */
 import { clsx } from 'clsx';
 import { ArrowUp, Plus, X } from 'lucide-react';
@@ -89,7 +89,8 @@ export function Composer(props: { name: string; onSend(text: string): void }): J
         onSubmit={submit}
         className={clsx(
           'flex items-center gap-4 rounded-full border border-hairline bg-surface-strong p-4 text-ink backdrop-blur-[var(--blur-ui)]',
-          'focus-within:ring-[length:var(--focus-ring-width)] focus-within:ring-inset focus-within:ring-accent'
+          'transition-[background-color] duration-[var(--duration-150)] ease-standard',
+          'focus-within:bg-[color-mix(in_oklab,var(--t-surface-strong),var(--t-ink)_var(--composer-focus-mix))]'
         )}
       >
         <button

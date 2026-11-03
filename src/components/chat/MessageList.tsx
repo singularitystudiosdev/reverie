@@ -1,8 +1,8 @@
 /*
   The conversation: her bubbles left on her surface, mine right on `me`
   (radius-20, 16px body), the grouped card message, her video message (a
-  rounded 9:16 clip: poster until played, muted, playsInline, tap to pause,
-  no caption line under it in v4), and the typing bubble.
+  rounded 9:16 clip: autoplays muted and looped while on screen, tap to pause
+  or resume, no caption line under it in v4), and the typing bubble.
   - Arrival is an event, not an entrance: a text bubble that lands after mount
     springs in (scale .92 to 1 from its own side, a slight rise); a clip or
     card group fades up; the history present at mount renders still. The typing
@@ -17,7 +17,6 @@
     hidden status line, not the dots.
 */
 import { clsx } from 'clsx';
-import { Play } from 'lucide-react';
 import { AnimatePresence, motion, type TargetAndTransition } from 'motion/react';
 import { useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react';
 import type { Character, Message } from '../../data/types';
@@ -173,33 +172,50 @@ function MessageBody(props: { message: Message; character: Character; fresh: boo
 }
 
 /**
- * Her clip: a 9:16 video message, about 220px wide, radius-20. The poster is
- * what shows until the user presses play; the clip is muted and playsInline
- * with no controls chrome. Tap the frame to play or pause. It never autoplays
- * (so reduced motion always gets the poster and a play button). The bubble is
- * the video alone: v4 removed the caption line that used to sit under it.
+ * Her clip: a 9:16 video message, about 220px wide, radius-20. It autoplays
+ * muted, looped and inline while it is on screen (IntersectionObserver) and
+ * pauses when it scrolls away; there is no play badge. The poster sits under
+ * the video until the first frame plays. A tap pauses it, and a second tap
+ * resumes it; a clip the user paused stays paused until they tap it again. The
+ * bubble is the video alone: v4 removed the caption line under it.
  */
 function VideoBubble(props: { message: Message; name: string; reduce: boolean }): JSX.Element {
   const { message, name, reduce } = props;
+  const frame = useRef<HTMLButtonElement>(null);
   const video = useRef<HTMLVideoElement>(null);
-  const [started, setStarted] = useState(false);
+  const onScreen = useRef(false);
+  const heldByUser = useRef(false);
+  const [shown, setShown] = useState(false);
   const [playing, setPlaying] = useState(false);
+
+  const play = () => {
+    void video.current?.play().catch(() => undefined);
+  };
+
+  useEffect(() => {
+    const el = frame.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        onScreen.current = entry?.isIntersecting ?? false;
+        if (onScreen.current && !heldByUser.current) play();
+        else video.current?.pause();
+      },
+      { threshold: 0.4 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const toggle = () => {
     const el = video.current;
     if (!el) return;
     if (el.paused) {
-      setStarted(true);
-      void el
-        .play()
-        .then(() => setPlaying(true))
-        .catch(() => {
-          setStarted(false);
-          setPlaying(false);
-        });
+      heldByUser.current = false;
+      play();
     } else {
+      heldByUser.current = true;
       el.pause();
-      setPlaying(false);
     }
   };
 
@@ -214,6 +230,7 @@ function VideoBubble(props: { message: Message; name: string; reduce: boolean })
       className="w-224 overflow-hidden rounded-20 border border-hairline bg-surface shadow-8"
     >
       <button
+        ref={frame}
         type="button"
         onClick={toggle}
         aria-label={label}
@@ -240,29 +257,16 @@ function VideoBubble(props: { message: Message; name: string; reduce: boolean })
           muted
           playsInline
           loop
-          preload="metadata"
+          preload="auto"
+          onPlaying={() => setShown(true)}
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
-          onError={() => {
-            setStarted(false);
-            setPlaying(false);
-          }}
+          onError={() => setPlaying(false)}
           className={clsx(
             'absolute inset-0 size-full object-cover transition-opacity duration-[var(--duration-150)] ease-standard',
-            started ? 'opacity-100' : 'opacity-0'
+            shown ? 'opacity-100' : 'opacity-0'
           )}
         />
-        <span
-          aria-hidden="true"
-          className={clsx(
-            'absolute inset-0 grid place-items-center bg-[color-mix(in_oklab,var(--t-ink)_16%,transparent)] transition-opacity duration-[var(--duration-150)] ease-standard',
-            playing ? 'opacity-0' : 'opacity-100'
-          )}
-        >
-          <span className="grid size-[var(--target-touch)] place-items-center rounded-full bg-surface-strong/90 text-ink shadow-8">
-            <Play aria-hidden="true" className="size-20 translate-x-1" />
-          </span>
-        </span>
       </button>
     </motion.div>
   );
