@@ -1,15 +1,28 @@
-// STUB: replaced by the explore unit
 /*
-  The top card of the deck with pass (X) and like (check). Tap the card for
-  her profile. Focus theme: the top card's theme + scene; 'base' when the deck
-  is empty. While a match moment shows, the overlay owns the theme.
+  Explore: the swipe deck. A title, the style filter, the top card with the
+  next one behind it, and two round buttons (X passes, check likes), the only
+  two actions. Drag the card, tap the buttons, or press Left / Right.
+
+  Atmosphere (RTPC): the top card's world is the frame's theme. While the top
+  card is dragged, `drag` follows its offset over the commit threshold and the
+  next card's world shows through under the finger (setPreview weight =
+  |drag|). A cancelled drag eases both back to 0 and leaves the next world
+  armed; a commit gusts, then the new top card's theme is set (the engine
+  promotes the armed preview). An empty deck is the base theme. While a match
+  moment shows, the overlay owns the theme.
+
+  Entrance: the top card rises in, once, on the first visit (not under reduced
+  motion).
 */
 import { Check, X } from 'lucide-react';
-import { useEffect, useState, type JSX } from 'react';
-import { artSize } from '../data/characters';
-import type { Character } from '../data/types';
+import { motion, useMotionValue, useReducedMotion } from 'motion/react';
+import { useCallback, useEffect, useLayoutEffect, useRef, type JSX } from 'react';
+import { EmptyDeck } from '../components/explore/EmptyDeck';
+import { StyleFilter } from '../components/explore/StyleFilter';
+import { SwipeCard, type SwipeCardHandle } from '../components/explore/SwipeCard';
+import { deckConfig, type SwipeDir } from '../components/explore/deckConfig';
 import { cn } from '../lib/cn';
-import { pulseStrength } from '../lib/motion';
+import { dur, ease, pulseStrength, spring } from '../lib/motion';
 import { useApp, useDeck } from '../state/store';
 import { useFrameTheme } from '../theme/ThemeProvider';
 
@@ -18,57 +31,152 @@ export function Explore(): JSX.Element {
   const deck = useDeck();
   const top = deck[0];
   const next = deck[1];
-  const { setTheme, setPreview, pulse } = useFrameTheme();
+  const { setTheme, setPreview, setParam, pulse } = useFrameTheme();
+  const reduce = useReducedMotion() ?? false;
 
+  const progress = useMotionValue(0);
+  const topHandle = useRef<SwipeCardHandle>(null);
+  const entered = useRef(false);
+  useEffect(() => {
+    entered.current = true;
+  }, []);
+
+  // The focus world: the top card's, or base when the deck is empty.
   useEffect(() => {
     if (state.pendingMatchId) return;
     if (top) setTheme(top.theme, top.scene);
     else setTheme('base');
   }, [top, state.pendingMatchId, setTheme]);
 
-  // RTPC: as soon as a second card exists, arm (and pre-decode) her world.
+  // As soon as a second card exists, arm (and pre-decode) its world.
   useEffect(() => {
     if (next) setPreview(next.theme, next.scene, 0);
     else setPreview(null);
   }, [next, setPreview]);
 
-  // Leaving Explore disarms the preview.
-  useEffect(() => () => setPreview(null), [setPreview]);
+  // Leaving Explore disarms the preview and releases the drag.
+  useEffect(
+    () => () => {
+      setPreview(null);
+      setParam('drag', 0);
+    },
+    [setPreview, setParam]
+  );
 
-  // A card committed off the deck: gust first, then the store moves on and
-  // the theme effect above promotes the next world.
-  const commit = (decide: (id: string) => void, id: string) => {
+  // The deck advanced: the next card is now the top card, at rest.
+  useLayoutEffect(() => {
+    progress.set(0);
+  }, [top?.id, progress]);
+
+  const onDrag = useCallback(
+    (d: number) => {
+      setParam('drag', d);
+      progress.set(Math.abs(d));
+      if (next) setPreview(next.theme, next.scene, Math.abs(d));
+    },
+    [next, progress, setParam, setPreview]
+  );
+
+  const onCommitStart = useCallback(() => {
     pulse('gust', pulseStrength.cardCommit);
-    decide(id);
-  };
+  }, [pulse]);
+
+  const decide = useCallback(
+    (id: string, dir: SwipeDir) => {
+      if (dir === 'like') actions.like(id);
+      else actions.pass(id);
+    },
+    [actions]
+  );
+
+  // Left = pass, Right = like: a 150ms fade only, no fly.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      if (!top || state.pendingMatchId || state.profileId) return;
+      const target = e.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+      ) {
+        return;
+      }
+      e.preventDefault();
+      topHandle.current?.swipe(e.key === 'ArrowRight' ? 'like' : 'pass', 'fade');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [top, state.pendingMatchId, state.profileId]);
+
+  const cards = deck.slice(0, 2);
+  const rise = !reduce && !entered.current;
 
   return (
-    <section aria-labelledby="explore-title" className="flex h-full flex-col pt-[var(--statusbar-h)] pb-[var(--tabbar-h)]">
-      <header className="safe-x pt-16 pb-12">
-        <h1 id="explore-title" className="font-display text-title">
+    <section
+      aria-labelledby="explore-title"
+      inert={!!state.pendingMatchId}
+      className={cn(
+        'flex h-full flex-col pt-[var(--statusbar-h)] pb-[var(--tabbar-h)]',
+        // The match moment owns the frame: the deck steps back behind it.
+        'transition-opacity duration-[var(--duration-300)] ease-standard motion-reduce:transition-none',
+        state.pendingMatchId && 'opacity-0'
+      )}
+    >
+      <header className="safe-x pt-16 pb-8">
+        <h1 id="explore-title" className="font-display text-title text-ink">
           Explore
         </h1>
       </header>
+      <StyleFilter value={state.filter} onChange={actions.setFilter} />
 
       {top ? (
         <>
-          <div className="safe-x min-h-0 flex-1">
-            <TopCard key={top.id} character={top} onOpen={() => actions.openProfile(top.id)} />
-          </div>
-          <div className="flex items-center justify-center gap-24 pt-16">
+          <motion.div
+            className="safe-x min-h-0 flex-1 pt-12 pb-[var(--deck-peek)]"
+            initial={rise ? { opacity: 0, y: deckConfig.riseY } : false}
+            animate={{
+              opacity: 1,
+              y: 0,
+              transition: {
+                opacity: { duration: dur.base, ease: ease.enter },
+                y: spring.gentle,
+              },
+            }}
+          >
+            <div className="relative size-full">
+              {cards.map((c, i) => (
+                <SwipeCard
+                  key={c.id}
+                  ref={i === 0 ? topHandle : undefined}
+                  character={c}
+                  isTop={i === 0}
+                  progress={progress}
+                  onDrag={onDrag}
+                  onCommitStart={onCommitStart}
+                  onDecide={(dir) => decide(c.id, dir)}
+                  onOpen={() => actions.openProfile(c.id)}
+                />
+              ))}
+            </div>
+          </motion.div>
+          <p aria-live="polite" className="sr-only">
+            {`${top.name}, ${top.kind}`}
+          </p>
+          <div className="flex items-center justify-center gap-24 pt-12 pb-12">
             <button
               type="button"
               aria-label={`Pass on ${top.name}`}
-              onClick={() => commit(actions.pass, top.id)}
-              className="grid size-[var(--deck-button)] place-items-center rounded-full border border-hairline bg-surface-strong text-ink"
+              onClick={() => topHandle.current?.swipe('pass', 'fly')}
+              className="grid size-[var(--deck-button)] place-items-center rounded-full border border-hairline bg-surface-strong text-ink transition-opacity duration-[var(--duration-150)] ease-standard active:opacity-80"
             >
               <X aria-hidden="true" className="size-24" />
             </button>
             <button
               type="button"
               aria-label={`Like ${top.name}`}
-              onClick={() => commit(actions.like, top.id)}
-              className="grid size-[var(--deck-button)] place-items-center rounded-full bg-accent text-on-accent"
+              onClick={() => topHandle.current?.swipe('like', 'fly')}
+              className="grid size-[var(--deck-button)] place-items-center rounded-full bg-accent text-on-accent transition-opacity duration-[var(--duration-150)] ease-standard active:opacity-80"
             >
               <Check aria-hidden="true" className="size-24" />
             </button>
@@ -78,60 +186,5 @@ export function Explore(): JSX.Element {
         <EmptyDeck />
       )}
     </section>
-  );
-}
-
-function TopCard(props: { character: Character; onOpen: () => void }): JSX.Element {
-  const { character, onOpen } = props;
-  const [loaded, setLoaded] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      aria-label={`${character.name}, view profile`}
-      className="relative block size-full overflow-hidden rounded-20 border border-hairline bg-surface text-left"
-    >
-      <img
-        src={character.portrait}
-        alt=""
-        width={artSize.full.width}
-        height={artSize.full.height}
-        decoding="async"
-        loading="eager"
-        fetchPriority="high"
-        draggable={false}
-        onLoad={() => setLoaded(true)}
-        className={cn(
-          'absolute inset-0 size-full object-cover transition-opacity duration-[var(--duration-150)] ease-standard',
-          loaded ? 'opacity-100' : 'opacity-0'
-        )}
-      />
-      <span className="absolute inset-x-0 bottom-0 flex flex-col gap-4 bg-surface-strong px-16 py-12">
-        <span className="font-display text-title text-ink">{character.name}</span>
-        <span className="text-label font-normal text-muted">{character.tagline}</span>
-      </span>
-    </button>
-  );
-}
-
-function EmptyDeck(): JSX.Element {
-  const { state, actions } = useApp();
-  const empty =
-    state.filter !== 'All'
-      ? { text: `No ${state.filter} characters left in your deck.`, action: 'Show everyone', run: () => actions.setFilter('All') }
-      : state.passedIds.length > 0
-        ? { text: "You've seen everyone for now. Bring back the ones you passed.", action: 'See them again', run: actions.resetDeck }
-        : { text: "You've matched with everyone. Your chats are waiting.", action: 'Open Chats', run: () => actions.setTab('chats') };
-  return (
-    <div className="safe-x flex flex-1 flex-col items-center justify-center gap-16 text-center">
-      <p className="text-body text-muted">{empty.text}</p>
-      <button
-        type="button"
-        onClick={empty.run}
-        className="min-h-[var(--target)] rounded-full bg-accent px-16 text-label text-on-accent"
-      >
-        {empty.action}
-      </button>
-    </div>
   );
 }
