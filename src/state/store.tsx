@@ -63,18 +63,6 @@ export interface AppActions {
 /* ---------------------------------------------------------------- persistence */
 
 const STORAGE_KEY = 'reverie:v3';
-const STORAGE_VERSION = 3;
-
-interface Persisted {
-  v: typeof STORAGE_VERSION;
-  matchIds: string[];
-  passedIds: string[];
-  conversations: Record<string, Conversation>;
-  lastChatId: string | null;
-  pendingMatches: PendingMatch[];
-  hasMatchedBefore: boolean;
-  sentClipIds: string[];
-}
 
 type Saved = Pick<
   AppState,
@@ -92,21 +80,6 @@ function fresh(): Saved {
     hasMatchedBefore: false,
     sentClipIds: [],
   };
-}
-
-function isStringArray(v: unknown): v is string[] {
-  return Array.isArray(v) && v.every((x) => typeof x === 'string');
-}
-
-function isPendingMatch(v: unknown): v is PendingMatch {
-  if (!v || typeof v !== 'object') return false;
-  const p = v as Partial<PendingMatch>;
-  return typeof p.characterId === 'string' && typeof p.at === 'number' && Number.isFinite(p.at);
-}
-
-function openerMessage(id: string): Message | null {
-  const c = getCharacter(id);
-  return c ? { id: makeId('her'), from: 'her', kind: 'text', text: c.opener, at: Date.now() } : null;
 }
 
 /** Her clip, the video message she sends once after the user's first message.
@@ -132,88 +105,15 @@ interface Loaded extends Saved {
 
 const emptyLoad = (): Loaded => ({ ...fresh(), notices: [], resuming: [] });
 
+/** Every reload starts as a new user (the user's call): nothing is read
+ *  back, and any data an earlier build saved is cleared. */
 function load(): Loaded {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return emptyLoad();
-    const p = JSON.parse(raw) as Partial<Persisted> | null;
-    if (
-      !p ||
-      p.v !== STORAGE_VERSION ||
-      !isStringArray(p.matchIds) ||
-      !isStringArray(p.passedIds) ||
-      typeof p.conversations !== 'object' ||
-      p.conversations === null
-    ) {
-      return emptyLoad();
-    }
-    // Drop ids that no longer exist in the roster; every match keeps a conversation.
-    const matchIds = p.matchIds.filter((id) => getCharacter(id) && p.conversations?.[id]);
-    const passedIds = p.passedIds.filter((id) => getCharacter(id) && !matchIds.includes(id));
-    const conversations: Record<string, Conversation> = {};
-    for (const id of matchIds) {
-      const c = p.conversations[id];
-      if (!c || !Array.isArray(c.messages)) return emptyLoad();
-      // A reload while she was still typing her opener: deliver it now.
-      const opener = c.messages.length === 0 ? openerMessage(id) : null;
-      conversations[id] = opener
-        ? { characterId: id, messages: [opener], unread: 1 }
-        : { characterId: id, messages: c.messages, unread: Number(c.unread) || 0 };
-    }
-
-    // Pending likes survive the reload. Any whose time has already passed
-    // resolve now: an empty chat with her typing, the chat moved to lastChatId,
-    // and a match notification. The provider delivers her
-    // opener after the typing delay (resuming).
-    const now = Date.now();
-    const pendingMatches: PendingMatch[] = [];
-    const notices: string[] = [];
-    const resuming: string[] = [];
-    const rawPending = Array.isArray(p.pendingMatches) ? p.pendingMatches : [];
-    for (const entry of rawPending) {
-      if (!isPendingMatch(entry)) continue;
-      const id = entry.characterId;
-      if (!getCharacter(id) || matchIds.includes(id)) continue;
-      if (conversations[id]) continue;
-      if (entry.at <= now) {
-        conversations[id] = { characterId: id, messages: [], unread: 0 };
-        matchIds.unshift(id);
-        notices.push(id);
-        resuming.push(id);
-      } else {
-        pendingMatches.push({ characterId: id, at: entry.at });
-      }
-    }
-
-    const lastChatId =
-      typeof p.lastChatId === 'string' && matchIds.includes(p.lastChatId)
-        ? p.lastChatId
-        : notices[0] ?? (matchIds[0] ?? null);
-    const hasMatchedBefore = p.hasMatchedBefore === true || matchIds.length > 0 || pendingMatches.length > 0;
-    const sentClipIds = isStringArray(p.sentClipIds) ? p.sentClipIds.filter((id) => getCharacter(id)) : [];
-    return {
-      matchIds,
-      passedIds,
-      conversations,
-      lastChatId,
-      pendingMatches,
-      hasMatchedBefore,
-      sentClipIds,
-      notices,
-      resuming,
-    };
+    window.localStorage.removeItem(STORAGE_KEY);
   } catch {
-    return emptyLoad();
+    // Storage blocked (private mode): nothing to clear.
   }
-}
-
-function save(s: Saved) {
-  try {
-    const data: Persisted = { v: STORAGE_VERSION, ...s };
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch {
-    // Storage full or blocked (private mode): the session still works in memory.
-  }
+  return emptyLoad();
 }
 
 /**
@@ -541,25 +441,6 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
   const clipScheduled = useRef<Record<string, boolean>>({});
   const clipTimers = useRef<Record<string, number>>({});
 
-  useEffect(() => {
-    save({
-      matchIds: state.matchIds,
-      passedIds: state.passedIds,
-      conversations: state.conversations,
-      lastChatId: state.lastChatId,
-      pendingMatches: state.pendingMatches,
-      hasMatchedBefore: state.hasMatchedBefore,
-      sentClipIds: state.sentClipIds,
-    });
-  }, [
-    state.matchIds,
-    state.passedIds,
-    state.conversations,
-    state.lastChatId,
-    state.pendingMatches,
-    state.hasMatchedBefore,
-    state.sentClipIds,
-  ]);
 
   /** She types, then her opener lands; unread bumps when it does (unless open). */
   const deliverOpener = useCallback((id: string) => {
@@ -607,7 +488,7 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
     for (const id of ids) deliverOpener(id);
   }, [state.resumingIds, deliverOpener]);
 
-  // Schedule every pending match from its own `at`; a reload keeps the time.
+  // Schedule every pending match from its own `at`.
   // Ids that left the pending list get their timer cleared.
   useEffect(() => {
     const now = Date.now();
@@ -628,7 +509,7 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
   }, [state.pendingMatches, resolveMatch]);
 
   // Catch-up: a chat where the user already spoke but her clip never landed
-  // (a reload during the 1.5s window, or an older conversation) still gets it,
+  // (a chat that changed during the 1.5s window) still gets it,
   // once. The live send() path marks `clipScheduled` first, so this never
   // races her reply text.
   useEffect(() => {
