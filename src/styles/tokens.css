@@ -263,19 +263,49 @@
   --glass-lens-mix: 28%;                    /* accent share in the lens */
   --glass-accent-mix: 36%;                  /* accent share in the accent variant */
   --glass-rim-top: rgba(255, 255, 255, 0.7);
+  --glass-rim-top-refract: rgba(255, 255, 255, 0.45);   /* the map paints the rim; the hairline only catches the edge */
   --glass-rim-hairline: rgba(255, 255, 255, 0.24);
+  --glass-rim-hairline-refract: rgba(255, 255, 255, 0.14);
   --glass-rim-bottom-mix: 16%;              /* ink share in the lower edge */
   --glass-lens-rim: rgba(255, 255, 255, 0.85);
   --glass-shadow: rgba(8, 6, 12, 0.22);
-  --glass-sheen: rgba(255, 255, 255, 0.5);
+  --glass-sheen: rgba(255, 255, 255, 0.32);
   --glass-sheen-shift: 14%;                 /* how far the sheen slides on hover and press */
   --glass-halo-mix: 60%;                    /* canvas share in the halo behind text and icons */
-  --glass-solid-mix: 82%;                   /* surface-strong share when transparency is reduced */
+  --glass-solid-mix: 100%;                  /* opaque: reduced transparency shows nothing through */
   --glass-press-mix: 44%;                   /* accent share while a glass button is pressed */
   --glass-rim: 1px;
   --glass-halo-blur: 6px;
   --glass-sheen-image: radial-gradient(120% 90% at 18% 0%, var(--glass-sheen), transparent 60%);
   --glass-lens-sheen: linear-gradient(to bottom, var(--glass-sheen), transparent 55%);
+  --glass-lens-wash: linear-gradient(165deg, var(--glass-lens-glow), transparent 55%);
+
+  /* Liquid glass optics. Each pane's displacement map is generated from its own
+     rounded-rect geometry (src/components/glass), so these numbers describe a
+     profile, not a fixed raster: they are mixed with the element's size and
+     radius when the map is drawn. */
+  --glass-lens-band: 16px;                  /* how deep the rim's bend reaches into the pane */
+  --glass-lens-depth: 6px;                  /* peak backdrop sample shift at the rim */
+  --glass-lens-dispersion: 0.16;            /* red/cyan scale split: the chromatic fringe (12 * 0.16 = 1.9px at the rim) */
+  --glass-lens-bend-power: 1.6;             /* curvature of the bend's falloff, 1 = linear */
+  --glass-lens-rim-sharp: 1.25px;           /* falloff of the 1px specular line */
+  --glass-lens-rim-soft: 6px;               /* falloff of the softer bevel glow */
+  --glass-lens-rim: 0.68;                   /* specular opacity at the lit rim */
+  --glass-lens-ambient: 0.18;               /* rim light on the unlit side */
+  --glass-lens-facing-power: 1.8;           /* how tightly the rim gathers on the light side */
+  --glass-lens-soft-share: 0.28;            /* share of the soft glow in the rim */
+  --glass-lens-ring: 0.45;                  /* uniform edge ring that the motion shift exposes */
+  --glass-lens-band-ratio: 0.28;            /* band is never deeper than this share of the short side */
+  --glass-lens-size-ref: 56px;              /* depth scales down below this short side */
+  --glass-lens-ring-center: 1.2px;          /* the ring sits this far inside the edge */
+  --glass-lens-ring-width: 1px;             /* gaussian width of the ring */
+  --glass-lens-margin: 6px;                 /* neutral border in the map, room for the shift */
+  --glass-lens-shift: 3px;                  /* how far a press or a sliding lens moves the map */
+  --glass-refract-blur: 0.75px;             /* the refracting pane stays clear, not frosted */
+  --glass-refract-saturate: 1.35;
+  --glass-refract-brightness: 1.04;
+  --glass-lens-glow: rgba(255, 255, 255, 0.12); /* inner bloom of the active-tab lens */
+  --glass-lens-glow-blur: 12px;
 
   /* Scrim under sheets, drawer and the match moment (judgment: Fluent Smoke
      opacity is unpublished) */

@@ -1,23 +1,31 @@
 /*
-  The refraction filter behind .liquid-glass (glass.css): one hidden inline
-  <svg>, rendered once in App. `#lg-refract` bends the backdrop with a low
-  frequency noise through a displacement map, then softens the result a hair
-  so the bend reads as glass, not as noise. Where the browser cannot run an SVG
-  filter as a backdrop filter, glass.css never references it. Zero size and
-  absolutely positioned, not display:none (a display:none <svg> drops its filters).
-*/
-import type { JSX } from 'react';
+  The refraction filters behind .liquid-glass (glass.css).
 
-/** Filter numbers: simulation constants of the refraction, not design values. */
-const noiseFrequency = '0.012 0.018';
-const noiseOctaves = 2;
-const noiseSeed = 7;
-const bendScale = 14;
-const softness = 0.6;
+  Each pane gets its own filter, generated at runtime from that pane's measured
+  geometry by src/components/glass/engine.ts. This component only owns the one
+  hidden <svg> those filters live in, and starts the engine after mount. The
+  zero-size, absolutely positioned svg is not display:none: a display:none
+  <svg> drops its filters.
+
+  #lg-refract is the identity probe the @supports test in glass.css names, and
+  the safe fallback if an attribute is ever set without its filter. It is not
+  the material: the real filters are #lg-refract-<n>.
+*/
+import { useEffect, useRef, type JSX } from 'react';
+import { startGlassEngine } from './glass/engine';
 
 export function LiquidGlassDefs(): JSX.Element {
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  useEffect(() => {
+    const defs = svgRef.current?.querySelector('defs');
+    if (!defs) return;
+    return startGlassEngine(defs);
+  }, []);
+
   return (
     <svg
+      ref={svgRef}
       aria-hidden="true"
       focusable="false"
       width="0"
@@ -25,16 +33,8 @@ export function LiquidGlassDefs(): JSX.Element {
       className="pointer-events-none absolute size-0 overflow-hidden"
     >
       <defs>
-        <filter id="lg-refract" x="0%" y="0%" width="100%" height="100%" colorInterpolationFilters="sRGB">
-          <feTurbulence
-            type="fractalNoise"
-            baseFrequency={noiseFrequency}
-            numOctaves={noiseOctaves}
-            seed={noiseSeed}
-            result="noise"
-          />
-          <feGaussianBlur in="noise" stdDeviation={softness} result="smooth" />
-          <feDisplacementMap in="SourceGraphic" in2="smooth" scale={bendScale} xChannelSelector="R" yChannelSelector="G" />
+        <filter id="lg-refract" x="0%" y="0%" width="100%" height="100%">
+          <feOffset in="SourceGraphic" dx="0" dy="0" />
         </filter>
       </defs>
     </svg>

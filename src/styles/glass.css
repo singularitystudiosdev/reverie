@@ -1,26 +1,75 @@
 /* glass.css: ONE "liquid glass" material for the few floating controls (the
-   tab bar, the chat header's round menu button, the swipe X and check). After
-   Apple's Liquid Glass: a clear, refractive pane that bends what is behind it,
-   with a bright specular rim, not a flat frosted blur.
+   tab bar, the chat header's round menu button, the swipe X and check).
 
-   - .liquid-glass         the pane. Blur + saturate + brighten the live
-                           atmosphere behind; where the browser can run an SVG
-                           filter as a backdrop filter (Chromium), the
-                           backdrop is also refracted (#lg-refract, defined
-                           once by LiquidGlassDefs). A faint tint of the theme's
-                           surface, a specular rim from inset shadows, and a
-                           sheen that slides a little on hover and press.
-   - .liquid-glass-lens    the active-tab indicator: a brighter, accent-tinted
-                           lens with a stronger rim. It sits INSIDE a pane (a
-                           backdrop filter inside a backdrop filter sees only
-                           its parent), so it is a tint, not a second blur.
-   - .liquid-glass--accent an accent-tinted pane, for the like (check) button.
+   WHAT IT IS NOW
+   The pane is a real refractive lens, not a frosted pane with painted rims.
+   For every element wearing .liquid-glass, src/components/glass draws a
+   displacement map from that element's own rounded-rect geometry (size and
+   border-radius), installs it in a generated SVG filter, and points the pane
+   at it through --glass-refract. The filter runs as a *backdrop* filter:
+   feDisplacementMap bends the content behind the pane at the rim, two passes a
+   hair apart in scale split red from green+blue for a 1-2px chromatic fringe,
+   and the map's rim channel lights a specular edge that is brightest on the
+   top-left. See src/components/glass/{geometry,filter}.ts for the graph.
 
+   SOURCES
+   - Apple, WWDC25 session 219 "Meet Liquid Glass": the material's primary
+     definition is Lensing, "dynamically bends, shapes, and concentrates light
+     in real time"; it has a highlights layer that "responds to geometry", and
+     on interaction "the material illuminates from within". Reduced
+     Transparency makes it frostier; Reduced Motion disables its elastic
+     behaviour. Those four sentences are the four rules below.
+   - Apple, WWDC25 session 356 "Get to know the new design system": glass
+     controls take their shape from the surface they sit in (concentricity),
+     which is why the map is generated from each pane's own radius instead of
+     one shared filter.
+   - shuding/liquid-glass (github.com/shuding/liquid-glass, liquid-glass.js):
+     the web technique this follows: a rounded-rect SDF rasterised to a canvas,
+     its per-pixel shift encoded around 128 in R (x) and G (y), used as an
+     feImage map for feDisplacementMap, referenced as
+     `backdrop-filter: url(#filter) blur(...)`, with filterUnits userSpaceOnUse
+     sized to the element.
+   - MDN backdrop-filter: the property takes a <filter-value-list>, so a
+     reference filter and filter functions can be chained in one value.
+   - WebKit bug 245510: WebKit accepts `backdrop-filter: url(#f)` but does not
+     paint SVG filters such as feDisplacementMap behind the element. The
+     @supports gate below therefore excludes WebKit (and browsers that share
+     its behaviour), which keep the plain blur pane. Chromium renders it; that
+     is what the screenshots in .tmp/reverie-shots show.
+
+   WHAT STAYS THE SAME
+   The class API: .liquid-glass, .liquid-glass-lens, .liquid-glass--accent.
+   The blur pane is still the declaration set every browser gets first; the
+   refracting chain only replaces the paint properties of panes the engine has
+   successfully mapped (data-glass-refract). Nothing here changes layout: the
+   fallback and the glass version have the same box, padding and radius.
+
+   MOTION
+   --glass-x / --glass-y are the pane's motion axes (registered lengths). The
+   engine moves them toward a press, or toward the direction the tab lens is
+   sliding, and mirrors them into the filter's feOffset: the bend and the rim
+   ring travel, so the leading edge catches the light. Reduced motion pins both
+   to 0px. The painted sheen follows the same axes so the light and the
+   highlight do not come apart.
+
+   TEXT
    Text and icons on glass use the theme ink with a soft halo of the canvas
-   colour, so they stay legible over light and dark worlds alike. Budget:
-   glass ONLY on those few controls, never on bubbles, rows, sheets or cards.
+   colour, so they stay legible over light and dark worlds alike. Budget: glass
+   ONLY on those few controls, never on bubbles, rows, sheets or cards.
    Rules live in @layer components so a Tailwind utility (absolute, size-*)
    always wins over them. Every number is a token (tokens.css, --glass-*). */
+
+@property --glass-x {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --glass-y {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
 
 @layer components {
   .liquid-glass,
@@ -31,11 +80,15 @@
 
   .liquid-glass {
     --glass-sheen-x: 0%;
+    --glass-x: 0px;
+    --glass-y: 0px;
     position: relative;
     isolation: isolate;
     overflow: clip;
     color: var(--t-ink);
     background-color: color-mix(in oklab, var(--t-surface-strong) var(--glass-tint), transparent);
+    /* The fallback pane: a frost that keeps legibility where the browser
+       cannot run a reference filter behind an element. */
     -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate))
       brightness(var(--glass-brightness));
     backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate))
@@ -52,8 +105,10 @@
     filter: drop-shadow(0 0 var(--glass-halo-blur) var(--glass-halo));
   }
 
-  /* The sheen: a soft highlight at the top left that slides with the pointer
-     state. Under the content (z-index -1 inside the isolated pane), transform only. */
+  /* The painted sheen: a broad wash of light at the top left, under the
+     content. It is not the specular edge (the filter lights that); it keeps the
+     pane from going dead when the backdrop behind it is flat. It follows the
+     motion axes so the wash and the real highlight travel together. */
   .liquid-glass::before {
     content: '';
     position: absolute;
@@ -62,7 +117,7 @@
     border-radius: inherit;
     pointer-events: none;
     background-image: var(--glass-sheen-image);
-    transform: translateX(var(--glass-sheen-x));
+    transform: translate3d(calc(var(--glass-sheen-x) + var(--glass-x)), var(--glass-y), 0);
     transition: transform var(--duration-250) var(--ease-standard);
   }
 
@@ -70,7 +125,8 @@
     --glass-sheen-x: var(--glass-sheen-shift);
   }
 
-  /* Pressed: the pane turns into a lens (brighter, accent-tinted). */
+  /* Pressed: the pane takes the accent tint (Apple tints only the primary
+     action) while the engine shifts its refraction toward the pointer. */
   .liquid-glass:is(button, a, [role='button']):active {
     --glass-sheen-x: calc(var(--glass-sheen-shift) * 1.5);
     background-color: color-mix(in oklab, var(--t-accent) var(--glass-press-mix), transparent);
@@ -80,38 +136,65 @@
     background-color: color-mix(in oklab, var(--t-accent) var(--glass-accent-mix), transparent);
   }
 
+  /* The active-tab lens. It lives INSIDE a pane, and Apple's rule is no glass
+     on glass: it is a tint with its own light, not a second filtered
+     backdrop. The top-left wash and the inner bloom make it read as a thick
+     lens of the same material. */
   .liquid-glass-lens {
     color: var(--t-ink);
     background-color: color-mix(in oklab, var(--t-accent) var(--glass-lens-mix), transparent);
-    background-image: var(--glass-lens-sheen);
+    background-image: var(--glass-lens-wash), var(--glass-lens-sheen);
     box-shadow:
       inset 0 var(--glass-rim) 0 0 var(--glass-lens-rim),
       inset 0 calc(var(--glass-rim) * -1) 0 0 var(--glass-rim-bottom),
       inset 0 0 0 var(--glass-rim) var(--glass-rim-hairline),
+      inset 0 0 var(--glass-lens-glow-blur) var(--glass-lens-glow),
       var(--shadow-4);
   }
 
-  /* Refraction: Chromium runs an SVG filter as a backdrop filter. The
-     -webkit-hyphens test keeps Safari (which does not) on the plain blur. */
+  /* Refraction: only panes the engine has mapped carry data-glass-refract, so
+     an unsupported engine (or an element whose profile failed to read) keeps
+     the blur pane above, with the same geometry. WebKit is excluded on purpose
+     (see the header); the -webkit-hyphens test is the capability check. */
   @supports (backdrop-filter: url(#lg-refract)) and (not (-webkit-hyphens: none)) {
-    .liquid-glass {
-      backdrop-filter: url(#lg-refract) blur(var(--glass-blur)) saturate(var(--glass-saturate))
-        brightness(var(--glass-brightness));
+    .liquid-glass[data-glass-refract] {
+      /* The map paints the rim now; the CSS hairline only catches the very
+         edge, so it is dimmer than on the fallback pane (which has no map). */
+      --glass-rim-top: var(--glass-rim-top-refract);
+      --glass-rim-hairline: var(--glass-rim-hairline-refract);
+      -webkit-backdrop-filter: var(--glass-refract, url(#lg-refract))
+        blur(var(--glass-refract-blur)) saturate(var(--glass-refract-saturate))
+        brightness(var(--glass-refract-brightness));
+      backdrop-filter: var(--glass-refract, url(#lg-refract))
+        blur(var(--glass-refract-blur)) saturate(var(--glass-refract-saturate))
+        brightness(var(--glass-refract-brightness));
     }
   }
 
-  /* Reduce transparency: a solid surface, no backdrop filter. */
+  /* Reduce transparency: an opaque surface and no backdrop filter at all. */
   @media (prefers-reduced-transparency: reduce) {
-    .liquid-glass {
+    .liquid-glass,
+    .liquid-glass[data-glass-refract] {
       -webkit-backdrop-filter: none;
       backdrop-filter: none;
       background-color: color-mix(in oklab, var(--t-surface-strong) var(--glass-solid-mix), transparent);
     }
   }
 
+  /* Reduced motion: the axes stay at zero, the sheen is a still wash, and no
+     transition moves it. The specular is still there (it is static light). */
   @media (prefers-reduced-motion: reduce) {
+    .liquid-glass {
+      --glass-x: 0px;
+      --glass-y: 0px;
+    }
+
     .liquid-glass::before {
       transition: none;
+    }
+
+    .liquid-glass:is(button, a, [role='button']):is(:hover, :focus-visible) {
+      --glass-sheen-x: 0%;
     }
   }
 }
