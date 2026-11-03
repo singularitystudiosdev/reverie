@@ -134,3 +134,6 @@ export const lens = {
   squash: 0.35,
   pressScale: 0.96,
 } as const;
+
+/** The app never honours prefers-reduced-motion: every animation always plays. */
+export const useReducedMotion = (): boolean => false;

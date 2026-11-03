@@ -19,11 +19,11 @@ import { durMs, ease } from '../../lib/motion';
 import { createWorldGroup, type WorldGroup } from '../overlays/group';
 import { clamp, clamp01, Rtpc, type AtmosphereInputs } from '../rtpc';
 import { getTheme } from '../themes';
-import { ParticleField, seeded, type FieldLayer, type FieldWorld } from './field';
+import { ParticleField, type FieldLayer, type FieldWorld } from './field';
 import { kinds } from './kinds';
 import { addOf, compiledResponse, mulOf, SRC, SRC_COUNT, windOf, type CompiledResponse } from './responses';
 import { parseColor, rgba, sprite } from './sprites';
-import { battery, clampTo, fade, follow, neutral, origins, population, still, tierRules, tiers, wash, writes } from './tuning';
+import { battery, clampTo, fade, follow, neutral, origins, population, tierRules, tiers, wash, writes } from './tuning';
 
 type Role = 'stack' | 'preview';
 
@@ -101,7 +101,6 @@ export class AtmosphereEngine {
   private dpr = 1;
   private tier = 0;
   private pinnedTier: number | null = null;
-  private reduced = false;
   private raf = 0;
   private running = false;
   private destroyed = false;
@@ -115,16 +114,12 @@ export class AtmosphereEngine {
   private slowSince = 0;
   private fastSince = 0;
   private emit: { slot: number; layer: number; left: number; every: number; next: number } | null = null;
-  private stillAffinity = -1;
-  private stillTimer = 0;
   private readonly ro: ResizeObserver;
-  private readonly mq: MediaQueryList;
   private readonly perf: EnginePerf | null;
   private readonly onVisibility = () => this.wake();
   private readonly onInput = () => {
     this.inputs.lastInputAt = performance.now();
   };
-  private readonly onMotionPref = () => this.setReduced(this.mq.matches);
 
   private readonly root: HTMLDivElement;
   private readonly canvas: HTMLCanvasElement;
@@ -145,9 +140,6 @@ export class AtmosphereEngine {
     this.tier = this.pinnedTier ?? this.storedTier();
     inputs.wake = () => this.wake();
     inputs.lastInputAt = performance.now();
-    this.mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    this.reduced = this.mq.matches;
-    this.mq.addEventListener('change', this.onMotionPref);
     document.addEventListener('visibilitychange', this.onVisibility);
     window.addEventListener('pointerdown', this.onInput, { passive: true });
     window.addEventListener('keydown', this.onInput, { passive: true });
@@ -167,9 +159,7 @@ export class AtmosphereEngine {
   destroy(): void {
     this.destroyed = true;
     if (this.raf) cancelAnimationFrame(this.raf);
-    window.clearTimeout(this.stillTimer);
     this.ro.disconnect();
-    this.mq.removeEventListener('change', this.onMotionPref);
     document.removeEventListener('visibilitychange', this.onVisibility);
     window.removeEventListener('pointerdown', this.onInput);
     window.removeEventListener('keydown', this.onInput);
@@ -186,7 +176,7 @@ export class AtmosphereEngine {
     const initial = !top;
     // Already showing (or already fading in) this world.
     if (top && top.id === spec.id && top.sceneSrc === sceneSrc) return;
-    const band = this.reduced ? fade.reducedSwapMs : durMs.theme;
+    const band = durMs.theme;
     const p = this.preview;
     const armed = !!p && p.id === spec.id && (p.sceneSrc === sceneSrc || !sceneSrc || !p.sceneSrc);
     if (p && armed && p.group.ready) {
@@ -224,7 +214,6 @@ export class AtmosphereEngine {
         base.waitUntil = 0;
       }
     }
-    if (this.reduced) this.scheduleStill(0);
     this.wake();
   }
 
@@ -234,7 +223,7 @@ export class AtmosphereEngine {
    * particles are kept, the outgoing world's age out.
    */
   private promote(p: World, now: number): void {
-    const band = this.reduced ? fade.reducedSwapMs : durMs.theme;
+    const band = durMs.theme;
     this.preview = null;
     p.role = 'stack';
     const w0 = p.opacity;
@@ -244,7 +233,6 @@ export class AtmosphereEngine {
     this.setFront(p, true);
     this.rtpc.previewW = 0;
     this.tweenUntil = now + durMs.theme;
-    if (this.reduced) this.scheduleStill(0);
     this.wake();
   }
 
@@ -408,7 +396,6 @@ export class AtmosphereEngine {
       this.buildGlow(s);
       if (changedDpr) for (const L of s.field.layers) this.buildSprites(L);
     }
-    if (this.reduced) this.scheduleStill(0);
     this.wake();
   }
 
@@ -458,67 +445,6 @@ export class AtmosphereEngine {
     } else this.fastSince = 0;
   }
 
-  /* ------------------------------------------------------- reduced motion */
-
-  private setReduced(on: boolean): void {
-    this.reduced = on;
-    if (on) {
-      this.field.reset();
-      this.scheduleStill(0);
-    } else {
-      this.field.reset();
-      this.field.rand = Math.random;
-      this.canvas.style.opacity = '';
-    }
-    this.wake();
-  }
-
-  private scheduleStill(delay: number): void {
-    window.clearTimeout(this.stillTimer);
-    this.stillTimer = window.setTimeout(() => {
-      if (this.destroyed || !this.reduced) return;
-      if (delay > 0) {
-        this.canvas.style.opacity = '0';
-        this.stillTimer = window.setTimeout(() => {
-          this.drawStill();
-          this.canvas.style.opacity = '1';
-        }, still.fadeMs);
-      } else this.drawStill();
-    }, delay);
-  }
-
-  /** Reduced motion: one frame from seeded positions at the affinity population. */
-  private drawStill(): void {
-    const top = this.stack[this.stack.length - 1];
-    if (!top || !this.ctx) return;
-    this.field.reset();
-    this.field.rand = seeded(still.seed);
-    this.stillAffinity = this.inputs.params.affinity;
-    this.rtpc.update(performance.now(), 0, this.inputs, true);
-    this.evaluate(top, this.rtpc.src, 1, 1);
-    top.field.weight = 1;
-    top.field.reserveWeight = 1;
-    top.field.windX = 0;
-    top.field.windY = 0;
-    this.targets(top, tiers[this.tier].cost, 1);
-    top.field.layers.forEach((L, li) => {
-      for (let n = 0; n < L.target; n++) this.field.spawn(top.slot, li, 'field');
-    });
-    const f = this.field;
-    for (let i = 0; i < f.n; i++) {
-      if (!f.alive[i]) continue;
-      const L = top.field.layers[f.layer[i]];
-      if (L?.kind === 'shootingStar') {
-        f.kill(i);
-        continue;
-      }
-      f.delay[i] = 0;
-      f.age[i] = f.life[i] < 1e8 ? f.life[i] * (0.3 + 0.4 * f.rand()) : population.fadeIn;
-    }
-    this.field.rand = Math.random;
-    this.paint(top);
-  }
-
   /* ------------------------------------------------------------- loop */
 
   wake(): void {
@@ -550,7 +476,7 @@ export class AtmosphereEngine {
     const t0 = performance.now();
     const keepGoing = this.frame(t, dt, sleepy);
     const engineMs = performance.now() - t0;
-    if (!this.reduced) this.judgeTier(t, interval, engineMs);
+    this.judgeTier(t, interval, engineMs);
     if (this.perf) {
       this.perf.engineMs.push(engineMs);
       this.perf.frameMs.push(interval);
@@ -567,16 +493,11 @@ export class AtmosphereEngine {
 
   /** One frame. Returns whether the loop should keep running. */
   private frame(now: number, dt: number, sleepy: boolean): boolean {
-    const reduced = this.reduced;
     const tier = tiers[this.tier];
-    this.rtpc.update(now, dt, this.inputs, reduced);
-    if (reduced && Math.abs(this.inputs.params.affinity - this.stillAffinity) >= still.affinityStep && this.stillAffinity >= 0) {
-      this.stillAffinity = this.inputs.params.affinity;
-      this.scheduleStill(still.redrawDelayMs);
-    }
+    this.rtpc.update(now, dt, this.inputs, false);
 
     this.syncPreview(now);
-    let busy = this.advanceRamps(now);
+    this.advanceRamps(now);
     const top = this.stack[this.stack.length - 1];
     if (!top) return false;
 
@@ -584,7 +505,6 @@ export class AtmosphereEngine {
     const p = this.preview;
     if (p) {
       p.opacity = p.group.ready ? this.rtpc.previewW : 0;
-      if (this.rtpc.previewW > 0 || this.inputs.preview.weight > 0 || !p.group.ready) busy = true;
     }
     let rem = 1;
     if (p) {
@@ -605,12 +525,7 @@ export class AtmosphereEngine {
     // Responses: the current world answers the live sources; the preview its neutral ones.
     const scale = sleepy ? 0 : tier.responseScale;
     this.evaluate(top, this.rtpc.src, scale, 1);
-    if (p && !reduced) this.evaluate(p, NEUTRAL_SRC, 1, 0);
-
-    if (reduced) {
-      this.writeOverlays(now, true);
-      return busy || this.stack.length > 1;
-    }
+    if (p) this.evaluate(p, NEUTRAL_SRC, 1, 0);
 
     // Bursts and the bloom emit (reserve).
     this.drainBursts(top);
@@ -717,7 +632,6 @@ export class AtmosphereEngine {
       const base = this.stack[0];
       if (base) {
         this.setFront(base, false);
-        if (this.reduced) this.scheduleStill(0);
       }
     }
     return busy;

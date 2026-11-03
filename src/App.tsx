@@ -14,7 +14,6 @@ import {
   LayoutGroup,
   MotionConfig,
   motion,
-  useReducedMotion,
   type Transition,
   type Variants,
 } from 'motion/react';
@@ -24,7 +23,7 @@ import { MatchNotice } from './components/MatchNotice';
 import { PhoneFrame } from './components/PhoneFrame';
 import { ProfileSheet } from './components/ProfileSheet';
 import { TabBar } from './components/TabBar';
-import { dur, ease, instant } from './lib/motion';
+import { dur, ease, instant, useReducedMotion } from './lib/motion';
 import { ChatView } from './screens/ChatView';
 import { Explore } from './screens/Explore';
 import { AppProvider, useApp } from './state/store';
@@ -42,7 +41,7 @@ const screenVariants: Variants = {
 
 function Routes(): JSX.Element {
   const { state } = useApp();
-  const reduce = useReducedMotion() ?? false;
+  const reduce = useReducedMotion();
   const route: RouteKey = state.openChatId ? `chat:${state.openChatId}` : 'explore';
   const screen = state.openChatId ? <ChatView characterId={state.openChatId} /> : <Explore />;
 
@@ -68,7 +67,7 @@ function Routes(): JSX.Element {
 
 export default function App(): JSX.Element {
   return (
-    <MotionConfig reducedMotion="user">
+    <MotionConfig reducedMotion="never">
       <AppProvider>
         <LiquidGlassDefs />
         <PhoneFrame>

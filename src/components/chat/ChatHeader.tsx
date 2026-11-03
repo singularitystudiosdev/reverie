@@ -13,12 +13,12 @@
 */
 import { clsx } from 'clsx';
 import { Images, Menu } from 'lucide-react';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useRef, useState, type JSX, type Ref } from 'react';
 import { Avatar } from '../Avatar';
 import { thoughts, type Thought } from '../../data/thoughts';
 import type { Character } from '../../data/types';
-import { dur, ease, instant, lens, spring } from '../../lib/motion';
+import { dur, ease, instant, lens, spring, useReducedMotion } from '../../lib/motion';
 import { useApp } from '../../state/store';
 import { chatsDrawerId } from './ChatsDrawer';
 import { stateLayer } from './stateLayer';
@@ -118,7 +118,7 @@ export function ChatHeader(props: {
   onGallery(): void;
 }): JSX.Element {
   const { character, drawerOpen, galleryOpen, menuRef, titleRef, onMenu, onProfile, onGallery } = props;
-  const reduce = useReducedMotion() ?? false;
+  const reduce = useReducedMotion();
   const thought = useThought(character.id);
   return (
     <header data-slot="chat-header" className="pt-[var(--statusbar-h)]">

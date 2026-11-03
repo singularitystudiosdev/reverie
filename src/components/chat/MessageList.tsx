@@ -18,10 +18,10 @@
 */
 import { clsx } from 'clsx';
 import { Play } from 'lucide-react';
-import { AnimatePresence, motion, useReducedMotion, type TargetAndTransition } from 'motion/react';
+import { AnimatePresence, motion, type TargetAndTransition } from 'motion/react';
 import { useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react';
 import type { Character, Message } from '../../data/types';
-import { dur, ease } from '../../lib/motion';
+import { dur, ease, useReducedMotion } from '../../lib/motion';
 import { CardGroup } from './CardGroup';
 import { TypingDots } from './TypingDots';
 
@@ -36,7 +36,7 @@ const motionSpec = {
 
 export function MessageList(props: { character: Character; messages: Message[]; typing: boolean }): JSX.Element {
   const { character, messages, typing } = props;
-  const reduce = useReducedMotion() ?? false;
+  const reduce = useReducedMotion();
   const scroller = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
   const mounted = useRef(false);
@@ -248,14 +248,14 @@ function VideoBubble(props: { message: Message; name: string; reduce: boolean })
             setPlaying(false);
           }}
           className={clsx(
-            'absolute inset-0 size-full object-cover transition-opacity duration-[var(--duration-150)] ease-standard motion-reduce:transition-none',
+            'absolute inset-0 size-full object-cover transition-opacity duration-[var(--duration-150)] ease-standard',
             started ? 'opacity-100' : 'opacity-0'
           )}
         />
         <span
           aria-hidden="true"
           className={clsx(
-            'absolute inset-0 grid place-items-center bg-[color-mix(in_oklab,var(--t-ink)_16%,transparent)] transition-opacity duration-[var(--duration-150)] ease-standard motion-reduce:transition-none',
+            'absolute inset-0 grid place-items-center bg-[color-mix(in_oklab,var(--t-ink)_16%,transparent)] transition-opacity duration-[var(--duration-150)] ease-standard',
             playing ? 'opacity-0' : 'opacity-100'
           )}
         >

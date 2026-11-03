@@ -6,8 +6,8 @@
   canvas, and runs the frame loop: theme crossfades over the theme band, the
   preview world under the finger, bursts, and the RTPC responses.
 
-  Reduced motion: the engine draws one still frame and stops; the plate and
-  overlays stop animating (theme.css); a theme change swaps within 150ms.
+  The loop runs regardless of the reduced-motion setting; it only pauses
+  while the document is hidden.
 */
 import { useEffect, useRef, type JSX } from 'react';
 import type { ThemeSpec } from '../data/types';

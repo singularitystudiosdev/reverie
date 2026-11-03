@@ -21,13 +21,12 @@ import {
   motion,
   useAnimationControls,
   useMotionValue,
-  useReducedMotion,
   useTransform,
   useVelocity,
 } from 'motion/react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react';
 import { cn } from '../lib/cn';
-import { dur, ease, lens, lockedTab, spring } from '../lib/motion';
+import { dur, ease, lens, lockedTab, spring, useReducedMotion } from '../lib/motion';
 import { useApp, useChatUnlocked, type AppState } from '../state/store';
 
 const items: { tab: AppState['tab']; label: string; icon: LucideIcon }[] = [
@@ -47,7 +46,7 @@ interface Geo {
 export function TabBar(): JSX.Element {
   const { state, actions } = useApp();
   const unlocked = useChatUnlocked();
-  const reduce = useReducedMotion() ?? false;
+  const reduce = useReducedMotion();
   const unread = state.matchIds.reduce((sum, id) => sum + (state.conversations[id]?.unread ?? 0), 0);
   // An open chat belongs to Chats; a locked Chats can never be the active tab.
   const active: AppState['tab'] = state.openChatId ? 'chats' : state.tab;

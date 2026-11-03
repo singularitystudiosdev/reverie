@@ -23,12 +23,12 @@
   gutters and uses the smaller round buttons so the card keeps its height.
 */
 import { Check, X } from 'lucide-react';
-import { motion, useMotionValue, useReducedMotion } from 'motion/react';
+import { motion, useMotionValue } from 'motion/react';
 import { useCallback, useEffect, useLayoutEffect, useRef, type JSX } from 'react';
 import { EmptyDeck } from '../components/explore/EmptyDeck';
 import { SwipeCard, type SwipeCardHandle } from '../components/explore/SwipeCard';
 import { deckConfig, type SwipeDir } from '../components/explore/deckConfig';
-import { dur, ease, pulseStrength, spring } from '../lib/motion';
+import { dur, ease, pulseStrength, spring, useReducedMotion } from '../lib/motion';
 import { useApp, useDeck } from '../state/store';
 import { useFrameTheme } from '../theme/ThemeProvider';
 
@@ -38,7 +38,7 @@ export function Explore(): JSX.Element {
   const top = deck[0];
   const next = deck[1];
   const { setTheme, setPreview, setParam, pulse } = useFrameTheme();
-  const reduce = useReducedMotion() ?? false;
+  const reduce = useReducedMotion();
 
   const progress = useMotionValue(0);
   const topHandle = useRef<SwipeCardHandle>(null);

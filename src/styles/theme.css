@@ -13,7 +13,7 @@
      Ambient keyframes run on the CHILDREN (`> i`), never on the wrapper.
    - Only transform and opacity animate. No filter, blend mode or
      backdrop-filter anywhere in the atmosphere.
-   - Every animated selector has its own reduced-motion rule in this file. */
+   - Every animated selector animates unconditionally. */
 
 /* ---------------------------------------------------------------- frame */
 
@@ -84,13 +84,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .atm-plate {
-    animation: none;
-    transform: scale(1.06);
-  }
-}
-
 /* -------------------------------------------------------------- overlays */
 
 .atm-ov,
@@ -155,12 +148,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .atm-ov--godrays > i {
-    animation: none;
-  }
-}
-
 /* fog: soft banks of mist rolling slowly sideways (two layers, opposite drifts). */
 .atm-ov--fog > i {
   left: 0;
@@ -189,13 +176,6 @@
   }
   to {
     transform: translate3d(-50%, 0, 0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .atm-ov--fog > i,
-  .atm-ov--fog > i:nth-child(2) {
-    animation: none;
   }
 }
 
@@ -249,13 +229,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .atm-ov--caustics > i,
-  .atm-ov--caustics > i:nth-child(2) {
-    animation: none;
-  }
-}
-
 /* scanlines: a CRT raster plus one bright band sweeping down. */
 .atm-ov--scanlines > i:nth-child(1) {
   inset: 0;
@@ -285,13 +258,6 @@
   }
   to {
     transform: translate3d(0, 460%, 0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .atm-ov--scanlines > i:nth-child(2) {
-    animation: none;
-    opacity: 0;
   }
 }
 
@@ -338,14 +304,6 @@
   }
   100% {
     transform: translate3d(6%, 2%, 0) scaleY(1.15);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .atm-ov--aurora > i,
-  .atm-ov--aurora > i:nth-child(2),
-  .atm-ov--aurora > i:nth-child(3) {
-    animation: none;
   }
 }
 
@@ -400,13 +358,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .atm-ov--heat > i:nth-child(1),
-  .atm-ov--heat > i:nth-child(2) {
-    animation: none;
-  }
-}
-
 /* frostEdge: rime creeping in from the frame edge, spiky crystals at the corners. */
 .atm-ov--frostEdge > i:nth-child(1) {
   inset: 0;
@@ -443,12 +394,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .atm-ov--frostEdge > i:nth-child(1) {
-    animation: none;
-  }
-}
-
 /* grain: film grain, light and dark specks, jittered in steps. */
 .atm-ov--grain > i {
   inset: -50%;
@@ -467,12 +412,6 @@
   67% { transform: translate3d(3%, 1%, 0); }
   83% { transform: translate3d(-2%, -2%, 0); }
   100% { transform: translate3d(0, 0, 0); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .atm-ov--grain > i {
-    animation: none;
-  }
 }
 
 /* moon: a halo blooming around the plate's moon, and a faint ring. */
@@ -510,12 +449,6 @@
   to {
     opacity: 1;
     transform: scale(1.06);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .atm-ov--moon > i:nth-child(1) {
-    animation: none;
   }
 }
 
@@ -581,13 +514,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .atm-ov--sunbeam > i:nth-child(1),
-  .atm-ov--sunbeam > i:nth-child(2) {
-    animation: none;
-  }
-}
-
 /* glitch (neon): torn RGB bars. Noise limit: visible for 240ms of every 4s,
    and the engine caps the wrapper at 0.4, event-driven only. Hidden at rest
    and under reduced motion. */
@@ -631,13 +557,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .atm-ov--glitch > i {
-    animation: none;
-    opacity: 0;
-  }
-}
-
 /* lanterns: glowing lanterns drifting up through the evening, staggered. */
 .atm-ov--lanterns > i {
   width: 8%;
@@ -677,13 +596,6 @@
   100% {
     opacity: 0;
     transform: translate3d(-20%, -880%, 0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .atm-ov--lanterns > i {
-    animation: none;
-    opacity: 1;
   }
 }
 
@@ -735,10 +647,3 @@
   100% { opacity: 0.85; transform: scale(1); }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .atm-decor--candles > i:nth-child(1),
-  .atm-decor--candles > i:nth-child(2),
-  .atm-decor--candles > i:nth-child(3) {
-    animation: none;
-  }
-}

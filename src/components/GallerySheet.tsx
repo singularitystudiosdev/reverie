@@ -20,12 +20,12 @@
 */
 import { clsx } from 'clsx';
 import { Play, X } from 'lucide-react';
-import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'motion/react';
+import { AnimatePresence, motion, useIsPresent } from 'motion/react';
 import { useEffect, useMemo, useRef, useState, type JSX, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { artSize } from '../data/characters';
 import type { Character, Message } from '../data/types';
-import { dur, ease } from '../lib/motion';
+import { dur, ease, useReducedMotion } from '../lib/motion';
 import { useApp } from '../state/store';
 import { trapTab } from './chat/focus';
 import { stateLayer } from './chat/stateLayer';
@@ -67,7 +67,7 @@ export function GallerySheet(props: {
 }): JSX.Element {
   const { character, open, anchor, onClose } = props;
   const { state } = useApp();
-  const reduce = useReducedMotion() ?? false;
+  const reduce = useReducedMotion();
 
   // The frame's UI layer (the direct child of [data-frame]) holds the screen
   // stack and the tab bar. The gallery is portaled there, after the tab bar
@@ -409,7 +409,7 @@ function Preview(props: { item: GalleryItem; character: Character }): JSX.Elemen
  */
 function PreviewVideo(props: { item: GalleryItem; name: string }): JSX.Element {
   const { item, name } = props;
-  const reduce = useReducedMotion() ?? false;
+  const reduce = useReducedMotion();
   const video = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
 
@@ -454,7 +454,7 @@ function PreviewVideo(props: { item: GalleryItem; name: string }): JSX.Element {
           aria-hidden="true"
           className={clsx(
             'grid size-[var(--target-touch)] place-items-center rounded-full bg-surface-strong text-ink shadow-8',
-            'transition-opacity duration-[var(--duration-150)] ease-standard motion-reduce:transition-none',
+            'transition-opacity duration-[var(--duration-150)] ease-standard',
             playing ? 'opacity-0' : 'opacity-100'
           )}
         >

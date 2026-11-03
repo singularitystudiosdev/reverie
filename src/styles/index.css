@@ -1,6 +1,5 @@
 @import 'tailwindcss';
 @import './tokens.css';
-@import './reduced-motion.css';
 @import './theme.css';
 @import './glass.css';
 
@@ -58,13 +57,6 @@ html {
     --t-hairline, --t-accent, --t-on-accent, --t-me, --t-on-me, --t-glow;
   transition-duration: var(--duration-700) /* deliberate */;
   transition-timing-function: var(--ease-standard);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html,
-  [data-frame] {
-    transition-duration: var(--duration-150);
-  }
 }
 
 /* -------------------------------------------------------------------------

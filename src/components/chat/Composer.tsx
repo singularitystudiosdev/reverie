@@ -13,9 +13,9 @@
 */
 import { clsx } from 'clsx';
 import { ArrowUp, Plus, X } from 'lucide-react';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useId, useRef, useState, type FormEvent, type JSX } from 'react';
-import { dur, ease, instant, spring } from '../../lib/motion';
+import { dur, ease, instant, spring, useReducedMotion } from '../../lib/motion';
 import { stateLayer } from './stateLayer';
 
 export const quickReplies = [
@@ -29,7 +29,7 @@ const rise = 'var(--spacing-8)';
 
 export function Composer(props: { name: string; onSend(text: string): void }): JSX.Element {
   const { name, onSend } = props;
-  const reduce = useReducedMotion() ?? false;
+  const reduce = useReducedMotion();
   const [draft, setDraft] = useState('');
   const [chipsOpen, setChipsOpen] = useState(false);
   const input = useRef<HTMLInputElement>(null);

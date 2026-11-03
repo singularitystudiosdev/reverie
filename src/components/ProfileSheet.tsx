@@ -23,7 +23,6 @@ import {
   useDragControls,
   useIsPresent,
   useMotionValue,
-  useReducedMotion,
   useTransform,
   type PanInfo,
 } from 'motion/react';
@@ -31,7 +30,7 @@ import { useEffect, useId, useRef, type JSX } from 'react';
 import { trapTab } from './chat/focus';
 import { AnimatedBio } from './chat/AnimatedBio';
 import type { Character } from '../data/types';
-import { dur, ease, spring } from '../lib/motion';
+import { dur, ease, spring, useReducedMotion } from '../lib/motion';
 import { useApp, useCharacter } from '../state/store';
 import { Portrait } from './Portrait';
 
@@ -45,7 +44,7 @@ export function ProfileSheet(): JSX.Element {
 function Sheet(props: { character: Character }): JSX.Element {
   const { character } = props;
   const { actions } = useApp();
-  const reduce = useReducedMotion() ?? false;
+  const reduce = useReducedMotion();
   const isPresent = useIsPresent();
   const dialog = useRef<HTMLDivElement>(null);
   const returnTo = useRef<HTMLElement | null>(null);

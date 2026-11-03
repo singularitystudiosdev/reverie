@@ -5,9 +5,9 @@
   caller renders the words ("typing") for assistive tech.
 */
 import { clsx } from 'clsx';
-import { motion, useReducedMotion } from 'motion/react';
+import { motion } from 'motion/react';
 import type { JSX } from 'react';
-import { dur, ease } from '../../lib/motion';
+import { dur, ease, useReducedMotion } from '../../lib/motion';
 
 const dots = ['first', 'second', 'third'] as const;
 

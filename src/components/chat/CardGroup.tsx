@@ -5,17 +5,17 @@
   a muted meta line. Rows are list rows inside one card, never cards.
 */
 import { clsx } from 'clsx';
-import { motion, useReducedMotion, type Variants } from 'motion/react';
+import { motion, type Variants } from 'motion/react';
 import { useEffect, useRef, useState, type JSX } from 'react';
 import { artSize } from '../../data/characters';
 import type { CardItem } from '../../data/types';
-import { dur, ease } from '../../lib/motion';
+import { dur, ease, useReducedMotion } from '../../lib/motion';
 
 /** Local motion numbers: row stagger (s), rise (px), press squish. */
 const motionSpec = { stagger: 0.06, rise: 8, press: 0.985 } as const;
 
 export function CardGroup(props: { cards: CardItem[]; from: string; animateIn?: boolean }): JSX.Element {
-  const reduce = useReducedMotion() ?? false;
+  const reduce = useReducedMotion();
   const list: Variants = {
     hidden: {},
     shown: { transition: { staggerChildren: reduce ? 0 : motionSpec.stagger } },

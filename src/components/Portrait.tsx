@@ -20,7 +20,7 @@
     the <video> and <img> alike (Avatar puts its object-position + scale crop
     there). `small` picks the 360x640 still for round crops.
 */
-import { useReducedMotion } from 'motion/react';
+import { useReducedMotion } from '../lib/motion';
 import { useEffect, useRef, useState, type CSSProperties, type JSX } from 'react';
 import { artSize } from '../data/characters';
 import type { Character } from '../data/types';
@@ -48,7 +48,7 @@ export function Portrait({
   small = false,
   alt = '',
 }: PortraitProps): JSX.Element {
-  const reduce = useReducedMotion() ?? false;
+  const reduce = useReducedMotion();
   const wrap = useRef<HTMLSpanElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const img = useRef<HTMLImageElement>(null);

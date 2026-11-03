@@ -33,14 +33,13 @@ import {
   motion,
   useAnimationControls,
   useMotionValue,
-  useReducedMotion,
   useTransform,
   type PanInfo,
 } from 'motion/react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { Avatar } from '../Avatar';
-import { dur, ease, instant, rowStagger, spring } from '../../lib/motion';
+import { dur, ease, instant, rowStagger, spring, useReducedMotion } from '../../lib/motion';
 import { isoTime, relativeTime } from '../../lib/time';
 import { useApp } from '../../state/store';
 import { chatEntries, previewText, useNow } from './chatData';
@@ -68,7 +67,7 @@ export function ChatsDrawer(props: {
 }): JSX.Element | null {
   const { currentId, anchor } = props;
   const { state, actions } = useApp();
-  const reduce = useReducedMotion() ?? false;
+  const reduce = useReducedMotion();
   const [host, setHost] = useState<HTMLElement | null>(null);
 
   useLayoutEffect(() => {

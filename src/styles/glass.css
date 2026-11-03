@@ -183,18 +183,4 @@
 
   /* Reduced motion: the axes stay at zero, the sheen is a still wash, and no
      transition moves it. The specular is still there (it is static light). */
-  @media (prefers-reduced-motion: reduce) {
-    .liquid-glass {
-      --glass-x: 0px;
-      --glass-y: 0px;
-    }
-
-    .liquid-glass::before {
-      transition: none;
-    }
-
-    .liquid-glass:is(button, a, [role='button']):is(:hover, :focus-visible) {
-      --glass-sheen-x: 0%;
-    }
-  }
 }

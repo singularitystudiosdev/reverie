@@ -4,15 +4,15 @@
   characters you passed. When nobody is left to
   bring back (you matched with everyone), the one action opens Chats instead.
 */
-import { motion, useReducedMotion } from 'motion/react';
+import { motion } from 'motion/react';
 import type { JSX } from 'react';
-import { dur, ease } from '../../lib/motion';
+import { dur, ease, useReducedMotion } from '../../lib/motion';
 import { useApp } from '../../state/store';
 import { deckConfig } from './deckConfig';
 
 export function EmptyDeck(): JSX.Element {
   const { state, actions } = useApp();
-  const reduce = useReducedMotion() ?? false;
+  const reduce = useReducedMotion();
   const nothingToRestore = state.passedIds.length === 0;
   const copy = nothingToRestore
     ? { text: 'You have matched with everyone.', action: 'Open Chats', run: () => actions.setTab('chats') }

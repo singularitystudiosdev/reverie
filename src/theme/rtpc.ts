@@ -35,7 +35,7 @@ export interface AtmosphereInputs {
   theme: { id: ThemeId; sceneSrc: string | null };
   /** performance.now() of the last API call or pointer/key input (battery tier). */
   lastInputAt: number;
-  /** The engine installs this: restarts a sleeping loop (reduced motion, hidden tab). */
+  /** The engine installs this: restarts a sleeping loop (hidden tab). */
   wake: () => void;
 }
 

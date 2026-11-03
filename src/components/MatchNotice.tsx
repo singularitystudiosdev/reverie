@@ -26,10 +26,10 @@
     overshoot; leaves upward on the exit easing. Reduced motion: a fade only,
     no burst, and the card's particles render one still frame.
 */
-import { AnimatePresence, motion, useIsPresent, useReducedMotion, type PanInfo } from 'motion/react';
+import { AnimatePresence, motion, useIsPresent, type PanInfo } from 'motion/react';
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type JSX } from 'react';
 import type { Character, ParticleKind, ParticleLayer, ThemeColors } from '../data/types';
-import { dur, ease, spring } from '../lib/motion';
+import { dur, ease, spring, useReducedMotion } from '../lib/motion';
 import { useApp, useCharacter } from '../state/store';
 import { kinds } from '../theme/particles/kinds';
 import { sprite, type Sprite } from '../theme/particles/sprites';
@@ -494,7 +494,7 @@ function NoticeCard(props: { character: Character; reduce: boolean }): JSX.Eleme
           type="button"
           aria-label={`Chat with ${character.name}`}
           onClick={() => actions.openChat(id)}
-          className="inline-flex h-[var(--target-touch)] shrink-0 items-center justify-center rounded-full bg-accent px-20 text-label text-on-accent transition-opacity duration-[var(--duration-150)] ease-standard active:opacity-80 motion-reduce:transition-none"
+          className="inline-flex h-[var(--target-touch)] shrink-0 items-center justify-center rounded-full bg-accent px-20 text-label text-on-accent transition-opacity duration-[var(--duration-150)] ease-standard active:opacity-80"
         >
           Chat
         </button>
@@ -509,7 +509,7 @@ function NoticeCard(props: { character: Character; reduce: boolean }): JSX.Eleme
 export function MatchNotice(): JSX.Element {
   const { state } = useApp();
   const character = useCharacter(state.matchNotices[0] ?? null);
-  const reduce = useReducedMotion() ?? false;
+  const reduce = useReducedMotion();
 
   return (
     <div

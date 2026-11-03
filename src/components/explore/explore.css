@@ -57,8 +57,3 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .deck-button {
-    transition: none;
-  }
-}

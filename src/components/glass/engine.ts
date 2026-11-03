@@ -79,9 +79,7 @@ export function startGlassEngine(defs: SVGElement): () => void {
   if (!referenceBackdropsSupported()) return () => {};
 
   const entries = new Map<HTMLElement, Entry>();
-  const reduceQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
   const transparencyQuery = window.matchMedia('(prefers-reduced-transparency: reduce)');
-  let reduce = reduceQuery.matches;
   let disposed = false;
   let uid = 0;
   let refreshFrame = 0;
@@ -152,7 +150,7 @@ export function startGlassEngine(defs: SVGElement): () => void {
   };
 
   const onPointerDown = (event: PointerEvent): void => {
-    if (reduce || transparencyQuery.matches) return;
+    if (transparencyQuery.matches) return;
     const origin = event.target;
     if (!(origin instanceof Element)) return;
     const element = origin.closest<HTMLElement>('.liquid-glass');
@@ -194,7 +192,7 @@ export function startGlassEngine(defs: SVGElement): () => void {
     let lensFrame = 0;
     const sampleLens = (): void => {
       lensFrame = 0;
-      if (reduce || pressed || transparencyQuery.matches) return;
+      if (pressed || transparencyQuery.matches) return;
       const x = transformX(lens);
       const delta = x - entry.lensLastX;
       entry.lensLastX = x;
@@ -212,7 +210,7 @@ export function startGlassEngine(defs: SVGElement): () => void {
       }
     };
     const observer = new MutationObserver(() => {
-      if (reduce || pressed || transparencyQuery.matches) return;
+      if (pressed || transparencyQuery.matches) return;
       if (!lensFrame) lensFrame = requestAnimationFrame(sampleLens);
     });
     observer.observe(lens, { attributes: true, attributeFilter: ['style'] });
@@ -332,11 +330,6 @@ export function startGlassEngine(defs: SVGElement): () => void {
   const domObserver = new MutationObserver(scheduleRefresh);
   domObserver.observe(document.body, { childList: true, subtree: true });
 
-  const onMotionPreference = (): void => {
-    reduce = reduceQuery.matches;
-    if (reduce) resetMotion();
-  };
-
   const onTransparencyPreference = (): void => {
     if (transparencyQuery.matches) {
       for (const entry of [...entries.values()]) drop(entry);
@@ -348,7 +341,6 @@ export function startGlassEngine(defs: SVGElement): () => void {
   document.addEventListener('pointerdown', onPointerDown, { passive: true });
   document.addEventListener('pointerup', onPointerRelease, { passive: true });
   document.addEventListener('pointercancel', onPointerRelease, { passive: true });
-  reduceQuery.addEventListener('change', onMotionPreference);
   transparencyQuery.addEventListener('change', onTransparencyPreference);
 
   refresh();
@@ -359,7 +351,6 @@ export function startGlassEngine(defs: SVGElement): () => void {
     document.removeEventListener('pointerdown', onPointerDown);
     document.removeEventListener('pointerup', onPointerRelease);
     document.removeEventListener('pointercancel', onPointerRelease);
-    reduceQuery.removeEventListener('change', onMotionPreference);
     transparencyQuery.removeEventListener('change', onTransparencyPreference);
     if (refreshFrame) cancelAnimationFrame(refreshFrame);
     resetMotion();

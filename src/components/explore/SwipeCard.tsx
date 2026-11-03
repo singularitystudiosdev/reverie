@@ -21,7 +21,6 @@ import {
   motion,
   useMotionValue,
   useMotionValueEvent,
-  useReducedMotion,
   useSpring,
   useTransform,
   type MotionValue,
@@ -35,7 +34,7 @@ import {
   type Ref,
 } from 'react';
 import type { Character } from '../../data/types';
-import { dur, ease, instant, spring } from '../../lib/motion';
+import { dur, ease, instant, spring, useReducedMotion } from '../../lib/motion';
 import { Portrait } from '../Portrait';
 import { clamp, deckConfig, type SwipeDir } from './deckConfig';
 import './explore.css';
@@ -63,7 +62,7 @@ export interface SwipeCardProps {
 
 export function SwipeCard(props: SwipeCardProps): JSX.Element {
   const { character, isTop, progress, ref, onDrag, onCommitStart, onDecide, onOpen } = props;
-  const reduce = useReducedMotion() ?? false;
+  const reduce = useReducedMotion();
 
   const x = useMotionValue(0);
   const fade = useMotionValue(1);
