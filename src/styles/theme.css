@@ -1,0 +1,3 @@
+/* theme.css: owned by the theme unit (atmosphere overlays, particle canvas
+   layers, per-theme CSS). Imported by index.css after the tokens and the
+   reduced-motion guard. Intentionally empty in the scaffold. */

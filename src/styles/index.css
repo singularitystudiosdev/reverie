@@ -1,0 +1,148 @@
+@import 'tailwindcss';
+@import './tokens.css';
+@import './reduced-motion.css';
+@import './theme.css';
+
+/* -------------------------------------------------------------------------
+   Theme colors. ThemeProvider writes the --t-* custom properties on
+   [data-frame] (and --t-stage on <html>). Registered as <color> so a theme
+   change TWEENS instead of snapping. Initial values are the 'base' theme
+   (look plan: mist canvas, white surface, ink, muted, hairline, rose).
+   ------------------------------------------------------------------------- */
+@property --t-stage { syntax: '<color>'; inherits: true; initial-value: #E3E1E8; }
+@property --t-canvas { syntax: '<color>'; inherits: true; initial-value: #F2F1F4; }
+@property --t-canvas-2 { syntax: '<color>'; inherits: true; initial-value: #FAF9FB; }
+@property --t-surface { syntax: '<color>'; inherits: true; initial-value: #FFFFFF; }
+@property --t-surface-strong { syntax: '<color>'; inherits: true; initial-value: #FFFFFF; }
+@property --t-ink { syntax: '<color>'; inherits: true; initial-value: #17151C; }
+@property --t-muted { syntax: '<color>'; inherits: true; initial-value: #77737F; }
+@property --t-hairline { syntax: '<color>'; inherits: true; initial-value: #E3E1E8; }
+@property --t-accent { syntax: '<color>'; inherits: true; initial-value: #D92B54; }
+@property --t-on-accent { syntax: '<color>'; inherits: true; initial-value: #FFFFFF; }
+@property --t-me { syntax: '<color>'; inherits: true; initial-value: #17151C; }
+@property --t-on-me { syntax: '<color>'; inherits: true; initial-value: #FFFFFF; }
+@property --t-glow { syntax: '<color>'; inherits: true; initial-value: #FFF1F4; }
+
+/* Components write bg-surface text-ink border-hairline bg-accent
+   text-on-accent ... and never a hex. */
+@theme inline {
+  --color-canvas: var(--t-canvas);
+  --color-canvas-2: var(--t-canvas-2);
+  --color-surface: var(--t-surface);
+  --color-surface-strong: var(--t-surface-strong);
+  --color-ink: var(--t-ink);
+  --color-muted: var(--t-muted);
+  --color-hairline: var(--t-hairline);
+  --color-accent: var(--t-accent);
+  --color-on-accent: var(--t-on-accent);
+  --color-me: var(--t-me);
+  --color-on-me: var(--t-on-me);
+  --color-glow: var(--t-glow);
+}
+
+/* The color tween: theme band, 700ms. Colors move nothing, but reduced
+   motion still swaps them with at most a 150ms fade (rule below). */
+html {
+  background-color: var(--t-stage);
+  transition-property: --t-stage;
+  transition-duration: var(--duration-700) /* deliberate */;
+  transition-timing-function: var(--ease-standard);
+}
+
+[data-frame] {
+  color: var(--t-ink);
+  background-color: var(--t-canvas);
+  transition-property:
+    --t-canvas, --t-canvas-2, --t-surface, --t-surface-strong, --t-ink, --t-muted,
+    --t-hairline, --t-accent, --t-on-accent, --t-me, --t-on-me, --t-glow;
+  transition-duration: var(--duration-700) /* deliberate */;
+  transition-timing-function: var(--ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html,
+  [data-frame] {
+    transition-duration: var(--duration-150);
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Base
+   ------------------------------------------------------------------------- */
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    /* Geist: stylistic set ss01 stays off (decided, not defaulted). */
+    font-feature-settings: 'ss01' 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  /* iOS Safari zooms into any field under 16px on focus. */
+  @media (pointer: coarse) {
+    input,
+    textarea,
+    select {
+      font-size: max(var(--text-body), 1em);
+    }
+  }
+}
+
+/* Focus ring: 2px solid accent, 2px offset, keyboard focus only
+   (design-web focus-ring.css). Never animated. */
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* -------------------------------------------------------------------------
+   Project utilities
+   ------------------------------------------------------------------------- */
+
+/* Horizontal gutter that also clears a landscape notch. */
+@utility safe-x {
+  padding-left: max(var(--gutter), var(--safe-left));
+  padding-right: max(var(--gutter), var(--safe-right));
+}
+
+/* An OPAQUE surface-strong for sheets and dialogs that sit over content:
+   theme surfaces may be translucent, so composite surface-strong over the
+   canvas instead of letting the UI underneath bleed through. */
+@utility surface-solid {
+  background-color: var(--t-canvas);
+  background-image: linear-gradient(var(--t-surface-strong), var(--t-surface-strong));
+}
+
+/* The live avatar ring: a conic stroke in her accent (set --ring-color on the
+   element) with a fading tail, so its slow turn is visible. The turn itself is
+   `motion-safe:animate-ring-spin` on the element. */
+@utility avatar-ring {
+  --ring-tail: color-mix(in oklab, var(--ring-color) var(--ring-tail-mix), transparent);
+  background: conic-gradient(var(--ring-color), var(--ring-tail), var(--ring-color));
+  mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - var(--ring-width)),
+    black calc(100% - var(--ring-width))
+  );
+}
