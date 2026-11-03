@@ -1,6 +1,6 @@
 /*
   Profile sheet: a bottom sheet over a scrim (reads state.profileId; App
-  renders it above the tab bar). Opened from her avatar or name in the chat
+  renders it above the screens). Opened from her avatar or name in the chat
   header, or a tap on a swipe card; no theme change, it opens over a frame
   already themed to her.
   - Content (v4, slimmed): her animated portrait (Portrait) as the header

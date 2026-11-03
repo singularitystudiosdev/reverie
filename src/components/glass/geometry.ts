@@ -186,7 +186,7 @@ export function buildDisplacementMap(
 
   const halfWidth = width / 2;
   const halfHeight = height / 2;
-  // A 44px button must not bend like a 300px tab bar: the bevel is capped to a
+  // A 44px button must not bend like a 300px pill: the bevel is capped to a
   // share of the short side, and the depth thins out below the reference size.
   const shortSide = Math.min(width, height);
   const halfBand = Math.min(optics.band, shortSide * optics.bandRatio);

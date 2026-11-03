@@ -19,7 +19,7 @@
     scrolls natively, so a touch that starts on it scrolls; the grabber strip
     above it and the scrim stay drag sources.
   - An opaque sheet (surface-solid, no blur), rendered into the frame's UI
-    layer through a portal so it covers the floating tab bar. Focus moves in,
+    layer through a portal so it covers the screens and their floating controls. Focus moves in,
     Tab stays inside, and focus returns to the trigger on close.
   - Motion: the sheet enters on the base band from below and leaves on the
     quick band; the preview cross-fades; tiles stagger in (40ms, at most 8).
@@ -94,8 +94,8 @@ export function GallerySheet(props: {
   const reduce = useReducedMotion();
 
   // The frame's UI layer (the direct child of [data-frame]) holds the screen
-  // stack and the tab bar. The gallery is portaled there, after the tab bar
-  // and at z-25, so it covers it and still inherits the current --t-* theme.
+  // stack. The gallery is portaled there, at z-25, so it covers the screens
+  // and still inherits the current --t-* theme.
   const host =
     anchor.current?.closest('main')?.parentElement ??
     document.querySelector<HTMLElement>('[data-frame] > div.relative.isolate');

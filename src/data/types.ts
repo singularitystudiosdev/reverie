@@ -19,7 +19,7 @@ export interface ThemeColors {
   canvas: string;        // frame base color
   canvas2: string;       // second atmosphere stop
   surface: string;       // her bubbles, card groups, list rows (may be translucent rgba)
-  surfaceStrong: string; // header pills, composer, tab bar, round buttons
+  surfaceStrong: string; // header pills, composer, round buttons
   ink: string;           // primary text on surface / surfaceStrong
   muted: string;         // secondary text, >= 4.5:1 on surface
   hairline: string;      // 1px borders

@@ -1,7 +1,7 @@
 /*
   filter.ts: the SVG filter one pane wears. It is generated per element because
   the displacement map is that element's own geometry (see geometry.ts); a
-  single shared filter cannot know a 300x56 tab bar from a 44x44 button.
+  single shared filter cannot know a 300x56 pill from a 44x44 button.
 
   The graph, in order:
     feImage     the map, drawn at the pane's size (plus its neutral margin)

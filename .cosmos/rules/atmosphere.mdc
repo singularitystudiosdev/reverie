@@ -16,8 +16,8 @@ globs: ["src/theme/**", "src/screens/**", "src/components/**"]
   atmosphere loop reads; a registered custom property write forces a style recalc of the whole
   subtree (web.dev measured ~3.9ms on a 1000-element tree). The `--t-*` colors tween only on a theme
   change.
-- `backdrop-filter` belongs to the floating controls only (tab bar, chat menu button, deck buttons,
-  at most 12px). Bubbles, rows, cards and sheets use an opaque or >= 0.86 alpha surface: a blurred
+- `backdrop-filter` belongs to the floating controls only (the composer pill, the chat header's round
+  buttons, the Explore back button and the deck buttons, at most 12px). Bubbles, rows, cards and sheets use an opaque or >= 0.86 alpha surface: a blurred
   layer over the live canvas is re-blurred every frame.
 - The app deliberately ignores `prefers-reduced-motion` (the user's instruction: "do not respect
   reduced motion"). Every animation, particle field, portrait loop and clip always plays; motion's

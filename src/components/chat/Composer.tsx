@@ -1,6 +1,6 @@
 /*
-  The composer pill ("+  Message", after the reference), one of the three
-  surfaces allowed a backdrop blur (--blur-ui).
+  The composer pill ("+  Message", after the reference): a floating
+  .liquid-glass pane, the same material as the chat header's round buttons.
   - "+" toggles a row of quick-reply chips (aria-expanded), one line that
     scrolls sideways edge to edge. The three strings are fixed: the reply
     engine recognises them. A chip sends at once; any send closes the row.
@@ -8,8 +8,8 @@
   - The send button (accent circle, arrow up) scales in once there is text:
     a snappy spring on scale, opacity tweened; reduced motion fades only.
   - Focus: no ring and no outline anywhere. On :focus-within the whole pill
-    (the + button and the field are one surface) darkens toward ink by
-    --composer-focus-mix, on the quick duration.
+    (the + button and the field are one surface) takes a darker tint of ink
+    (--composer-focus-mix) over the glass, on the quick duration.
 */
 import { clsx } from 'clsx';
 import { ArrowUp, Plus, X } from 'lucide-react';
@@ -55,7 +55,7 @@ export function Composer(props: { name: string; onSend(text: string): void }): J
   };
 
   return (
-    <div data-slot="composer" className="safe-x flex flex-col gap-8 pt-8 pb-[var(--tabbar-h)]">
+    <div data-slot="composer" className="safe-x flex flex-col gap-8 pt-8 pb-[var(--bottom-room)]">
       <AnimatePresence initial={false}>
         {chipsOpen ? (
           <motion.ul
@@ -88,9 +88,10 @@ export function Composer(props: { name: string; onSend(text: string): void }): J
       <form
         onSubmit={submit}
         className={clsx(
-          'flex items-center gap-4 rounded-full border border-hairline bg-surface-strong p-4 text-ink backdrop-blur-[var(--blur-ui)]',
+          'liquid-glass flex items-center gap-4 rounded-full border border-transparent p-4',
+          'bg-[color-mix(in_oklab,var(--t-surface-strong)_var(--composer-tint),transparent)]',
           'transition-[background-color] duration-[var(--duration-150)] ease-standard',
-          'focus-within:bg-[color-mix(in_oklab,var(--t-surface-strong),var(--t-ink)_var(--composer-focus-mix))]'
+          'focus-within:bg-[color-mix(in_oklab,var(--t-ink)_var(--composer-focus-mix),color-mix(in_oklab,var(--t-surface-strong)_var(--composer-tint),transparent))]'
         )}
       >
         <button
@@ -118,7 +119,7 @@ export function Composer(props: { name: string; onSend(text: string): void }): J
           placeholder="Message"
           autoComplete="off"
           enterKeyHint="send"
-          className="h-[var(--target)] min-w-0 flex-1 rounded-full bg-transparent px-4 text-body text-ink outline-none placeholder:text-muted"
+          className="h-[var(--target)] min-w-0 flex-1 rounded-full bg-transparent px-4 text-body text-ink outline-none placeholder:text-[color-mix(in_oklab,var(--t-ink)_var(--composer-placeholder-mix),transparent)]"
         />
         <AnimatePresence initial={false}>
           {hasText ? (

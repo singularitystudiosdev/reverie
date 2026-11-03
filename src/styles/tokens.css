@@ -227,7 +227,7 @@
   --ring-tail-mix: 20%;
 
   /* Targets (mobile-web floor): 36px on a fine pointer, 44px on touch.
-     --target-touch is the always-44 size (tab bar items, sheet close). */
+     --target-touch is the always-44 size (the header's round buttons, sheet close). */
   --target: 36px;
   --target-touch: 44px;
   --deck-button: 64px;
@@ -245,26 +245,25 @@
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;
 
-  /* Blur budget (RTPC rules): backdrop-filter ONLY on the chat header pills,
-     the composer and the tab bar, never above this. Bubbles, rows, cards and
+  /* Blur budget (RTPC rules): backdrop-filter ONLY on the chat header pills
+     and the composer, never above this. Bubbles, rows, cards and
      sheets use a surface with alpha >= 0.86 instead. */
   --blur-ui: 12px;
 
   /* Liquid glass (glass.css): the one material of the few floating controls
-     (tab bar, chat menu button, the swipe X and check). Glass only here: a
+     (the composer pill, the chat header's round buttons, the Explore back
+     button and the deck buttons). Glass only here: a
      backdrop filter re-runs every frame over the live canvas. */
   --glass-blur: 12px;
   --glass-saturate: 1.8;
   --glass-brightness: 1.08;
   --glass-tint: 18%;                        /* surface-strong share in the pane */
-  --glass-lens-mix: 28%;                    /* accent share in the lens */
   --glass-accent-mix: 36%;                  /* accent share in the accent variant */
   --glass-rim-top: rgba(255, 255, 255, 0.7);
   --glass-rim-top-refract: rgba(255, 255, 255, 0.45);   /* the map paints the rim; the hairline only catches the edge */
   --glass-rim-hairline: rgba(255, 255, 255, 0.24);
   --glass-rim-hairline-refract: rgba(255, 255, 255, 0.14);
   --glass-rim-bottom-mix: 16%;              /* ink share in the lower edge */
-  --glass-lens-rim: rgba(255, 255, 255, 0.85);
   --glass-shadow: rgba(8, 6, 12, 0.22);
   --glass-sheen: rgba(255, 255, 255, 0.32);
   --glass-sheen-shift: 14%;                 /* how far the sheen slides on hover and press */
@@ -274,8 +273,6 @@
   --glass-rim: 1px;
   --glass-halo-blur: 6px;
   --glass-sheen-image: radial-gradient(120% 90% at 18% 0%, var(--glass-sheen), transparent 60%);
-  --glass-lens-sheen: linear-gradient(to bottom, var(--glass-sheen), transparent 55%);
-  --glass-lens-wash: linear-gradient(165deg, var(--glass-lens-glow), transparent 55%);
 
   /* Liquid glass optics. Each pane's displacement map is generated from its own
      rounded-rect geometry (src/components/glass), so these numbers describe a
@@ -297,12 +294,10 @@
   --glass-lens-ring-center: 1.2px;          /* the ring sits this far inside the edge */
   --glass-lens-ring-width: 1px;             /* gaussian width of the ring */
   --glass-lens-margin: 6px;                 /* neutral border in the map, room for the shift */
-  --glass-lens-shift: 3px;                  /* how far a press or a sliding lens moves the map */
+  --glass-lens-shift: 3px;                  /* how far a press moves the map */
   --glass-refract-blur: 0.75px;             /* the refracting pane stays clear, not frosted */
   --glass-refract-saturate: 1.35;
   --glass-refract-brightness: 1.04;
-  --glass-lens-glow: rgba(255, 255, 255, 0.12); /* inner bloom of the active-tab lens */
-  --glass-lens-glow-blur: 12px;
 
   /* Scrim under sheets and the drawer (judgment: Fluent Smoke
      opacity is unpublished) */
@@ -321,7 +316,12 @@
   --drawer-current-mix: 8%;
   --drawer-muted-mix: 60%; /* share of --t-muted, the rest is --t-ink; the mix itself lives on the text (a var() here would freeze at :root) */
 
-  /* Composer focus: the pill darkens toward ink instead of drawing a ring. */
+  /* Composer: the glass pill carries its own tint so the placeholder and the
+     text stay readable over the moving scene (--composer-tint is the
+     surface-strong share, over the glass's own --glass-tint). On focus it
+     darkens toward ink instead of drawing a ring. */
+  --composer-tint: 45%;
+  --composer-placeholder-mix: 70%;          /* ink share in the placeholder */
   --composer-focus-mix: 7%;
 
   /* Frame. Portrait phone (< 600px): the app fills the viewport, safe areas
@@ -337,11 +337,9 @@
 
   /* Bottom breathing room: the space screens keep under their last control
      (the composer, the deck buttons): the safe area plus one small gap. There
-     is no bottom bar. --tabbar-h is the old name, kept only until
-     Composer.tsx (not part of this change) reads --bottom-room instead. */
+     is no bottom bar. */
   --bottom-gap: 16px;
   --bottom-room: calc(var(--safe-bottom) + var(--bottom-gap));
-  --tabbar-h: var(--bottom-room);
 
   /* The pure left inset (the notch side on a phone). The drawer pads with it. */
   --notch-left: env(safe-area-inset-left, 0px);
