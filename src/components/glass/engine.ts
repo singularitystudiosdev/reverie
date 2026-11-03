@@ -3,18 +3,17 @@
   drives the pane's motion.
 
   Why an engine: the map is the pane's own geometry, and the class API is fixed
-  (TabBar, ChatHeader and Explore all wear .liquid-glass without knowing about
-  filters). A document-level controller measures each pane, draws its map,
+  (the chat header's round buttons, the Explore back button and the deck
+  buttons all wear .liquid-glass without knowing about filters). A document-level controller measures each pane, draws its map,
   installs its filter in the shared <defs>, and points the pane at it with
   --glass-refract plus data-glass-refract. glass.css only switches to the
   refracting chain for panes that carry that attribute, so a pane whose profile
   cannot be read stays on the plain blur fallback.
 
   Motion: --glass-x / --glass-y are the public axis. A press sets them toward
-  the pointer; the tab-bar lens sliding sets them toward the direction of
-  travel. The engine mirrors them into the filter's feOffset, which moves the
-  whole field: the bend, and the uniform rim ring, which comes to rest just
-  inside the leading edge. Reduced motion: the axes stay at 0px.
+  the pointer. The engine mirrors them into the filter's feOffset, which moves
+  the whole field: the bend, and the uniform rim ring, which comes to rest just
+  inside the leading edge. Reduced transparency: the axes stay at 0px.
 
   Interaction constants below are motion-simulation values, not design values
   (the same exception BRIEF.md makes for particle physics and lib/motion.ts).
@@ -27,10 +26,6 @@ import { createGlassFilter, type GlassFilterHandle } from './filter';
 const SHIFT_EASE = 0.28;
 /** Below this many px the shift snaps to its target. */
 const SHIFT_EPSILON = 0.01;
-/** Lens velocity (px/frame) to shift (px). */
-const LENS_GAIN = 0.45;
-/** How long after the lens stops moving its shift settles back to zero. */
-const LENS_HOLD_MS = 110;
 /** Resize changes are coalesced over this long before the map is redrawn. */
 const RESIZE_DEBOUNCE_MS = 120;
 
@@ -41,11 +36,7 @@ interface Entry {
   height: number;
   filter: GlassFilterHandle;
   resizeObserver: ResizeObserver;
-  lensObserver: MutationObserver | null;
-  lensElement: HTMLElement | null;
-  lensFrames: () => void;
   resizeTimer: number | null;
-  lensLastX: number;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -64,17 +55,6 @@ function referenceBackdropsSupported(): boolean {
   );
 }
 
-/** The translation an element's computed transform carries, in CSS px. */
-function transformX(element: HTMLElement): number {
-  const transform = getComputedStyle(element).transform;
-  if (!transform || transform === 'none') return 0;
-  try {
-    return new DOMMatrixReadOnly(transform).m41;
-  } catch {
-    return 0;
-  }
-}
-
 export function startGlassEngine(defs: SVGElement): () => void {
   if (!referenceBackdropsSupported()) return () => {};
 
@@ -91,7 +71,6 @@ export function startGlassEngine(defs: SVGElement): () => void {
   let currentY = 0;
   let targetX = 0;
   let targetY = 0;
-  let leadTimer: number | null = null;
 
   const clearShift = (element: HTMLElement): void => {
     const entry = entries.get(element);
@@ -103,8 +82,6 @@ export function startGlassEngine(defs: SVGElement): () => void {
   const resetMotion = (): void => {
     if (motionFrame) cancelAnimationFrame(motionFrame);
     motionFrame = 0;
-    if (leadTimer !== null) window.clearTimeout(leadTimer);
-    leadTimer = null;
     if (motionElement) clearShift(motionElement);
     motionElement = null;
     pressed = null;
@@ -175,52 +152,6 @@ export function startGlassEngine(defs: SVGElement): () => void {
     if (motionElement) pointMotionAt(motionElement, 0, 0);
   };
 
-  const watchLens = (entry: Entry): void => {
-    const lens = entry.element.querySelector<HTMLElement>('.liquid-glass-lens');
-    if (lens === entry.lensElement) return;
-    entry.lensObserver?.disconnect();
-    entry.lensObserver = null;
-    entry.lensFrames();
-    entry.lensElement = lens;
-    if (!lens) return;
-    entry.lensLastX = transformX(lens);
-    // The slide itself is a compositor animation (motion animates the lens's
-    // transform through the Web Animations API), so the style attribute jumps
-    // to its end value in one write. Sample the *computed* transform for as
-    // long as the animation is running: that is the only place the per-frame
-    // travel is visible, and it costs one style read per frame of the slide.
-    let lensFrame = 0;
-    const sampleLens = (): void => {
-      lensFrame = 0;
-      if (pressed || transparencyQuery.matches) return;
-      const x = transformX(lens);
-      const delta = x - entry.lensLastX;
-      entry.lensLastX = x;
-      if (Math.abs(delta) >= 0.05) {
-        const amount = Math.min(entry.optics.shift, Math.abs(delta) * LENS_GAIN);
-        if (leadTimer !== null) window.clearTimeout(leadTimer);
-        leadTimer = window.setTimeout(() => {
-          leadTimer = null;
-          if (motionElement) pointMotionAt(motionElement, 0, 0);
-        }, LENS_HOLD_MS);
-        pointMotionAt(entry.element, amount * Math.sign(delta), 0);
-      }
-      if (lens.getAnimations().some((animation) => animation.playState === 'running')) {
-        lensFrame = requestAnimationFrame(sampleLens);
-      }
-    };
-    const observer = new MutationObserver(() => {
-      if (pressed || transparencyQuery.matches) return;
-      if (!lensFrame) lensFrame = requestAnimationFrame(sampleLens);
-    });
-    observer.observe(lens, { attributes: true, attributeFilter: ['style'] });
-    entry.lensObserver = observer;
-    entry.lensFrames = () => {
-      if (lensFrame) cancelAnimationFrame(lensFrame);
-      lensFrame = 0;
-    };
-  };
-
   const build = (element: HTMLElement): Entry | null => {
     const geometry = measureGlass(element);
     const optics = readGlassOptics(element);
@@ -248,14 +179,9 @@ export function startGlassEngine(defs: SVGElement): () => void {
           rebuild(entry);
         }, RESIZE_DEBOUNCE_MS);
       }),
-      lensObserver: null,
-      lensElement: null,
-      lensFrames: () => {},
       resizeTimer: null,
-      lensLastX: 0,
     };
     entry.resizeObserver.observe(element);
-    watchLens(entry);
     element.style.setProperty('--glass-refract', `url(#${filter.id})`);
     element.dataset.glassRefract = '';
     return entry;
@@ -290,8 +216,6 @@ export function startGlassEngine(defs: SVGElement): () => void {
 
   const drop = (entry: Entry): void => {
     entry.resizeObserver.disconnect();
-    entry.lensObserver?.disconnect();
-    entry.lensFrames();
     if (entry.resizeTimer !== null) window.clearTimeout(entry.resizeTimer);
     entry.filter.destroy();
     entry.element.removeAttribute('data-glass-refract');
@@ -308,12 +232,7 @@ export function startGlassEngine(defs: SVGElement): () => void {
     }
     if (transparencyQuery.matches) return;
     for (const element of elements) {
-      const entry = entries.get(element);
-      if (entry) {
-        // The tab lens mounts after the pane does; pick it up when it appears.
-        watchLens(entry);
-        continue;
-      }
+      if (entries.has(element)) continue;
       const built = build(element);
       if (built) entries.set(element, built);
     }

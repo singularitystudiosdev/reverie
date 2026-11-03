@@ -1,5 +1,5 @@
 /* glass.css: ONE "liquid glass" material for the few floating controls (the
-   tab bar, the chat header's round menu button, the swipe X and check).
+   chat header's round buttons, the Explore back button, the deck buttons).
 
    WHAT IT IS NOW
    The pane is a real refractive lens, not a frosted pane with painted rims.
@@ -38,7 +38,7 @@
      is what the screenshots in .tmp/reverie-shots show.
 
    WHAT STAYS THE SAME
-   The class API: .liquid-glass, .liquid-glass-lens, .liquid-glass--accent.
+   The class API: .liquid-glass, .liquid-glass--accent.
    The blur pane is still the declaration set every browser gets first; the
    refracting chain only replaces the paint properties of panes the engine has
    successfully mapped (data-glass-refract). Nothing here changes layout: the
@@ -46,11 +46,10 @@
 
    MOTION
    --glass-x / --glass-y are the pane's motion axes (registered lengths). The
-   engine moves them toward a press, or toward the direction the tab lens is
-   sliding, and mirrors them into the filter's feOffset: the bend and the rim
-   ring travel, so the leading edge catches the light. Reduced motion pins both
-   to 0px. The painted sheen follows the same axes so the light and the
-   highlight do not come apart.
+   engine moves them toward a press and mirrors them into the filter's
+   feOffset: the bend and the rim ring travel, so the leading edge catches the
+   light. Reduced motion pins both to 0px. The painted sheen follows the same
+   axes so the light and the highlight do not come apart.
 
    TEXT
    Text and icons on glass use the theme ink with a soft halo of the canvas
@@ -72,8 +71,7 @@
 }
 
 @layer components {
-  .liquid-glass,
-  .liquid-glass-lens {
+  .liquid-glass {
     --glass-rim-bottom: color-mix(in oklab, var(--t-ink) var(--glass-rim-bottom-mix), transparent);
     --glass-halo: color-mix(in oklab, var(--t-canvas) var(--glass-halo-mix), transparent);
   }
@@ -134,22 +132,6 @@
 
   .liquid-glass--accent {
     background-color: color-mix(in oklab, var(--t-accent) var(--glass-accent-mix), transparent);
-  }
-
-  /* The active-tab lens. It lives INSIDE a pane, and Apple's rule is no glass
-     on glass: it is a tint with its own light, not a second filtered
-     backdrop. The top-left wash and the inner bloom make it read as a thick
-     lens of the same material. */
-  .liquid-glass-lens {
-    color: var(--t-ink);
-    background-color: color-mix(in oklab, var(--t-accent) var(--glass-lens-mix), transparent);
-    background-image: var(--glass-lens-wash), var(--glass-lens-sheen);
-    box-shadow:
-      inset 0 var(--glass-rim) 0 0 var(--glass-lens-rim),
-      inset 0 calc(var(--glass-rim) * -1) 0 0 var(--glass-rim-bottom),
-      inset 0 0 0 var(--glass-rim) var(--glass-rim-hairline),
-      inset 0 0 var(--glass-lens-glow-blur) var(--glass-lens-glow),
-      var(--shadow-4);
   }
 
   /* Refraction: only panes the engine has mapped carry data-glass-refract, so
