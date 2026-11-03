@@ -11,10 +11,10 @@
   next card's world shows through under the finger (setPreview weight =
   |drag|). A cancelled drag eases both back to 0 and leaves the next world
   armed; a commit gusts, then the new top card's theme is set (the engine
-  promotes the armed preview). An empty deck is the base theme. While a match
-  moment shows, the overlay owns the theme, and the preview stays armed on the
-  top card (the deck has already advanced under it) so dismissing the modal
-  promotes that decoded world instead of cold-crossfading to it.
+  promotes the armed preview). An empty deck is the base theme. A match never
+  touches the deck: the match notification (MatchNotice) drops over the top of
+  the frame in HER palette and leaves Explore live under it, so a like advances
+  the deck exactly like a pass.
 
   Entrance: the top card rises in, once, on the first visit (not under reduced
   motion).
@@ -28,7 +28,6 @@ import { useCallback, useEffect, useLayoutEffect, useRef, type JSX } from 'react
 import { EmptyDeck } from '../components/explore/EmptyDeck';
 import { SwipeCard, type SwipeCardHandle } from '../components/explore/SwipeCard';
 import { deckConfig, type SwipeDir } from '../components/explore/deckConfig';
-import { cn } from '../lib/cn';
 import { dur, ease, pulseStrength, spring } from '../lib/motion';
 import { useApp, useDeck } from '../state/store';
 import { useFrameTheme } from '../theme/ThemeProvider';
@@ -50,33 +49,20 @@ export function Explore(): JSX.Element {
 
   // The focus world: the top card's, or base when the deck is empty.
   useEffect(() => {
-    if (state.pendingMatchId) return;
     if (top) setTheme(top.theme, top.scene);
     else setTheme('base');
-  }, [top, state.pendingMatchId, setTheme]);
+  }, [top, setTheme]);
 
-  // Arm (and pre-decode) the world the frame goes to next, at weight 0. Order
-  // matters: this runs AFTER the focus-world effect above, because setTheme to
-  // the armed world is what promotes it, and re-arming first would replace it.
-  // - Normally that is the second card (drag-commit: the deck advances, the
-  //   effect above sets the new top's theme = the armed one, then this re-arms
-  //   the card behind it).
-  // - While a match moment shows, the liked card is already gone from the deck
-  //   and the overlay owns the theme, so the world to come back to is the top
-  //   card's. Arming the second card here would drop that world; on dismissal
-  //   (pendingMatchId clears, effect above sets top's theme, this re-arms the
-  //   second card) the engine promotes the armed top world instead.
-  const armTarget = state.pendingMatchId ? top : next;
-  //
-  // The match moment opening is a dependency too, though the armed card does
-  // not change (after a DRAG the second card is already armed, and the finger
-  // left its weight near 1): re-arming at weight 0 eases that world back out,
-  // so the match shows in HER world, not the next card's.
-  const matchOpen = !!state.pendingMatchId;
+  // Arm (and pre-decode) the world the frame goes to next: the second card, at
+  // weight 0. Order matters: this runs AFTER the focus-world effect above,
+  // because setTheme to the armed world is what promotes it, and re-arming
+  // first would replace it. On a commit (a pass or a like, instant match or
+  // not) the deck advances, the effect above sets the new top's theme = the
+  // armed one, then this re-arms the card behind it.
   useEffect(() => {
-    if (armTarget) setPreview(armTarget.theme, armTarget.scene, 0);
+    if (next) setPreview(next.theme, next.scene, 0);
     else setPreview(null);
-  }, [armTarget, matchOpen, setPreview]);
+  }, [next, setPreview]);
 
   // Leaving Explore disarms the preview and releases the drag.
   useEffect(
@@ -119,7 +105,7 @@ export function Explore(): JSX.Element {
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-      if (!top || state.pendingMatchId || state.profileId) return;
+      if (!top || state.profileId) return;
       const target = e.target;
       if (
         target instanceof HTMLElement &&
@@ -132,7 +118,7 @@ export function Explore(): JSX.Element {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [top, state.pendingMatchId, state.profileId]);
+  }, [top, state.profileId]);
 
   const cards = deck.slice(0, 2);
   const rise = !reduce && !entered.current;
@@ -140,13 +126,7 @@ export function Explore(): JSX.Element {
   return (
     <section
       aria-labelledby="explore-title"
-      inert={!!state.pendingMatchId}
-      className={cn(
-        'flex h-full flex-col pt-[var(--statusbar-h)] pb-[var(--tabbar-h)] [container-type:size]',
-        // The match moment owns the frame: the deck steps back behind it.
-        'transition-opacity duration-[var(--duration-300)] ease-standard motion-reduce:transition-none',
-        state.pendingMatchId && 'opacity-0'
-      )}
+      className="flex h-full flex-col pt-[var(--statusbar-h)] pb-[var(--tabbar-h)] [container-type:size]"
     >
       <h1 id="explore-title" className="sr-only">
         Explore

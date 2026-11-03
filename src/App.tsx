@@ -20,11 +20,10 @@ import {
 } from 'motion/react';
 import type { JSX } from 'react';
 import { LiquidGlassDefs } from './components/LiquidGlassDefs';
-import { MatchToast } from './components/MatchToast';
+import { MatchNotice } from './components/MatchNotice';
 import { PhoneFrame } from './components/PhoneFrame';
 import { ProfileSheet } from './components/ProfileSheet';
 import { TabBar } from './components/TabBar';
-import { MatchOverlay } from './components/explore/MatchOverlay';
 import { dur, ease, instant } from './lib/motion';
 import { ChatView } from './screens/ChatView';
 import { Explore } from './screens/Explore';
@@ -77,9 +76,8 @@ export default function App(): JSX.Element {
             <LayoutGroup>
               <Routes />
               <TabBar />
-              <MatchToast />
               <ProfileSheet />
-              <MatchOverlay />
+              <MatchNotice />
             </LayoutGroup>
           </ThemeProvider>
         </PhoneFrame>

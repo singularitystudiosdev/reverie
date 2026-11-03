@@ -38,11 +38,10 @@ export interface AppState {
   typing: Record<string, boolean>;
   drawerOpen: boolean;
   profileId: string | null;  // profile sheet open for this character
-  pendingMatchId: string | null; // the instant-match modal showing for this character
   pendingMatches: PendingMatch[]; // likes waiting out their 5..30s
   hasMatchedBefore: boolean;  // the first LIKE ever has happened (not the first resolved match)
   sentClipIds: string[];      // characters who have sent their video message (once, ever)
-  matchToasts: string[];      // queued "<Name> matched with you" toasts, one shown at a time
+  matchNotices: string[];     // the match-notification queue (instant and delayed matches alike), head shown, one at a time
   resumingIds: string[];      // matches resolved at load whose opener is still to be typed
   filter: StyleFilter;
 }
@@ -53,10 +52,9 @@ export interface AppActions {
   closeChat(): void;                     // back to Explore
   setDrawer(open: boolean): void;
   openProfile(id: string | null): void;
-  like(id: string): void;     // records a LIKE: instant (opener now + modal), or a pending match that resolves after 5..30s
+  like(id: string): void;     // records a LIKE: instant (opener now + a notice), or a pending match that resolves after 5..30s (then a notice)
   pass(id: string): void;
-  dismissMatch(): void;
-  dismissToast(id: string): void; // a match toast was tapped or timed out
+  dismissNotice(id: string): void; // her match notification was tapped, swiped away or timed out
   resetDeck(): void;          // clears passedIds so passed characters return
   send(id: string, text: string): void; // append 'me' message, typing on, await getReply, append, typing off, unread++ if not open, move to top
   setFilter(f: StyleFilter): void;
@@ -127,12 +125,12 @@ function clipMessage(c: Character): Message {
 
 interface Loaded extends Saved {
   /** Matches whose time passed while the app was closed: they announce now. */
-  toasts: string[];
+  notices: string[];
   /** Of those, the ones whose opener still has to be typed in after the load. */
   resuming: string[];
 }
 
-const emptyLoad = (): Loaded => ({ ...fresh(), toasts: [], resuming: [] });
+const emptyLoad = (): Loaded => ({ ...fresh(), notices: [], resuming: [] });
 
 function load(): Loaded {
   try {
@@ -165,11 +163,11 @@ function load(): Loaded {
 
     // Pending likes survive the reload. Any whose time has already passed
     // resolve now: an empty chat with her typing, the chat moved to lastChatId,
-    // and a toast for when we are not inside a chat. The provider delivers her
+    // and a match notification. The provider delivers her
     // opener after the typing delay (resuming).
     const now = Date.now();
     const pendingMatches: PendingMatch[] = [];
-    const toasts: string[] = [];
+    const notices: string[] = [];
     const resuming: string[] = [];
     const rawPending = Array.isArray(p.pendingMatches) ? p.pendingMatches : [];
     for (const entry of rawPending) {
@@ -180,7 +178,7 @@ function load(): Loaded {
       if (entry.at <= now) {
         conversations[id] = { characterId: id, messages: [], unread: 0 };
         matchIds.unshift(id);
-        toasts.push(id);
+        notices.push(id);
         resuming.push(id);
       } else {
         pendingMatches.push({ characterId: id, at: entry.at });
@@ -190,7 +188,7 @@ function load(): Loaded {
     const lastChatId =
       typeof p.lastChatId === 'string' && matchIds.includes(p.lastChatId)
         ? p.lastChatId
-        : toasts[0] ?? (matchIds[0] ?? null);
+        : notices[0] ?? (matchIds[0] ?? null);
     const hasMatchedBefore = p.hasMatchedBefore === true || matchIds.length > 0 || pendingMatches.length > 0;
     const sentClipIds = isStringArray(p.sentClipIds) ? p.sentClipIds.filter((id) => getCharacter(id)) : [];
     return {
@@ -201,7 +199,7 @@ function load(): Loaded {
       pendingMatches,
       hasMatchedBefore,
       sentClipIds,
-      toasts,
+      notices,
       resuming,
     };
   } catch {
@@ -283,7 +281,7 @@ function stampBuild(): void {
 }
 
 function initState(): AppState {
-  const { toasts, resuming, ...saved } = load();
+  const { notices, resuming, ...saved } = load();
   const typing: Record<string, boolean> = {};
   for (const id of resuming) typing[id] = true;
   return {
@@ -293,8 +291,7 @@ function initState(): AppState {
     typing,
     drawerOpen: false,
     profileId: null,
-    pendingMatchId: null,
-    matchToasts: toasts,
+    matchNotices: notices,
     resumingIds: resuming,
     filter: 'All',
   };
@@ -311,8 +308,7 @@ type Action =
   | { type: 'like'; id: string; opener: Message; instant: boolean; at: number }
   | { type: 'resolve'; id: string }
   | { type: 'pass'; id: string }
-  | { type: 'dismissMatch' }
-  | { type: 'dismissToast'; id: string }
+  | { type: 'dismissNotice'; id: string }
   | { type: 'resetDeck' }
   | { type: 'sent'; id: string; message: Message }
   | { type: 'received'; id: string; messages: Message[]; stillTyping: boolean }
@@ -333,9 +329,15 @@ function opened(state: AppState, id: string): AppState {
     openChatId: id,
     lastChatId: id,
     drawerOpen: false,
-    matchToasts: state.matchToasts.filter((x) => x !== id),
+    matchNotices: state.matchNotices.filter((x) => x !== id),
     conversations: convo ? { ...state.conversations, [id]: { ...convo, unread: 0 } } : state.conversations,
   };
+}
+
+/** Her place in the notification queue: not when she is already queued or the user is in her chat. */
+function enqueueNotice(state: AppState, id: string): string[] {
+  if (state.openChatId === id || state.matchNotices.includes(id)) return state.matchNotices;
+  return [...state.matchNotices, id];
 }
 
 function reducer(state: AppState, action: Action): AppState {
@@ -379,7 +381,7 @@ function reducer(state: AppState, action: Action): AppState {
         passedIds: state.passedIds.filter((x) => x !== action.id),
       };
       if (action.instant) {
-        // Her opener is already in the chat; the match modal shows.
+        // Her opener is already in the chat; her notification joins the queue.
         return {
           ...base,
           matchIds: toFront(state.matchIds, action.id),
@@ -388,7 +390,7 @@ function reducer(state: AppState, action: Action): AppState {
             ...state.conversations,
             [action.id]: { characterId: action.id, messages: [action.opener], unread: 1 },
           },
-          pendingMatchId: action.id,
+          matchNotices: enqueueNotice(state, action.id),
         };
       }
       // She is a pending match: the deck drops her, nothing shows on the card,
@@ -417,13 +419,9 @@ function reducer(state: AppState, action: Action): AppState {
         },
         typing: { ...state.typing, [action.id]: true },
       };
-      // The toast only when the user is looking at the deck, never over a chat,
-      // the profile sheet or the match modal; the queue keeps them one at a time.
-      if (state.openChatId !== null || state.pendingMatchId !== null || state.profileId !== null) {
-        return withChat;
-      }
-      if (state.matchToasts.includes(action.id)) return withChat;
-      return { ...withChat, matchToasts: [...state.matchToasts, action.id] };
+      // The same notification as an instant match, on any screen; the queue
+      // keeps them one at a time. Skipped only when she is already on screen.
+      return { ...withChat, matchNotices: enqueueNotice(state, action.id) };
     }
 
     case 'pass':
@@ -431,11 +429,8 @@ function reducer(state: AppState, action: Action): AppState {
         ? state
         : { ...state, passedIds: [...state.passedIds, action.id] };
 
-    case 'dismissMatch':
-      return { ...state, pendingMatchId: null };
-
-    case 'dismissToast':
-      return { ...state, matchToasts: state.matchToasts.filter((x) => x !== action.id) };
+    case 'dismissNotice':
+      return { ...state, matchNotices: state.matchNotices.filter((x) => x !== action.id) };
 
     case 'resetDeck':
       return { ...state, passedIds: [] };
@@ -732,8 +727,7 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
       openProfile: (id) => dispatch({ type: 'openProfile', id }),
       like,
       pass: (id) => dispatch({ type: 'pass', id }),
-      dismissMatch: () => dispatch({ type: 'dismissMatch' }),
-      dismissToast: (id) => dispatch({ type: 'dismissToast', id }),
+      dismissNotice: (id) => dispatch({ type: 'dismissNotice', id }),
       resetDeck: () => dispatch({ type: 'resetDeck' }),
       send,
       setFilter: (filter) => dispatch({ type: 'setFilter', filter }),
