@@ -1,0 +1,175 @@
+/* Vesper's opening cinematic (see vesper.intro.tsx). Everything is under
+   .ve-intro; keyframes are prefixed vesper-. Animations carry !important so
+   the global reduced-motion clamp never stills them (the user's call). */
+
+.ve-intro {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* the room goes black-wine before the swarm */
+.ve-in-dark {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 46%, color-mix(in oklab, var(--t-canvas2) 40%, transparent) 0%, color-mix(in oklab, var(--t-canvas) 92%, transparent) 85%);
+  opacity: 0;
+  animation: vesper-in-dark 2.6s ease-in-out both !important;
+}
+
+.ve-in-stage {
+  position: absolute;
+  inset: 0;
+  perspective: 700px;
+  perspective-origin: 50% 46%;
+}
+
+.ve-in-bat {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: var(--sz, 140px);
+  height: var(--sz, 140px);
+  margin: calc(var(--sz, 140px) / -2) 0 0 calc(var(--sz, 140px) / -2);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: vesper-in-fly var(--bt, 1.3s) cubic-bezier(0.55, 0.05, 0.9, 0.55) var(--bd, 0s) both !important;
+}
+
+.ve-in-bat[data-big='1'] .ve-in-img {
+  filter: drop-shadow(0 0 14px color-mix(in oklab, var(--t-accent) 60%, transparent));
+}
+
+.ve-in-echo {
+  animation-name: vesper-in-echo !important;
+}
+
+.ve-in-echo .ve-in-img {
+  filter: blur(5px) saturate(1.3) drop-shadow(0 0 18px color-mix(in oklab, var(--t-accent) 80%, transparent));
+}
+
+.ve-in-wing {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 55%;
+  animation: vesper-in-flap var(--fl, 0.15s) ease-in-out infinite alternate !important;
+}
+
+.ve-in-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+/* the crimson flash as the hero bat swallows the lens */
+.ve-in-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 46%, color-mix(in oklab, var(--t-glow) 55%, var(--t-accent)) 0%, color-mix(in oklab, var(--t-accent) 70%, transparent) 40%, transparent 80%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: vesper-in-flash 1.2s ease-out 0.95s both !important;
+}
+
+/* crimson at the frame edges while they pass */
+.ve-in-edge {
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 90px 10px color-mix(in oklab, var(--t-accent) 60%, transparent);
+  opacity: 0;
+  animation: vesper-in-edge 2.2s ease-in-out 0.3s both !important;
+}
+
+@keyframes vesper-in-dark {
+  0% {
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.68;
+  }
+  60% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* far behind the glass, out of the dark, then past the camera */
+@keyframes vesper-in-fly {
+  0% {
+    opacity: 0;
+    transform: translate3d(var(--sx), var(--sy), -2000px) rotate(var(--r0)) scale(0.8);
+    filter: blur(0px);
+  }
+  10% {
+    opacity: 1;
+  }
+  78% {
+    opacity: 1;
+    filter: blur(1.5px);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--ex), var(--ey), 560px) rotate(var(--r1)) scale(1);
+    filter: blur(8px);
+  }
+}
+
+@keyframes vesper-in-echo {
+  0% {
+    opacity: 0;
+    transform: translate3d(var(--sx), var(--sy), -2000px) rotate(var(--r0)) scale(0.8);
+  }
+  12% {
+    opacity: var(--eo, 0.3);
+  }
+  80% {
+    opacity: var(--eo, 0.3);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--ex), var(--ey), 520px) rotate(var(--r1)) scale(1);
+  }
+}
+
+@keyframes vesper-in-flap {
+  from {
+    transform: scaleX(1) scaleY(1);
+  }
+  to {
+    transform: scaleX(0.58) scaleY(1.08);
+  }
+}
+
+@keyframes vesper-in-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  18% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+}
+
+@keyframes vesper-in-edge {
+  0% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+  }
+}

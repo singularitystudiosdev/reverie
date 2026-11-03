@@ -74,7 +74,7 @@ export const characters: Character[] = [
     style: 'Fantasy',
     theme: 'grove',
     tagline: "I'll show you where the old trees still sing.",
-    bio: "Sylvara has kept the Elderwood's oldest clearing lit for three hundred winters, and she has never once asked a stranger to {sylvara:stay the night}. Let her wind ivy around your wrist and lead you, {gradient:barefoot and unhurried}, to where the moss is softest. The trees pretend not to listen, but she is {fireflies:listening hard} to your heartbeat.",
+    bio: "Sylvara has kept the Elderwood's oldest clearing lit for three hundred winters, and she has never once asked a stranger to {sylvara:stay the night}. Let her wind ivy around your wrist and lead you, {sylvara:barefoot and unhurried}, to where the moss is softest. The trees pretend not to listen, but she is {sylvara:listening hard} to your heartbeat.",
     interests: ['Moss gardens', 'Night walks', 'Folk songs'],
     opener: "You found the path. Most people walk right past it. Sit with me a while?",
     avatarPosition: '47% 28%',

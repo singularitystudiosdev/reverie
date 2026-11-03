@@ -1,0 +1,166 @@
+/* Sylvara's opening cinematic (see sylvara.intro.tsx). Everything is under
+   .sy-intro; keyframes are prefixed sylvara-. Animations carry !important so
+   the global reduced-motion clamp never stills them (the user's call). */
+
+.sy-intro {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 5;
+  --sy-moss: color-mix(in oklab, var(--t-me) 55%, var(--fx-a1, var(--t-glow)));
+  --sy-dark: color-mix(in oklab, var(--t-me) 38%, var(--t-canvas));
+}
+
+.sy-in-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, transparent 38%, color-mix(in oklab, var(--t-me) 55%, var(--t-canvas)) 120%);
+  opacity: 0;
+  animation: sylvara-in-vignette 2.8s var(--fx-ease-sine, ease-in-out) both !important;
+}
+
+.sy-in-svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: visible;
+  filter: drop-shadow(0 4px 8px color-mix(in oklab, var(--t-canvas) 70%, transparent));
+}
+
+.sy-in-under,
+.sy-in-stem {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1 2;
+  stroke-dashoffset: 1;
+  animation:
+    sylvara-in-draw 0.85s cubic-bezier(0.16, 0.8, 0.3, 1) var(--vd, 0s) both,
+    sylvara-in-undraw 0.8s cubic-bezier(0.5, 0, 0.9, 0.6) 1.5s forwards !important;
+}
+
+.sy-in-under {
+  stroke: var(--sy-dark);
+}
+
+.sy-in-stem {
+  stroke: var(--sy-moss);
+}
+
+.sy-in-leaf {
+  transform-box: fill-box;
+  transform-origin: 28% 72%;
+  transform: scale(0);
+  animation:
+    sylvara-in-leaf 0.38s cubic-bezier(0.2, 1.5, 0.4, 1) var(--ld, 0s) both,
+    sylvara-in-leaf-out 0.5s ease-in 1.5s forwards !important;
+}
+
+.sy-in-flare {
+  position: absolute;
+  left: var(--cx);
+  top: var(--cy);
+  width: calc(var(--fr) * 1.6);
+  height: calc(var(--fr) * 1.1);
+  margin: calc(var(--fr) * -0.55) 0 0 calc(var(--fr) * -0.8);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 50%, color-mix(in oklab, var(--t-glow) 70%, transparent), color-mix(in oklab, var(--t-glow) 22%, transparent) 40%, transparent 70%);
+  opacity: 0;
+  animation: sylvara-in-flare 0.9s ease-out 1.15s both !important;
+}
+
+.sy-in-fly {
+  position: absolute;
+  width: var(--sz, 22px);
+  height: var(--sz, 22px);
+  margin: calc(var(--sz, 22px) / -2) 0 0 calc(var(--sz, 22px) / -2);
+  opacity: 0;
+  filter: drop-shadow(0 0 8px color-mix(in oklab, var(--t-glow) 80%, transparent));
+  animation: sylvara-in-burst var(--fdur, 1.3s) cubic-bezier(0.1, 0.7, 0.3, 1) var(--fd, 1.2s) both !important;
+}
+
+@keyframes sylvara-in-vignette {
+  0% {
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.85;
+  }
+  70% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes sylvara-in-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes sylvara-in-undraw {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -1;
+  }
+}
+
+@keyframes sylvara-in-leaf {
+  from {
+    transform: scale(0) rotate(-40deg);
+  }
+  to {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes sylvara-in-leaf-out {
+  from {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.1) rotate(25deg);
+    opacity: 0;
+  }
+}
+
+@keyframes sylvara-in-flare {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  25% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+@keyframes sylvara-in-burst {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.2);
+  }
+  14% {
+    opacity: 1;
+    transform: translate(calc(var(--dx) * 0.12), calc(var(--dy) * 0.12)) scale(1.15);
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) scale(0.7);
+  }
+}
