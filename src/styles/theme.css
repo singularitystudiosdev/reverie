@@ -1,3 +1,744 @@
-/* theme.css: owned by the theme unit (atmosphere overlays, particle canvas
-   layers, per-theme CSS). Imported by index.css after the tokens and the
-   reduced-motion guard. Intentionally empty in the scaffold. */
+/* theme.css: the atmosphere's CSS, owned by the theme unit.
+
+   Stated deviation (BRIEF "Exit gate"): inside the atmosphere, gradients,
+   glow and translucent light layers ARE the product. Nothing here styles UI.
+   The numbers below (gradient stops, drift distances, loop lengths) are
+   overlay art constants, the CSS twin of the particle physics constants in
+   src/theme/particles/**; durations come from tokens where a band applies.
+
+   Rules the engine relies on (RTPC-SPEC section 4):
+   - A world group carries its palette as inline --w-* props written once.
+     Nothing here reads --t-*, so a preview world can differ from the UI.
+   - The engine writes `opacity` on .atm-world and on each .atm-ov wrapper.
+     Ambient keyframes run on the CHILDREN (`> i`), never on the wrapper.
+   - Only transform and opacity animate. No filter, blend mode or
+     backdrop-filter anywhere in the atmosphere.
+   - Every animated selector has its own reduced-motion rule in this file. */
+
+/* ---------------------------------------------------------------- frame */
+
+.atm {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+
+.atm-world {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  contain: strict;
+  background-color: var(--w-canvas);
+  background-image:
+    radial-gradient(130% 60% at 50% 0%, var(--w-canvas-2) 0%, transparent 72%),
+    linear-gradient(180deg, var(--w-canvas-2) 0%, var(--w-canvas) 64%);
+}
+
+/* The group that fades (crossfade or preview) gets its own layer. */
+.atm-world.is-front {
+  will-change: opacity;
+}
+
+.atm-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transition: opacity var(--duration-150) var(--ease-standard);
+}
+
+/* ------------------------------------------------------------ the plate */
+
+/* Her scene plate: object-cover, revealed after decode, and a slow drift
+   (scale + translate) so the world never sits dead still. */
+.atm-plate {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  opacity: 0;
+  transform: translate3d(0, 0, 0) scale(1.06);
+  transform-origin: 50% 45%;
+  transition: opacity var(--duration-250) var(--ease-standard);
+  animation: atm-drift 64s var(--ease-mdn-ease-in-out) infinite alternate /* deliberate */;
+  user-select: none;
+}
+
+.atm-plate.is-ready {
+  opacity: var(--w-scene);
+}
+
+@keyframes atm-drift {
+  0% {
+    transform: translate3d(-1%, 0.6%, 0) scale(1.06);
+  }
+  50% {
+    transform: translate3d(0.6%, -0.4%, 0) scale(1.09);
+  }
+  100% {
+    transform: translate3d(1%, -1%, 0) scale(1.07);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atm-plate {
+    animation: none;
+    transform: scale(1.06);
+  }
+}
+
+/* -------------------------------------------------------------- overlays */
+
+.atm-ov,
+.atm-decor {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.atm-ov {
+  opacity: 0;
+}
+
+/* Response-driven wrappers are rewritten by the engine: their own layer. */
+.atm-ov[data-driven] {
+  will-change: opacity;
+}
+
+.atm-ov > i,
+.atm-decor > i {
+  position: absolute;
+  display: block;
+}
+
+/* godrays: shafts of light slanting down from the canopy (or, in the tide,
+   fanning from the surface). Each beam sways and breathes on its own clock. */
+.atm-ov--godrays > i {
+  top: -14%;
+  height: 128%;
+  width: 15%;
+  transform-origin: 50% 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--w-light) 72%, transparent) 0%,
+    color-mix(in srgb, var(--w-light) 30%, transparent) 42%,
+    transparent 86%
+  );
+  mask-image: linear-gradient(90deg, transparent 0%, black 38%, black 62%, transparent 100%);
+  animation: atm-ray 11s var(--ease-mdn-ease-in-out) infinite alternate /* deliberate */;
+}
+.atm-ov--godrays > i:nth-child(1) { left: 2%; width: 13%; rotate: -27deg; animation-delay: -3s; }
+.atm-ov--godrays > i:nth-child(2) { left: 18%; width: 20%; rotate: -24deg; animation-delay: -7s; }
+.atm-ov--godrays > i:nth-child(3) { left: 38%; width: 10%; rotate: -21deg; animation-delay: -1s; }
+.atm-ov--godrays > i:nth-child(4) { left: 52%; width: 17%; rotate: -19deg; animation-delay: -9s; }
+.atm-ov--godrays > i:nth-child(5) { left: 72%; width: 9%; rotate: -16deg; animation-delay: -5s; }
+
+/* The tide: rays fan out from the bright surface above. */
+.atm-world[data-world='tide'] .atm-ov--godrays > i:nth-child(1) { left: 30%; rotate: 26deg; }
+.atm-world[data-world='tide'] .atm-ov--godrays > i:nth-child(2) { left: 38%; rotate: 13deg; }
+.atm-world[data-world='tide'] .atm-ov--godrays > i:nth-child(3) { left: 46%; rotate: 2deg; }
+.atm-world[data-world='tide'] .atm-ov--godrays > i:nth-child(4) { left: 50%; rotate: -11deg; }
+.atm-world[data-world='tide'] .atm-ov--godrays > i:nth-child(5) { left: 58%; rotate: -24deg; }
+
+@keyframes atm-ray {
+  from {
+    opacity: 0.5;
+    transform: rotate(-2deg) scaleX(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(2deg) scaleX(1.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atm-ov--godrays > i {
+    animation: none;
+  }
+}
+
+/* fog: soft banks of mist rolling slowly sideways (two layers, opposite drifts). */
+.atm-ov--fog > i {
+  left: 0;
+  width: 200%;
+  bottom: -8%;
+  height: 64%;
+  background-image:
+    radial-gradient(ellipse 34% 46% at 18% 66%, color-mix(in srgb, var(--w-fog) 62%, transparent), transparent),
+    radial-gradient(ellipse 40% 40% at 52% 58%, color-mix(in srgb, var(--w-fog) 48%, transparent), transparent),
+    radial-gradient(ellipse 30% 52% at 84% 72%, color-mix(in srgb, var(--w-fog) 58%, transparent), transparent);
+  background-size: 50% 100%;
+  background-repeat: repeat-x;
+  animation: atm-fog 72s linear infinite /* deliberate */;
+}
+.atm-ov--fog > i:nth-child(2) {
+  bottom: 22%;
+  height: 46%;
+  opacity: 0.65;
+  animation-duration: 115s /* deliberate */;
+  animation-direction: reverse;
+}
+
+@keyframes atm-fog {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atm-ov--fog > i,
+  .atm-ov--fog > i:nth-child(2) {
+    animation: none;
+  }
+}
+
+/* vignette: the world's own dark falling off toward the frame edge. Static. */
+.atm-ov--vignette > i {
+  inset: 0;
+  background: radial-gradient(
+    ellipse 82% 72% at 50% 46%,
+    transparent 50%,
+    color-mix(in srgb, var(--w-deep) 92%, transparent) 100%
+  );
+}
+
+/* caustics: two drifting nets of light that shimmer where they cross. */
+.atm-ov--caustics {
+  mask-image: linear-gradient(180deg, black 0%, black 30%, transparent 82%);
+}
+.atm-ov--caustics > i {
+  inset: -40%;
+  background-image:
+    radial-gradient(ellipse 24px 8px at 30% 40%, color-mix(in srgb, var(--w-light) 75%, transparent), transparent),
+    radial-gradient(ellipse 10px 26px at 72% 22%, color-mix(in srgb, var(--w-light) 60%, transparent), transparent),
+    radial-gradient(ellipse 30px 10px at 62% 76%, color-mix(in srgb, var(--w-light) 70%, transparent), transparent),
+    radial-gradient(ellipse 12px 20px at 14% 84%, color-mix(in srgb, var(--w-light) 55%, transparent), transparent),
+    repeating-radial-gradient(circle at 40% 60%, transparent 0 22px, color-mix(in srgb, var(--w-light) 22%, transparent) 24px, transparent 27px 46px);
+  background-size: 118px 92px, 118px 92px, 118px 92px, 118px 92px, 300px 260px;
+  animation: atm-caustic-a 21s linear infinite alternate /* deliberate */;
+}
+.atm-ov--caustics > i:nth-child(2) {
+  rotate: 34deg;
+  background-size: 146px 112px, 146px 112px, 146px 112px, 146px 112px, 360px 300px;
+  animation-name: atm-caustic-b;
+  animation-duration: 27s /* deliberate */;
+}
+
+@keyframes atm-caustic-a {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(6%, 4%, 0);
+  }
+}
+
+@keyframes atm-caustic-b {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(-5%, 6%, 0) scale(1.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atm-ov--caustics > i,
+  .atm-ov--caustics > i:nth-child(2) {
+    animation: none;
+  }
+}
+
+/* scanlines: a CRT raster plus one bright band sweeping down. */
+.atm-ov--scanlines > i:nth-child(1) {
+  inset: 0;
+  background: repeating-linear-gradient(
+    180deg,
+    transparent 0 2px,
+    color-mix(in srgb, var(--w-deep) 72%, transparent) 2px 3px
+  );
+}
+.atm-ov--scanlines > i:nth-child(2) {
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 22%;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in srgb, var(--w-a1) 18%, transparent) 50%,
+    transparent
+  );
+  animation: atm-scan 7s linear infinite /* deliberate */;
+}
+
+@keyframes atm-scan {
+  from {
+    transform: translate3d(0, -100%, 0);
+  }
+  to {
+    transform: translate3d(0, 460%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atm-ov--scanlines > i:nth-child(2) {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* aurora: curtains of light with vertical striations, swaying and stretching. */
+.atm-ov--aurora {
+  mask-image: linear-gradient(180deg, black 0%, black 38%, transparent 74%);
+}
+.atm-ov--aurora > i {
+  left: -30%;
+  width: 160%;
+  top: 0;
+  height: 40%;
+  transform-origin: 50% 0;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 6px, color-mix(in srgb, var(--w-a1) 30%, transparent) 6px 8px, transparent 8px 13px),
+    linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--w-a1) 62%, transparent) 55%, color-mix(in srgb, var(--w-a2) 30%, transparent) 85%, transparent 100%);
+  mask-image: radial-gradient(ellipse 48% 50% at 50% 58%, black 25%, transparent 78%);
+  rotate: -9deg;
+  animation: atm-aurora 17s var(--ease-mdn-ease-in-out) infinite alternate /* deliberate */;
+}
+.atm-ov--aurora > i:nth-child(2) {
+  top: 9%;
+  left: -10%;
+  rotate: 7deg;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 5px, color-mix(in srgb, var(--w-a2) 28%, transparent) 5px 7px, transparent 7px 11px),
+    linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--w-a2) 55%, transparent) 60%, transparent 100%);
+  animation-duration: 23s /* deliberate */;
+  animation-delay: -8s;
+}
+.atm-ov--aurora > i:nth-child(3) {
+  top: -4%;
+  left: -50%;
+  height: 30%;
+  rotate: -16deg;
+  opacity: 0.7;
+  animation-duration: 29s /* deliberate */;
+  animation-delay: -15s;
+}
+
+@keyframes atm-aurora {
+  0% {
+    transform: translate3d(-6%, 0, 0) scaleY(0.85);
+  }
+  100% {
+    transform: translate3d(6%, 2%, 0) scaleY(1.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atm-ov--aurora > i,
+  .atm-ov--aurora > i:nth-child(2),
+  .atm-ov--aurora > i:nth-child(3) {
+    animation: none;
+  }
+}
+
+/* heat: a glow breathing up from below, and shimmer motes rising through it. */
+.atm-ov--heat {
+  mask-image: linear-gradient(0deg, black 0%, black 22%, transparent 78%);
+}
+.atm-ov--heat > i:nth-child(1) {
+  left: -10%;
+  right: -10%;
+  bottom: -12%;
+  height: 64%;
+  transform-origin: 50% 100%;
+  background: radial-gradient(
+    ellipse 62% 70% at 50% 100%,
+    color-mix(in srgb, var(--w-light) 62%, transparent),
+    transparent 80%
+  );
+  animation: atm-heat-breathe 6s var(--ease-mdn-ease-in-out) infinite alternate /* deliberate */;
+}
+.atm-ov--heat > i:nth-child(2) {
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 200%;
+  background-image:
+    radial-gradient(ellipse 5% 9% at 18% 30%, color-mix(in srgb, var(--w-light) 26%, transparent), transparent),
+    radial-gradient(ellipse 4% 12% at 46% 70%, color-mix(in srgb, var(--w-light) 22%, transparent), transparent),
+    radial-gradient(ellipse 6% 8% at 72% 44%, color-mix(in srgb, var(--w-light) 24%, transparent), transparent),
+    radial-gradient(ellipse 3% 10% at 88% 86%, color-mix(in srgb, var(--w-light) 20%, transparent), transparent);
+  background-size: 100% 50%;
+  animation: atm-heat-rise 9s linear infinite /* deliberate */;
+}
+
+@keyframes atm-heat-breathe {
+  from {
+    opacity: 0.7;
+    transform: scaleY(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1.08);
+  }
+}
+
+@keyframes atm-heat-rise {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, -50%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atm-ov--heat > i:nth-child(1),
+  .atm-ov--heat > i:nth-child(2) {
+    animation: none;
+  }
+}
+
+/* frostEdge: rime creeping in from the frame edge, spiky crystals at the corners. */
+.atm-ov--frostEdge > i:nth-child(1) {
+  inset: 0;
+  background: radial-gradient(
+    ellipse 80% 66% at 50% 50%,
+    transparent 56%,
+    color-mix(in srgb, var(--w-light) 58%, transparent) 100%
+  );
+  animation: atm-frost-breathe 9s var(--ease-mdn-ease-in-out) infinite alternate /* deliberate */;
+}
+.atm-ov--frostEdge > i:nth-child(n + 2) {
+  width: 62%;
+  aspect-ratio: 1;
+  background: repeating-conic-gradient(
+    from 0deg at 0 0,
+    color-mix(in srgb, var(--w-light) 52%, transparent) 0deg 1.1deg,
+    transparent 1.1deg 5.2deg
+  );
+  mask-image: radial-gradient(circle at 0 0, black 0%, transparent 64%);
+}
+.atm-ov--frostEdge > i:nth-child(2) { top: 0; left: 0; }
+.atm-ov--frostEdge > i:nth-child(3) { top: 0; right: 0; scale: -1 1; }
+.atm-ov--frostEdge > i:nth-child(4) { bottom: 0; left: 0; scale: 1 -1; }
+.atm-ov--frostEdge > i:nth-child(5) { bottom: 0; right: 0; scale: -1 -1; }
+
+@keyframes atm-frost-breathe {
+  from {
+    opacity: 0.8;
+    transform: scale(1.03);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atm-ov--frostEdge > i:nth-child(1) {
+    animation: none;
+  }
+}
+
+/* grain: film grain, light and dark specks, jittered in steps. */
+.atm-ov--grain > i {
+  inset: -50%;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1.6 -0.62'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.6 -0.66'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  animation: atm-grain 1.2s steps(6) infinite /* deliberate */;
+}
+
+@keyframes atm-grain {
+  0% { transform: translate3d(0, 0, 0); }
+  17% { transform: translate3d(-3%, 2%, 0); }
+  33% { transform: translate3d(2%, -3%, 0); }
+  50% { transform: translate3d(-1%, 3%, 0); }
+  67% { transform: translate3d(3%, 1%, 0); }
+  83% { transform: translate3d(-2%, -2%, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atm-ov--grain > i {
+    animation: none;
+  }
+}
+
+/* moon: a halo blooming around the plate's moon, and a faint ring. */
+.atm-ov--moon > i {
+  left: 50%;
+  top: 19%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+}
+.atm-ov--moon > i:nth-child(1) {
+  width: 130%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--w-light) 30%, transparent) 0%,
+    color-mix(in srgb, var(--w-light) 14%, transparent) 18%,
+    transparent 56%
+  );
+  animation: atm-moon 12s var(--ease-mdn-ease-in-out) infinite alternate /* deliberate */;
+}
+.atm-ov--moon > i:nth-child(2) {
+  width: 64%;
+  background: radial-gradient(
+    circle,
+    transparent 50%,
+    color-mix(in srgb, var(--w-light) 16%, transparent) 55%,
+    transparent 70%
+  );
+}
+
+@keyframes atm-moon {
+  from {
+    opacity: 0.78;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atm-ov--moon > i:nth-child(1) {
+    animation: none;
+  }
+}
+
+/* lightning (crimson): never random. A soft candle flare the engine raises
+   only on bloom: warm light from the candelabra and the high window. */
+.atm-ov--lightning > i {
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 52% at 18% 32%, color-mix(in srgb, var(--w-a1) 75%, transparent), transparent 72%),
+    radial-gradient(ellipse 120% 60% at 62% 0%, color-mix(in srgb, var(--w-light) 50%, transparent), transparent 72%);
+}
+
+/* sunbeam: one broad shaft from the upper right, and the sun's bloom. */
+.atm-ov--sunbeam > i:nth-child(1) {
+  top: -30%;
+  right: -36%;
+  width: 96%;
+  height: 165%;
+  rotate: 34deg;
+  transform-origin: 50% 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--w-light) 74%, transparent) 0%,
+    color-mix(in srgb, var(--w-light) 26%, transparent) 50%,
+    transparent 86%
+  );
+  mask-image: linear-gradient(90deg, transparent 0%, black 30%, black 62%, transparent 100%);
+  animation: atm-beam 13s var(--ease-mdn-ease-in-out) infinite alternate /* deliberate */;
+}
+.atm-ov--sunbeam > i:nth-child(2) {
+  top: -32%;
+  right: -32%;
+  width: 92%;
+  aspect-ratio: 1;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--w-light) 85%, transparent) 0%,
+    color-mix(in srgb, var(--w-light) 30%, transparent) 30%,
+    transparent 64%
+  );
+  animation: atm-bloom 9s var(--ease-mdn-ease-in-out) infinite alternate /* deliberate */;
+}
+
+@keyframes atm-beam {
+  from {
+    opacity: 0.65;
+    transform: rotate(-1.5deg);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(1.5deg);
+  }
+}
+
+@keyframes atm-bloom {
+  from {
+    opacity: 0.8;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atm-ov--sunbeam > i:nth-child(1),
+  .atm-ov--sunbeam > i:nth-child(2) {
+    animation: none;
+  }
+}
+
+/* glitch (neon): torn RGB bars. Noise limit: visible for 240ms of every 4s,
+   and the engine caps the wrapper at 0.4, event-driven only. Hidden at rest
+   and under reduced motion. */
+.atm-ov--glitch > i {
+  left: -4%;
+  right: -4%;
+  height: 2.5%;
+  opacity: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--w-a1) 72%, transparent) 18%,
+    color-mix(in srgb, var(--w-a2) 72%, transparent) 64%,
+    transparent 100%
+  );
+  animation: atm-glitch 4s steps(1, end) infinite /* deliberate */;
+}
+.atm-ov--glitch > i:nth-child(1) { top: 16%; --gx: 14px; }
+.atm-ov--glitch > i:nth-child(2) { top: 31%; height: 1%; --gx: -22px; }
+.atm-ov--glitch > i:nth-child(3) { top: 49%; height: 4%; --gx: 9px; }
+.atm-ov--glitch > i:nth-child(4) { top: 58%; height: 1.5%; --gx: -12px; }
+.atm-ov--glitch > i:nth-child(5) { top: 77%; height: 3%; --gx: 18px; }
+
+@keyframes atm-glitch {
+  0% {
+    opacity: 1;
+    transform: translate3d(var(--gx), 0, 0);
+  }
+  2% {
+    opacity: 1;
+    transform: translate3d(calc(var(--gx) * -1.6), 0, 0);
+  }
+  4% {
+    opacity: 0.6;
+    transform: translate3d(calc(var(--gx) * 0.5), 0, 0);
+  }
+  6%,
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atm-ov--glitch > i {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* lanterns: glowing lanterns drifting up through the evening, staggered. */
+.atm-ov--lanterns > i {
+  width: 8%;
+  aspect-ratio: 3 / 4;
+  opacity: 0;
+  background: radial-gradient(
+    ellipse 50% 50% at 50% 50%,
+    color-mix(in srgb, var(--w-a2) 95%, transparent) 0%,
+    color-mix(in srgb, var(--w-a1) 72%, transparent) 26%,
+    color-mix(in srgb, var(--w-a1) 20%, transparent) 52%,
+    transparent 72%
+  );
+  animation: atm-lantern 38s linear infinite /* deliberate */;
+}
+.atm-ov--lanterns > i:nth-child(1) { left: 12%; top: 78%; animation-delay: -4s; }
+.atm-ov--lanterns > i:nth-child(2) { left: 68%; top: 86%; width: 11%; animation-delay: -12s; }
+.atm-ov--lanterns > i:nth-child(3) { left: 38%; top: 92%; width: 6%; animation-delay: -20s; }
+.atm-ov--lanterns > i:nth-child(4) { left: 84%; top: 70%; width: 7%; animation-delay: -27s; }
+.atm-ov--lanterns > i:nth-child(5) { left: 24%; top: 88%; width: 10%; animation-delay: -33s; }
+.atm-ov--lanterns > i:nth-child(6) { left: 56%; top: 74%; width: 5%; animation-delay: -16s; }
+.atm-ov--lanterns > i:nth-child(7) { left: 4%; top: 96%; width: 7%; animation-delay: -8s; }
+
+@keyframes atm-lantern {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+  10% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate3d(40%, -420%, 0);
+  }
+  86% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(-20%, -880%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atm-ov--lanterns > i {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* ----------------------------------------------------------------- decor */
+
+/* Vesper's candelabra: warm light that flickers like real flames. */
+.atm-decor--candles > i {
+  left: 16%;
+  top: 30%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--w-a1) 46%, transparent) 0%,
+    color-mix(in srgb, var(--w-a1) 16%, transparent) 30%,
+    transparent 62%
+  );
+}
+.atm-decor--candles > i:nth-child(1) {
+  width: 78%;
+  animation: atm-candle 3.1s linear infinite /* deliberate */;
+}
+.atm-decor--candles > i:nth-child(2) {
+  width: 34%;
+  left: 13%;
+  top: 27%;
+  animation: atm-candle 2.3s linear infinite /* deliberate */;
+  animation-delay: -1.1s;
+}
+.atm-decor--candles > i:nth-child(3) {
+  width: 120%;
+  left: 20%;
+  top: 40%;
+  opacity: 0.5;
+  animation: atm-candle 4.7s linear infinite /* deliberate */;
+  animation-delay: -2s;
+}
+
+@keyframes atm-candle {
+  0% { opacity: 0.85; transform: scale(1); }
+  9% { opacity: 0.68; transform: scale(0.97); }
+  16% { opacity: 0.95; transform: scale(1.02); }
+  27% { opacity: 0.76; transform: scale(0.98); }
+  38% { opacity: 1; transform: scale(1.03); }
+  49% { opacity: 0.8; transform: scale(0.99); }
+  61% { opacity: 0.93; transform: scale(1.01); }
+  72% { opacity: 0.7; transform: scale(0.97); }
+  84% { opacity: 0.97; transform: scale(1.02); }
+  100% { opacity: 0.85; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atm-decor--candles > i:nth-child(1),
+  .atm-decor--candles > i:nth-child(2),
+  .atm-decor--candles > i:nth-child(3) {
+    animation: none;
+  }
+}

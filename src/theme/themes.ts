@@ -8,7 +8,11 @@ import type { ThemeId, ThemeSpec } from '../data/types';
   accent, onMe >= 4.5:1 on me, accent >= 3:1 on canvas (focus ring).
   Blur budget: a translucent `surface` stays at alpha >= 0.86, because
   bubbles, rows, cards and sheets get no backdrop blur.
-  The theme unit owns the final values; this set is complete and passing.
+  Particle densities follow the RTPC authoring rule: at 390x844,
+  sum(density x cost weight) <= 20 per world, so steady state stays under
+  ~80 cost units at affinity 1 (RTPC-SPEC section 3b). Re-run the contrast
+  audit (.tmp/reverie-plan/contrast.mts in the project) after any palette
+  change.
 */
 export const themes: Record<ThemeId, ThemeSpec> = {
   base: {
@@ -30,7 +34,7 @@ export const themes: Record<ThemeId, ThemeSpec> = {
       onMe: '#FFFFFF',
       glow: '#FFF1F4',
     },
-    particles: [{ kind: 'bokeh', density: 0.5, colors: ['#FFFFFF', '#FBE3E9'], speed: 0.15, size: 1.6 }],
+    particles: [{ kind: 'bokeh', density: 1.2, colors: ['#FFFFFF', '#FBE3E9', '#F6D4DD'], speed: 0.35, size: 1.3 }],
     overlays: [],
     sceneOpacity: 0,
   },
@@ -54,12 +58,12 @@ export const themes: Record<ThemeId, ThemeSpec> = {
       glow: '#F4D77A',
     },
     particles: [
-      { kind: 'leaf', density: 1.2, colors: ['#6E9A3E', '#A7C25A', '#C99A3A'], speed: 0.8 },
-      { kind: 'firefly', density: 1.6, colors: ['#F4E27A', '#E2F59A'], speed: 0.6 },
-      { kind: 'pollen', density: 2.4, colors: ['#F4D77A'], speed: 0.4, size: 0.6 },
+      { kind: 'leaf', density: 4.5, colors: ['#6E9A3E', '#A7C25A', '#C99A3A'], speed: 0.9 },
+      { kind: 'firefly', density: 5, colors: ['#F4E27A', '#E2F59A'], speed: 0.8 },
+      { kind: 'pollen', density: 6, colors: ['#F4D77A'], speed: 0.7 },
     ],
     overlays: ['godrays', 'fog', 'vignette'],
-    sceneOpacity: 0.62,
+    sceneOpacity: 0.76,
   },
   crimson: {
     id: 'crimson',
@@ -81,11 +85,11 @@ export const themes: Record<ThemeId, ThemeSpec> = {
       glow: '#F2B66B',
     },
     particles: [
-      { kind: 'bat', density: 0.25, colors: ['#05020A', '#1A0810'], speed: 1.1 },
-      { kind: 'rose', density: 0.9, colors: ['#9E1830', '#C42A44', '#6E0E20'], speed: 0.6 },
+      { kind: 'bat', density: 1, colors: ['#05020A', '#1A0810'], speed: 1 },
+      { kind: 'rose', density: 5, colors: ['#9E1830', '#C42A44', '#6E0E20'], speed: 0.9 },
     ],
     overlays: ['fog', 'vignette', 'lightning'],
-    sceneOpacity: 0.58,
+    sceneOpacity: 0.74,
   },
   sakura: {
     id: 'sakura',
@@ -107,11 +111,11 @@ export const themes: Record<ThemeId, ThemeSpec> = {
       glow: '#FFD9C2',
     },
     particles: [
-      { kind: 'petal', density: 2.2, colors: ['#F7B7C6', '#FBD3DC', '#F49AB0'], speed: 0.7 },
-      { kind: 'bokeh', density: 0.6, colors: ['#FFE8D6', '#FFFFFF'], speed: 0.2, size: 1.4 },
+      { kind: 'petal', density: 9, colors: ['#F7B7C6', '#FBD3DC', '#F49AB0'], speed: 1 },
+      { kind: 'bokeh', density: 2, colors: ['#FFE8D6', '#FFFFFF'], speed: 0.6, size: 1.1 },
     ],
     overlays: ['sunbeam', 'lanterns'],
-    sceneOpacity: 0.5,
+    sceneOpacity: 0.66,
   },
   tide: {
     id: 'tide',
@@ -133,11 +137,11 @@ export const themes: Record<ThemeId, ThemeSpec> = {
       glow: '#9FF3E8',
     },
     particles: [
-      { kind: 'bubble', density: 1.8, colors: ['#BFF6EE', '#E9FFFB'], speed: 0.7 },
-      { kind: 'bokeh', density: 0.7, colors: ['#5FE0CF', '#9FF3E8'], speed: 0.25, size: 1.3 },
+      { kind: 'bubble', density: 6, colors: ['#BFF6EE', '#E9FFFB'], speed: 1 },
+      { kind: 'bokeh', density: 2.5, colors: ['#5FE0CF', '#9FF3E8'], speed: 0.5, size: 1 },
     ],
     overlays: ['caustics', 'godrays'],
-    sceneOpacity: 0.6,
+    sceneOpacity: 0.76,
   },
   ember: {
     id: 'ember',
@@ -159,11 +163,11 @@ export const themes: Record<ThemeId, ThemeSpec> = {
       glow: '#FF9A3D',
     },
     particles: [
-      { kind: 'ember', density: 2.6, colors: ['#FF7A2F', '#FFC94A', '#FF4D1F'], speed: 1.1 },
-      { kind: 'sparkle', density: 0.8, colors: ['#FFE08A'], speed: 0.5, size: 0.8 },
+      { kind: 'ember', density: 9, colors: ['#FF7A2F', '#FFC94A', '#FF4D1F'], speed: 1 },
+      { kind: 'sparkle', density: 4, colors: ['#FFE08A'], speed: 1, size: 0.9 },
     ],
     overlays: ['heat', 'vignette'],
-    sceneOpacity: 0.6,
+    sceneOpacity: 0.74,
   },
   frost: {
     id: 'frost',
@@ -185,11 +189,11 @@ export const themes: Record<ThemeId, ThemeSpec> = {
       glow: '#B7F0FF',
     },
     particles: [
-      { kind: 'snow', density: 3, colors: ['#FFFFFF', '#DDEFFF'], speed: 0.6 },
-      { kind: 'sparkle', density: 0.9, colors: ['#B7F0FF', '#FFFFFF'], speed: 0.3, size: 0.7 },
+      { kind: 'snow', density: 12, colors: ['#FFFFFF', '#DDEFFF'], speed: 1 },
+      { kind: 'sparkle', density: 4, colors: ['#B7F0FF', '#FFFFFF'], speed: 1, size: 0.8 },
     ],
     overlays: ['aurora', 'frostEdge'],
-    sceneOpacity: 0.62,
+    sceneOpacity: 0.76,
   },
   neon: {
     id: 'neon',
@@ -211,11 +215,11 @@ export const themes: Record<ThemeId, ThemeSpec> = {
       glow: '#FF3FB0',
     },
     particles: [
-      { kind: 'rain', density: 4, colors: ['#7FE7FF', '#C6F4FF'], speed: 1.4, size: 0.9 },
-      { kind: 'glyph', density: 0.6, colors: ['#2DE2E6', '#FF3FB0'], speed: 0.5 },
+      { kind: 'rain', density: 22, colors: ['#7FE7FF', '#C6F4FF'], speed: 1, size: 1 },
+      { kind: 'glyph', density: 3, colors: ['#2DE2E6', '#FF3FB0'], speed: 1 },
     ],
     overlays: ['scanlines', 'glitch', 'fog'],
-    sceneOpacity: 0.6,
+    sceneOpacity: 0.76,
   },
   celestial: {
     id: 'celestial',
@@ -237,12 +241,12 @@ export const themes: Record<ThemeId, ThemeSpec> = {
       glow: '#C9B8FF',
     },
     particles: [
-      { kind: 'star', density: 3.2, colors: ['#FFFFFF', '#FFF2C4', '#D9D2FF'], speed: 0.1, size: 0.8 },
-      { kind: 'shootingStar', density: 0.08, colors: ['#FFF2C4'], speed: 1.6 },
-      { kind: 'sparkle', density: 0.7, colors: ['#F2C75C', '#C9B8FF'], speed: 0.3, size: 0.8 },
+      { kind: 'star', density: 14, colors: ['#FFFFFF', '#FFF2C4', '#D9D2FF'], speed: 1 },
+      { kind: 'shootingStar', density: 0.5, colors: ['#FFF2C4'], speed: 1 },
+      { kind: 'sparkle', density: 3, colors: ['#F2C75C', '#C9B8FF'], speed: 1, size: 0.9 },
     ],
     overlays: ['moon', 'aurora'],
-    sceneOpacity: 0.6,
+    sceneOpacity: 0.7,
   },
   sunflower: {
     id: 'sunflower',
@@ -264,11 +268,11 @@ export const themes: Record<ThemeId, ThemeSpec> = {
       glow: '#FFE58A',
     },
     particles: [
-      { kind: 'pollen', density: 2, colors: ['#FFE58A', '#FFFFFF'], speed: 0.4, size: 0.7 },
-      { kind: 'butterfly', density: 0.2, colors: ['#F2A93B', '#7CC0F0', '#FFFFFF'], speed: 0.6 },
+      { kind: 'pollen', density: 8, colors: ['#FFE58A', '#FFFFFF'], speed: 1 },
+      { kind: 'butterfly', density: 1.2, colors: ['#F2A93B', '#7CC0F0', '#FFFFFF'], speed: 1 },
     ],
     overlays: ['sunbeam', 'grain'],
-    sceneOpacity: 0.55,
+    sceneOpacity: 0.64,
   },
   citylights: {
     id: 'citylights',
@@ -290,11 +294,11 @@ export const themes: Record<ThemeId, ThemeSpec> = {
       glow: '#FFC874',
     },
     particles: [
-      { kind: 'bokeh', density: 1.4, colors: ['#FFB547', '#FFE2A8', '#7FC7C2'], speed: 0.2, size: 1.4 },
-      { kind: 'rain', density: 1, colors: ['#D6E6E2'], speed: 0.9, size: 0.7 },
+      { kind: 'bokeh', density: 4, colors: ['#FFB547', '#FFE2A8', '#7FC7C2'], speed: 0.6, size: 1.2 },
+      { kind: 'rain', density: 10, colors: ['#D6E6E2'], speed: 0.8, size: 0.8 },
     ],
     overlays: ['grain', 'vignette'],
-    sceneOpacity: 0.62,
+    sceneOpacity: 0.76,
   },
   foxfire: {
     id: 'foxfire',
@@ -316,11 +320,11 @@ export const themes: Record<ThemeId, ThemeSpec> = {
       glow: '#7FD3FF',
     },
     particles: [
-      { kind: 'maple', density: 1, colors: ['#C8402A', '#E8743A', '#F2A541'], speed: 0.7 },
-      { kind: 'wisp', density: 0.5, colors: ['#7FD3FF', '#BDEBFF'], speed: 0.4, size: 1.2 },
+      { kind: 'maple', density: 4.5, colors: ['#C8402A', '#E8743A', '#F2A541'], speed: 1 },
+      { kind: 'wisp', density: 3, colors: ['#7FD3FF', '#BDEBFF'], speed: 1 },
     ],
     overlays: ['fog', 'lanterns'],
-    sceneOpacity: 0.6,
+    sceneOpacity: 0.76,
   },
   mirage: {
     id: 'mirage',
@@ -342,11 +346,11 @@ export const themes: Record<ThemeId, ThemeSpec> = {
       glow: '#48D6CF',
     },
     particles: [
-      { kind: 'sand', density: 3, colors: ['#E9B85A', '#F5D79A', '#C9944A'], speed: 0.9, size: 0.6 },
-      { kind: 'sparkle', density: 0.8, colors: ['#48D6CF', '#F5D79A'], speed: 0.3, size: 0.8 },
+      { kind: 'sand', density: 14, colors: ['#E9B85A', '#F5D79A', '#C9944A'], speed: 1 },
+      { kind: 'sparkle', density: 3.5, colors: ['#48D6CF', '#F5D79A'], speed: 1, size: 0.9 },
     ],
     overlays: ['heat', 'sunbeam'],
-    sceneOpacity: 0.6,
+    sceneOpacity: 0.74,
   },
   raven: {
     id: 'raven',
@@ -368,11 +372,11 @@ export const themes: Record<ThemeId, ThemeSpec> = {
       glow: '#C8B6D6',
     },
     particles: [
-      { kind: 'feather', density: 0.5, colors: ['#0B0A0D', '#2A2630'], speed: 0.5 },
-      { kind: 'bokeh', density: 0.9, colors: ['#D88A9A', '#C8B6D6'], speed: 0.2, size: 1.3 },
+      { kind: 'feather', density: 2.5, colors: ['#0B0A0D', '#2A2630'], speed: 1 },
+      { kind: 'bokeh', density: 3, colors: ['#D88A9A', '#C8B6D6'], speed: 0.6, size: 1.2 },
     ],
     overlays: ['fog', 'grain', 'vignette'],
-    sceneOpacity: 0.58,
+    sceneOpacity: 0.72,
   },
   brass: {
     id: 'brass',
@@ -394,15 +398,47 @@ export const themes: Record<ThemeId, ThemeSpec> = {
       glow: '#FFD98A',
     },
     particles: [
-      { kind: 'gear', density: 0.3, colors: ['#B8863B', '#A85A17'], speed: 0.3 },
-      { kind: 'steam', density: 0.6, colors: ['#FFFFFF', '#F1E8D6'], speed: 0.4, size: 1.4 },
-      { kind: 'sparkle', density: 0.6, colors: ['#FFD98A'], speed: 0.4, size: 0.7 },
+      { kind: 'gear', density: 1.2, colors: ['#B8863B', '#A85A17'], speed: 1 },
+      { kind: 'steam', density: 2, colors: ['#FFFFFF', '#F1E8D6'], speed: 1 },
+      { kind: 'sparkle', density: 3, colors: ['#FFD98A'], speed: 1, size: 0.9 },
     ],
     overlays: ['sunbeam', 'grain'],
-    sceneOpacity: 0.55,
+    sceneOpacity: 0.66,
   },
 };
 
 export function getTheme(id: ThemeId): ThemeSpec {
   return themes[id] ?? themes.base;
 }
+
+/**
+ * Atmosphere-only tints (never UI): the colours a world's light overlays are
+ * painted in. fog: mist banks; light: god-rays, sunbeams, moon and heat
+ * glow; deep: the vignette edge; a1 / a2: the two hues of multi-colour
+ * overlays (aurora curtains, lanterns, glitch bars, candle flame).
+ */
+export interface AtmosphereTint {
+  fog: string;
+  light: string;
+  deep: string;
+  a1: string;
+  a2: string;
+}
+
+export const atmosphereTints: Record<ThemeId, AtmosphereTint> = {
+  base: { fog: '#FFFFFF', light: '#FFF1F4', deep: '#E3E1E8', a1: '#FBE3E9', a2: '#FFFFFF' },
+  grove: { fog: '#9FBF95', light: '#F4D77A', deep: '#050E08', a1: '#E2F59A', a2: '#F4D77A' },
+  crimson: { fog: '#7A2033', light: '#F2B66B', deep: '#050103', a1: '#FFB061', a2: '#D12C48' },
+  sakura: { fog: '#FFE3EA', light: '#FFE2C2', deep: '#C98C98', a1: '#FF8A4C', a2: '#FFD27A' },
+  tide: { fog: '#3FA7A0', light: '#BFFFF4', deep: '#01090C', a1: '#9FF3E8', a2: '#E9FFFB' },
+  ember: { fog: '#5A2410', light: '#FF9A3D', deep: '#070302', a1: '#FF7A2F', a2: '#FFC94A' },
+  frost: { fog: '#BFE6FF', light: '#DFF6FF', deep: '#030814', a1: '#6CF2C2', a2: '#8FA8FF' },
+  neon: { fog: '#6E1E5E', light: '#2DE2E6', deep: '#010208', a1: '#2DE2E6', a2: '#FF3FB0' },
+  celestial: { fog: '#3A3F8C', light: '#FFF2C4', deep: '#02030D', a1: '#C9B8FF', a2: '#7FE0D0' },
+  sunflower: { fog: '#FFF6D6', light: '#FFE58A', deep: '#B89A4A', a1: '#FFFFFF', a2: '#FFE58A' },
+  citylights: { fog: '#3B5A60', light: '#FFC874', deep: '#030A0C', a1: '#FFB547', a2: '#7FC7C2' },
+  foxfire: { fog: '#3A4A6A', light: '#7FD3FF', deep: '#04060C', a1: '#7FD3FF', a2: '#F2A541' },
+  mirage: { fog: '#C9944A', light: '#F5D79A', deep: '#06061A', a1: '#E9B85A', a2: '#48D6CF' },
+  raven: { fog: '#8A8392', light: '#C8B6D6', deep: '#050407', a1: '#D88A9A', a2: '#C8B6D6' },
+  brass: { fog: '#F1E8D6', light: '#FFD98A', deep: '#6B4A22', a1: '#FFD98A', a2: '#D3E8E5' },
+};
