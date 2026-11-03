@@ -1,0 +1,684 @@
+/* Isolde: four scenes (warm her hands, worth hearing, ice breaks, melt), each
+   built as three plates on separate clocks: a back plate of cold haze or
+   light, a mid plate of painted sprites, a front plate of tiny glints. The
+   sprites live in .fx-layer, behind the text. The word itself wears a glacier
+   fill plus two text overlays: ::after is the frost (or, for warm her hands,
+   a warm flush) and ::before is a bright glint band.
+   Everything is scoped to .fx[data-fx='isolde'], keyframes are isolde-*.
+   Motion: transform, opacity, filter, background-position, stroke-dashoffset.
+   Animations are !important so the global reduced-motion clamp never stills
+   them (the effect always plays). */
+
+.fx[data-fx='isolde'] {
+  --is-ice: color-mix(in oklab, var(--fx-light) 82%, white);
+  --is-pale: color-mix(in oklab, var(--fx-light) 54%, var(--fx-word));
+  --is-glacier: color-mix(in oklab, var(--fx-word) 70%, var(--fx-light));
+  --is-deep: color-mix(in oklab, var(--fx-word) 78%, var(--fx-deep));
+  --is-glint: white;
+  --is-cold: color-mix(in oklab, var(--fx-light) 55%, transparent);
+  --is-warm: color-mix(in oklab, peachpuff 72%, var(--fx-light));
+}
+
+.bio[data-scheme='light'] .fx[data-fx='isolde'] {
+  --is-ice: color-mix(in oklab, var(--fx-word) 48%, var(--fx-light));
+  --is-pale: color-mix(in oklab, var(--fx-word) 78%, var(--fx-light));
+  --is-glacier: var(--fx-word);
+  --is-deep: color-mix(in oklab, var(--fx-word) 80%, black);
+  --is-glint: color-mix(in oklab, var(--fx-light) 40%, white);
+}
+
+/* ---- the word: glacier blue, a little deeper toward the right ---------------- */
+.fx[data-fx='isolde'] .fx-text {
+  background-image: linear-gradient(100deg, var(--is-glacier) 0%, var(--is-deep) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 0.22em color-mix(in oklab, var(--fx-light) 28%, transparent));
+}
+
+/* frost: a banded icy copy of the word. The image is 250% wide and the window
+   sees 40% of it: position 100% is the clear end, 0% the frosted end, so the
+   frosting edge travels left to right as the position falls. */
+.fx[data-fx='isolde'] .fx-text::after {
+  content: attr(data-w);
+  content: attr(data-w) / '';
+  position: absolute;
+  line-height: normal;
+  left: 0;
+  top: 0;
+  background-image: linear-gradient(
+    100deg,
+    var(--is-ice) 0%,
+    var(--is-pale) 5%,
+    var(--is-ice) 10%,
+    var(--is-glacier) 14%,
+    var(--is-ice) 19%,
+    var(--is-pale) 25%,
+    var(--is-ice) 31%,
+    var(--is-glacier) 36%,
+    var(--is-ice) 42%,
+    color-mix(in oklab, var(--is-ice) 55%, transparent) 47%,
+    transparent 56%,
+    transparent 100%
+  );
+  background-size: 250% 100%;
+  background-position: 0% 0;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  opacity: 0;
+  pointer-events: none;
+  animation: isolde-frost-melt 7s linear infinite !important;
+}
+
+.fx[data-fx='isolde'] .fx-text[data-w='worth hearing' i]::after {
+  background-position: 100% 0;
+  animation: isolde-frost-worth 6s linear infinite !important;
+}
+
+.fx[data-fx='isolde'] .fx-text[data-w='ice breaks' i]::after {
+  animation: isolde-frost-breaks 6.4s linear infinite !important;
+}
+
+/* warm her hands: no frost, a warm flush rises through the letters */
+.fx[data-fx='isolde'] .fx-text[data-w='warm her hands' i]::after {
+  background-image: linear-gradient(90deg, var(--is-warm) 0%, color-mix(in oklab, var(--is-warm) 60%, white) 50%, var(--is-warm) 100%);
+  background-size: 100% 100%;
+  animation: isolde-flush 5.8s linear infinite !important;
+}
+
+/* the glint band: worth hearing (after the flakes land) and ice breaks (at the crack) */
+.fx[data-fx='isolde'] .fx-text[data-w='worth hearing' i]::before,
+.fx[data-fx='isolde'] .fx-text[data-w='ice breaks' i]::before {
+  content: attr(data-w);
+  content: attr(data-w) / '';
+  position: absolute;
+  line-height: normal;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  background-image: linear-gradient(
+    105deg,
+    transparent 0%,
+    transparent 41%,
+    color-mix(in oklab, var(--is-glint) 70%, transparent) 46%,
+    var(--is-glint) 50%,
+    color-mix(in oklab, var(--is-glint) 70%, transparent) 54%,
+    transparent 59%,
+    transparent 100%
+  );
+  background-size: 300% 100%;
+  background-position: 100% 0;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  pointer-events: none;
+  animation: isolde-glint-worth 6s cubic-bezier(0.45, 0, 0.35, 1) infinite !important;
+}
+
+.fx[data-fx='isolde'] .fx-text[data-w='ice breaks' i]::before {
+  animation: isolde-glint-breaks 6.4s cubic-bezier(0.45, 0, 0.35, 1) infinite !important;
+}
+
+@keyframes isolde-frost-worth {
+  0%,
+  28% {
+    background-position: 100% 0;
+    opacity: 0;
+  }
+  30% {
+    background-position: 100% 0;
+    opacity: 1;
+  }
+  58%,
+  80% {
+    background-position: 0% 0;
+    opacity: 1;
+  }
+  92%,
+  100% {
+    background-position: 0% 0;
+    opacity: 0;
+  }
+}
+
+@keyframes isolde-frost-breaks {
+  0%,
+  33% {
+    opacity: 0.9;
+  }
+  36% {
+    opacity: 0.25;
+  }
+  60% {
+    opacity: 0.5;
+  }
+  96%,
+  100% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes isolde-frost-melt {
+  0%,
+  14% {
+    opacity: 1;
+  }
+  60%,
+  88% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes isolde-flush {
+  0%,
+  16% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 0.7;
+  }
+  64% {
+    opacity: 0.55;
+  }
+  88%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes isolde-glint-worth {
+  0%,
+  70% {
+    background-position: 100% 0;
+  }
+  82%,
+  100% {
+    background-position: 0% 0;
+  }
+}
+
+@keyframes isolde-glint-breaks {
+  0%,
+  33% {
+    background-position: 100% 0;
+  }
+  45%,
+  100% {
+    background-position: 0% 0;
+  }
+}
+
+/* ---- plates and sprites --------------------------------------------------------- */
+.fx[data-fx='isolde'] .is-scene {
+  position: absolute;
+  inset: 0;
+}
+
+/* a zero-size anchor: left/top place it, the animation moves it, sprites hang off it */
+.fx[data-fx='isolde'] .is-a {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+.fx[data-fx='isolde'] .is-sprite {
+  position: absolute;
+  display: block;
+  width: var(--w);
+  height: auto;
+  max-width: none;
+  left: calc(var(--w) * -0.5);
+  top: calc(var(--w) * -0.5);
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 0 0.3em var(--is-cold)) drop-shadow(0 0.08em 0.1em color-mix(in oklab, var(--fx-deep) 60%, transparent));
+}
+
+.fx[data-fx='isolde'] .is-sprite-top {
+  top: 0;
+  transform-origin: 50% 0;
+}
+
+.fx[data-fx='isolde'] .is-flip {
+  transform: scaleX(var(--f, 1));
+}
+
+/* back plate: a cold haze that always breathes slowly */
+.fx[data-fx='isolde'] .is-haze {
+  position: absolute;
+  inset: -0.4em -0.6em -0.2em;
+  background: radial-gradient(ellipse at 50% 55%, color-mix(in oklab, var(--fx-light) 26%, transparent) 0%, transparent 68%);
+  opacity: 0.4;
+  animation: isolde-haze 4.6s var(--fx-ease-sine) infinite alternate !important;
+}
+
+.fx[data-fx='isolde'] .is-haze-warm {
+  background: radial-gradient(ellipse at 50% 60%, color-mix(in oklab, var(--is-warm) 50%, transparent) 0%, transparent 66%);
+  opacity: 0;
+  animation: isolde-haze-warm 5.8s var(--fx-ease-sine) infinite !important;
+}
+
+.fx[data-fx='isolde'] .is-haze-flash {
+  background: radial-gradient(ellipse at 50% 80%, color-mix(in oklab, var(--is-glint) 70%, transparent) 0%, transparent 60%);
+  opacity: 0;
+  animation: isolde-flash 6.4s var(--fx-ease-sine) infinite !important;
+}
+
+@keyframes isolde-haze {
+  0% {
+    opacity: 0.22;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 0.55;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes isolde-haze-warm {
+  0%,
+  14%,
+  100% {
+    opacity: 0;
+  }
+  38%,
+  62% {
+    opacity: 0.85;
+  }
+  88% {
+    opacity: 0;
+  }
+}
+
+@keyframes isolde-flash {
+  0%,
+  31%,
+  62%,
+  100% {
+    opacity: 0;
+  }
+  35% {
+    opacity: 0.9;
+  }
+  46% {
+    opacity: 0.2;
+  }
+}
+
+/* front plate: four-point glints */
+.fx[data-fx='isolde'] .is-glint {
+  position: absolute;
+  width: var(--s);
+  height: var(--s);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.fx[data-fx='isolde'] .is-glint svg {
+  display: block;
+  overflow: visible;
+}
+
+.fx[data-fx='isolde'] .is-glint path {
+  fill: var(--is-glint);
+  filter: drop-shadow(0 0 0.12em var(--is-ice));
+}
+
+.fx[data-fx='isolde'] .is-glint-free {
+  left: var(--x);
+  top: var(--y);
+  margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2);
+  animation: isolde-twinkle var(--t) var(--fx-ease-sine) var(--d) infinite !important;
+}
+
+.fx[data-fx='isolde'] .is-glint-flake {
+  left: calc(var(--w) * 0.12);
+  top: calc(var(--w) * -0.42);
+  animation: isolde-twinkle-flake var(--t) var(--fx-ease-sine) var(--d) infinite !important;
+}
+
+.fx[data-fx='isolde'] .is-breaks .is-glint-free {
+  animation: isolde-glint-crack var(--t) var(--fx-ease-sine) var(--d) infinite !important;
+}
+
+.fx[data-fx='isolde'] .is-melt .is-glint-free {
+  animation: isolde-glint-drop var(--t) var(--fx-ease-sine) var(--d) infinite !important;
+}
+
+@keyframes isolde-twinkle {
+  0%,
+  58%,
+  100% {
+    opacity: 0;
+    transform: scale(0.2) rotate(0deg);
+  }
+  68% {
+    opacity: 1;
+    transform: scale(1) rotate(45deg);
+  }
+  80% {
+    opacity: 0;
+    transform: scale(0.4) rotate(90deg);
+  }
+}
+
+@keyframes isolde-twinkle-flake {
+  0%,
+  42%,
+  100% {
+    opacity: 0;
+    transform: scale(0.2) rotate(0deg);
+  }
+  47% {
+    opacity: 1;
+    transform: scale(1) rotate(45deg);
+  }
+  56% {
+    opacity: 0;
+    transform: scale(0.3) rotate(90deg);
+  }
+}
+
+@keyframes isolde-glint-crack {
+  0%,
+  32%,
+  100% {
+    opacity: 0;
+    transform: scale(0.2) rotate(0deg);
+  }
+  36% {
+    opacity: 1;
+    transform: scale(1.3) rotate(45deg);
+  }
+  48% {
+    opacity: 0;
+    transform: scale(0.4) rotate(90deg);
+  }
+}
+
+@keyframes isolde-glint-drop {
+  0%,
+  36%,
+  100% {
+    opacity: 0;
+    transform: scale(0.2) rotate(0deg);
+  }
+  41% {
+    opacity: 1;
+    transform: scale(1) rotate(45deg);
+  }
+  50% {
+    opacity: 0;
+    transform: scale(0.3) rotate(90deg);
+  }
+}
+
+/* ---- warm her hands: breath steam rises and curls ------------------------------- */
+.fx[data-fx='isolde'] .is-puff {
+  opacity: 0;
+  animation: isolde-steam 5.8s cubic-bezier(0.3, 0.5, 0.4, 1) var(--d) infinite !important;
+}
+
+.fx[data-fx='isolde'] .is-puff .is-sprite {
+  filter: drop-shadow(0 0 0.35em color-mix(in oklab, var(--is-warm) 55%, transparent));
+}
+
+.fx[data-fx='isolde'] .is-curl {
+  animation: isolde-curl 1.7s var(--fx-ease-sine) infinite alternate !important;
+}
+
+@keyframes isolde-steam {
+  0%,
+  8% {
+    opacity: 0;
+    transform: translate(0, 0.25em) scale(0.5) rotate(0deg);
+  }
+  24% {
+    opacity: 0.8;
+    transform: translate(calc(var(--dx) * 0.3), -0.2em) scale(0.9) rotate(calc(var(--r) * 0.4));
+  }
+  62% {
+    opacity: 0.5;
+    transform: translate(var(--dx), -0.7em) scale(1.3) rotate(var(--r));
+  }
+  92%,
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--dx) * 1.4), -1.05em) scale(1.6) rotate(calc(var(--r) * 1.4));
+  }
+}
+
+@keyframes isolde-curl {
+  0% {
+    transform: translateX(-0.08em) rotate(-6deg);
+  }
+  100% {
+    transform: translateX(0.08em) rotate(6deg);
+  }
+}
+
+/* ---- worth hearing: snowflakes drift down and settle on the top edge ------------- */
+.fx[data-fx='isolde'] .is-flake {
+  opacity: 0;
+  animation: isolde-settle 6s cubic-bezier(0.4, 0, 0.3, 1) var(--d) infinite !important;
+}
+
+@keyframes isolde-settle {
+  0% {
+    opacity: 0;
+    transform: translate(var(--dx), -1.1em) rotate(var(--r0)) scale(0.7);
+  }
+  6% {
+    opacity: 1;
+  }
+  14% {
+    transform: translate(calc(var(--dx) * -0.6), -0.8em) rotate(calc(var(--r0) * 0.6)) scale(0.85);
+  }
+  22% {
+    transform: translate(calc(var(--dx) * 0.4), -0.4em) rotate(calc(var(--r0) * 0.25)) scale(0.95);
+  }
+  32% {
+    transform: translate(calc(var(--dx) * -0.15), -0.1em) rotate(calc(var(--r) * 0.5)) scale(1);
+  }
+  38% {
+    transform: translate(0, 0) rotate(var(--r)) scale(1.1);
+  }
+  42%,
+  78% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(var(--r)) scale(1);
+  }
+  90%,
+  100% {
+    opacity: 0;
+    transform: translate(0, 0.08em) rotate(var(--r)) scale(0.8);
+  }
+}
+
+/* ---- ice breaks: a crack runs under the word, shards fly apart -------------------- */
+.fx[data-fx='isolde'] .is-crack {
+  position: absolute;
+  left: 0;
+  top: calc(100% - 0.05em);
+  width: 100%;
+  height: 0.4em;
+  overflow: visible;
+  filter: drop-shadow(0 0 0.15em var(--is-ice));
+}
+
+.fx[data-fx='isolde'] .is-crack path {
+  fill: none;
+  stroke: var(--is-ice);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: isolde-crack 6.4s var(--fx-ease-sine) infinite !important;
+}
+
+.fx[data-fx='isolde'] .is-shard {
+  opacity: 0;
+  animation: isolde-shatter 6.4s cubic-bezier(0.2, 0.6, 0.3, 1) var(--d) infinite !important;
+}
+
+@keyframes isolde-crack {
+  0%,
+  10% {
+    stroke-dashoffset: 1;
+    opacity: 1;
+  }
+  31% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  44% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+  100% {
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+}
+
+@keyframes isolde-shatter {
+  0%,
+  31% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.5) rotate(0deg);
+  }
+  34% {
+    opacity: 1;
+    transform: translate(calc(var(--ex) * 0.1), calc(var(--ey) * 0.1)) scale(1) rotate(calc(var(--r) * 0.05));
+  }
+  70% {
+    opacity: 0.85;
+    transform: translate(calc(var(--ex) * 0.75), calc(var(--ey) * 0.75)) scale(1) rotate(calc(var(--r) * 0.8));
+  }
+  94%,
+  100% {
+    opacity: 0;
+    transform: translate(var(--ex), var(--ey)) scale(0.8) rotate(var(--r));
+  }
+}
+
+/* ---- melt: an icicle swells a droplet, it falls, the frost thaws ------------------- */
+.fx[data-fx='isolde'] .is-icicle {
+  animation: isolde-icicle 7s var(--fx-ease-sine) infinite !important;
+}
+
+.fx[data-fx='isolde'] .is-drop-anchor {
+  opacity: 0;
+  animation: isolde-drip 7s linear infinite !important;
+}
+
+.fx[data-fx='isolde'] .is-drop {
+  position: absolute;
+  left: -0.11em;
+  top: 0.02em;
+  width: 0.22em;
+  height: 0.22em;
+  border-radius: 50% 0 50% 50%;
+  transform: rotate(-45deg);
+  background: radial-gradient(circle at 35% 35%, var(--is-glint) 0%, var(--is-ice) 40%, var(--is-glacier) 100%);
+  box-shadow: 0 0 0.25em var(--is-cold);
+}
+
+.fx[data-fx='isolde'] .is-ripple {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: 1.2em;
+  height: 0.36em;
+  margin: -0.18em 0 0 -0.6em;
+  border: 1px solid var(--is-ice);
+  border-radius: 50%;
+  opacity: 0;
+  animation: isolde-ripple 7s var(--fx-ease-sine) infinite !important;
+}
+
+@keyframes isolde-icicle {
+  0%,
+  20% {
+    transform: scaleY(1);
+  }
+  62% {
+    transform: scaleY(0.94);
+  }
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes isolde-drip {
+  0%,
+  14% {
+    opacity: 0;
+    transform: translateY(0) scale(0);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0) scale(0.5);
+  }
+  44% {
+    opacity: 1;
+    transform: translateY(0) scale(1, 1.2);
+    animation-timing-function: ease-in;
+  }
+  47% {
+    opacity: 1;
+    transform: translateY(0.1em) scale(1, 1.5);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+  }
+  61% {
+    opacity: 1;
+    transform: translateY(1.5em) scale(0.8, 1.25);
+  }
+  62%,
+  100% {
+    opacity: 0;
+    transform: translateY(1.5em) scale(0.8, 1.25);
+  }
+}
+
+@keyframes isolde-ripple {
+  0%,
+  61% {
+    opacity: 0;
+    transform: scale(0.1);
+  }
+  64% {
+    opacity: 0.8;
+    transform: scale(0.35);
+  }
+  80%,
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+/* forced colors: plain text, no overlays */
+@media (forced-colors: active) {
+  .fx[data-fx='isolde'] .fx-text {
+    background-image: none;
+    color: CanvasText;
+    filter: none;
+  }
+  .fx[data-fx='isolde'] .fx-text::before,
+  .fx[data-fx='isolde'] .fx-text::after,
+  .fx[data-fx='isolde'] .fx-layer {
+    display: none;
+  }
+}

@@ -1,0 +1,212 @@
+/* Cinder's opening cinematic: a wall of fire sweeps left to right across the
+   whole frame. Scoped under .cinder-intro, keyframes are cinder-intro-*.
+   Motion: transform, opacity, filter only. */
+
+.cinder-intro {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: layout paint;
+}
+
+/* ---- back plate ------------------------------------------------------------- */
+.cinder-intro-dim {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 55%, transparent 15%, color-mix(in oklab, var(--ci-deep) 80%, transparent) 100%);
+  opacity: 0;
+  animation: cinder-intro-dim var(--ci-total) ease-in-out both;
+}
+
+.cinder-intro-bloom {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--ci-wall) * 2.6);
+  height: 100%;
+  background: radial-gradient(ellipse at 50% 55%, color-mix(in oklab, var(--ci-a1) 62%, transparent) 0%, color-mix(in oklab, var(--ci-a1) 18%, transparent) 45%, transparent 72%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: cinder-intro-sweep calc(var(--ci-total) * 0.75) cubic-bezier(0.55, 0, 0.35, 1) both;
+}
+
+.cinder-intro-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 60%, color-mix(in oklab, var(--ci-a2) 70%, transparent) 0%, color-mix(in oklab, var(--ci-a1) 36%, transparent) 55%, transparent 100%);
+  opacity: 0;
+  animation: cinder-intro-flash var(--ci-total) linear both;
+}
+
+/* ---- mid plate: the wall -------------------------------------------------------- */
+.cinder-intro-wall {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--ci-wall);
+  height: 100%;
+  opacity: 0;
+  animation: cinder-intro-sweep calc(var(--ci-total) * 0.75) cubic-bezier(0.55, 0, 0.35, 1) both;
+}
+
+.cinder-intro-wallglow {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, color-mix(in oklab, var(--ci-a1) 55%, transparent) 38%, color-mix(in oklab, var(--ci-a2) 70%, transparent) 64%, transparent 100%);
+  mix-blend-mode: screen;
+  opacity: 0.8;
+}
+
+.cinder-intro-flame {
+  position: absolute;
+  left: var(--fl);
+  bottom: calc(var(--H) - var(--fb));
+  width: var(--fs);
+  height: var(--fs);
+  transform-origin: 50% 100%;
+  animation: cinder-intro-lick var(--fp) linear var(--fd) infinite;
+}
+
+.cinder-intro-flame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(var(--flip, 1));
+  filter: hue-rotate(var(--hue)) saturate(1.15) drop-shadow(0 0 18px color-mix(in oklab, var(--ci-a1) 80%, transparent));
+}
+
+.cinder-intro-ember {
+  position: absolute;
+  left: 0;
+  top: var(--ey);
+  width: var(--es);
+  height: var(--es);
+  margin: calc(var(--es) / -2) 0 0 calc(var(--es) / -2);
+  opacity: 0;
+  animation: cinder-intro-fling var(--edur) cubic-bezier(0.3, 0.1, 0.5, 1) var(--ed) both;
+}
+
+.cinder-intro-ember img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 12px color-mix(in oklab, var(--ci-a1) 85%, transparent));
+}
+
+/* ---- front plate: sparks -------------------------------------------------------------- */
+.cinder-intro-spark {
+  position: absolute;
+  width: var(--ss);
+  height: var(--ss);
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--ci-a2) 80%, var(--ci-light));
+  box-shadow: 0 0 8px 2px color-mix(in oklab, var(--ci-a1) 80%, transparent);
+  opacity: 0;
+  animation: cinder-intro-rain var(--sdur) cubic-bezier(0.3, 0.2, 0.7, 1) var(--sd) both;
+}
+
+/* ---- keyframes --------------------------------------------------------------------------- */
+@keyframes cinder-intro-sweep {
+  0% {
+    opacity: 0;
+    transform: translate3d(calc(var(--W) * -0.55), 0, 0) skewX(-8deg);
+  }
+  10% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(var(--W) * 1.05), 0, 0) skewX(-8deg);
+  }
+}
+
+@keyframes cinder-intro-dim {
+  0% {
+    opacity: 0;
+  }
+  22%,
+  68% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes cinder-intro-flash {
+  0%,
+  26% {
+    opacity: 0;
+  }
+  42% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.2;
+  }
+  58% {
+    opacity: 0.42;
+  }
+  86%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes cinder-intro-lick {
+  0% {
+    transform: scale(0.94, 0.86) skewX(-4deg);
+  }
+  25% {
+    transform: scale(1.04, 1.1) skewX(5deg);
+  }
+  50% {
+    transform: scale(0.9, 0.95) skewX(-6deg);
+  }
+  75% {
+    transform: scale(1.06, 1.14) skewX(3deg);
+  }
+  100% {
+    transform: scale(0.94, 0.86) skewX(-4deg);
+  }
+}
+
+@keyframes cinder-intro-fling {
+  0% {
+    opacity: 0;
+    transform: translate3d(calc(var(--W) * -0.1), 0, 0) scale(0.4) rotate(0deg);
+  }
+  12% {
+    opacity: 1;
+  }
+  55% {
+    transform: translate3d(calc(var(--W) * 0.6), var(--earc), 0) scale(1.1) rotate(var(--espin));
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(var(--W) * 1.15), calc(var(--earc) * -0.4), 0) scale(0.5) rotate(calc(var(--espin) * 2));
+  }
+}
+
+@keyframes cinder-intro-rain {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.3);
+  }
+  12% {
+    opacity: 1;
+    transform: translate3d(calc(var(--sdrift) * 0.1), -14px, 0) scale(1.2);
+  }
+  60% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--sdrift), var(--sfall), 0) scale(0.3);
+  }
+}

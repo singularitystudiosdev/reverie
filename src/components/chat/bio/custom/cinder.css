@@ -1,0 +1,782 @@
+/* Cinder: four scenes (closer, light up, burn, dare), each built as three
+   plates on separate clocks: a back plate of heat bloom, a mid plate of
+   painted sprites, a front plate of sparks. The sprites live in .fx-layer,
+   behind the text; the word's own fill is the coal/flame gradient below.
+   Everything is scoped to .fx[data-fx='cinder'], keyframes are cinder-*.
+   Motion: transform, opacity, filter, background-position only. Animations
+   are !important so the global reduced-motion clamp never stills them (the
+   effect always plays). */
+
+.fx[data-fx='cinder'] {
+  --cn-hot: color-mix(in oklab, var(--fx-a2) 86%, var(--fx-light));
+  --cn-flame: color-mix(in oklab, var(--fx-a1) 90%, var(--fx-a2));
+  --cn-tip: color-mix(in oklab, var(--fx-a1) 74%, crimson);
+  --cn-glow: color-mix(in oklab, var(--fx-a1) 60%, transparent);
+  --cn-spark: color-mix(in oklab, var(--fx-a2) 82%, var(--fx-light));
+  --cn-vert: linear-gradient(0deg, var(--cn-hot) 0%, var(--cn-flame) 46%, var(--cn-tip) 100%);
+  --cn-band: linear-gradient(90deg, transparent 0%, transparent 38%, var(--cn-hot) 49%, var(--cn-hot) 51%, transparent 62%, transparent 100%);
+}
+
+.bio[data-scheme='light'] .fx[data-fx='cinder'] {
+  --cn-hot: color-mix(in oklab, var(--fx-a2) 70%, var(--fx-word));
+  --cn-flame: color-mix(in oklab, var(--fx-a1) 80%, var(--fx-word));
+  --cn-tip: color-mix(in oklab, var(--fx-a1) 55%, var(--fx-word));
+}
+
+/* ---- the word: a coal/flame fill, lit differently per scene ---------------- */
+.fx[data-fx='cinder'] .fx-text {
+  background-image: var(--cn-vert);
+  background-size: 100% 220%;
+  background-position: 0% 70%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  /* a tight dark edge keeps the letters readable over the flames behind them */
+  filter: drop-shadow(0 0 0.05em color-mix(in oklab, var(--fx-deep) 90%, transparent)) drop-shadow(0 0 0.3em var(--cn-glow));
+  animation: cinder-fill 2.3s linear infinite !important;
+}
+
+.fx[data-fx='cinder'] .fx-text::after {
+  content: attr(data-w);
+  content: attr(data-w) / '';
+  position: absolute;
+  line-height: normal;
+  left: 0;
+  top: 0;
+  background-image: linear-gradient(0deg, var(--cn-hot) 0%, var(--fx-light) 70%, var(--cn-hot) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  opacity: 0;
+  pointer-events: none;
+  animation: cinder-flare 3.1s linear infinite !important;
+}
+
+/* closer and dare: a hot band sweeps along the word over a banked ember fill */
+.fx[data-fx='cinder'] .fx-text[data-w='closer' i],
+.fx[data-fx='cinder'] .fx-text[data-w='dare' i] {
+  background-image: var(--cn-band), var(--cn-vert);
+  background-size: 300% 100%, 100% 200%;
+  background-position: 15% 0, 0% 78%;
+}
+
+.fx[data-fx='cinder'] .fx-text[data-w='closer' i] {
+  animation: cinder-warm 5.6s linear infinite !important;
+}
+
+.fx[data-fx='cinder'] .fx-text[data-w='closer' i]::after {
+  animation: cinder-flare-closer 5.6s linear infinite !important;
+}
+
+.fx[data-fx='cinder'] .fx-text[data-w='dare' i] {
+  animation: cinder-warm 6.8s linear infinite !important;
+}
+
+.fx[data-fx='cinder'] .fx-text[data-w='dare' i]::after {
+  animation: cinder-flare-dare 6.8s linear infinite !important;
+}
+
+/* light up: the palm's flame lights the word from below */
+.fx[data-fx='cinder'] .fx-text[data-w='light up' i] {
+  background-size: 100% 300%;
+  background-position: 0% 4%;
+  animation: cinder-underlight 6.4s linear infinite !important;
+}
+
+.fx[data-fx='cinder'] .fx-text[data-w='light up' i]::after {
+  animation: cinder-flare-lightup 6.4s linear infinite !important;
+}
+
+@keyframes cinder-fill {
+  0% {
+    background-position: 0% 78%;
+  }
+  17% {
+    background-position: 0% 52%;
+  }
+  31% {
+    background-position: 0% 68%;
+  }
+  49% {
+    background-position: 0% 36%;
+  }
+  66% {
+    background-position: 0% 62%;
+  }
+  83% {
+    background-position: 0% 44%;
+  }
+  100% {
+    background-position: 0% 78%;
+  }
+}
+
+@keyframes cinder-flare {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  9% {
+    opacity: 0.5;
+  }
+  15% {
+    opacity: 0.08;
+  }
+  24% {
+    opacity: 0.38;
+  }
+  38%,
+  61% {
+    opacity: 0;
+  }
+  67% {
+    opacity: 0.55;
+  }
+  74% {
+    opacity: 0.12;
+  }
+  80% {
+    opacity: 0.32;
+  }
+  90% {
+    opacity: 0;
+  }
+}
+
+/* the band enters at the right, crosses, leaves at the left; then a long rest */
+@keyframes cinder-warm {
+  0%,
+  34% {
+    background-position: 15% 0, 0% 78%;
+  }
+  80%,
+  100% {
+    background-position: 82% 0, 0% 60%;
+  }
+}
+
+@keyframes cinder-flare-closer {
+  0%,
+  52% {
+    opacity: 0;
+  }
+  62% {
+    opacity: 0.55;
+  }
+  68% {
+    opacity: 0.18;
+  }
+  74% {
+    opacity: 0.45;
+  }
+  90%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes cinder-flare-dare {
+  0%,
+  30% {
+    opacity: 0;
+  }
+  36% {
+    opacity: 0.5;
+  }
+  42% {
+    opacity: 0.12;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  58% {
+    opacity: 0.1;
+  }
+  66% {
+    opacity: 0.35;
+  }
+  80%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes cinder-underlight {
+  0%,
+  12% {
+    background-position: 0% 4%;
+  }
+  40% {
+    background-position: 0% 66%;
+  }
+  52% {
+    background-position: 0% 52%;
+  }
+  64% {
+    background-position: 0% 70%;
+  }
+  78% {
+    background-position: 0% 56%;
+  }
+  94%,
+  100% {
+    background-position: 0% 4%;
+  }
+}
+
+@keyframes cinder-flare-lightup {
+  0%,
+  38% {
+    opacity: 0;
+  }
+  46% {
+    opacity: 0.5;
+  }
+  54% {
+    opacity: 0.15;
+  }
+  62% {
+    opacity: 0.42;
+  }
+  72% {
+    opacity: 0.12;
+  }
+  84%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ---- plates and sprites ------------------------------------------------------ */
+.fx[data-fx='cinder'] .cn-scene {
+  position: absolute;
+  inset: 0;
+}
+
+/* a zero-size anchor: left/top place it, the animation moves it, sprites hang off it */
+.fx[data-fx='cinder'] .cn-a {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+.fx[data-fx='cinder'] .cn-sprite {
+  position: absolute;
+  display: block;
+  width: var(--w);
+  height: auto;
+  max-width: none;
+  left: calc(var(--w) * -0.5);
+  top: calc(var(--w) * -0.5);
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 0 0.35em var(--cn-glow)) drop-shadow(0 0.08em 0.1em color-mix(in oklab, black 45%, transparent));
+}
+
+.fx[data-fx='cinder'] .cn-sprite-bottom {
+  top: auto;
+  bottom: 0;
+  transform-origin: 50% 100%;
+}
+
+/* ---- back plate: heat bloom ----------------------------------------------------- */
+.fx[data-fx='cinder'] .cn-bloom {
+  position: absolute;
+  inset: -0.3em -0.5em -0.1em;
+  background: radial-gradient(ellipse at 50% 60%, color-mix(in oklab, var(--fx-a1) 46%, transparent) 0%, transparent 68%);
+  opacity: 0;
+}
+
+.fx[data-fx='cinder'] .cn-closer .cn-bloom {
+  animation: cinder-bloom-closer 5.6s var(--fx-ease-sine) infinite !important;
+}
+
+.fx[data-fx='cinder'] .cn-lightup .cn-bloom {
+  inset: 10% -0.4em -1.6em;
+  background: radial-gradient(ellipse at 50% 78%, color-mix(in oklab, var(--fx-a2) 46%, transparent) 0%, transparent 66%);
+  animation: cinder-bloom-lightup 6.4s var(--fx-ease-sine) infinite !important;
+}
+
+.fx[data-fx='cinder'] .cn-burn .cn-bloom {
+  inset: -0.9em -0.6em -0.1em;
+  animation: cinder-breathe 2.9s var(--fx-ease-sine) infinite alternate !important;
+}
+
+.fx[data-fx='cinder'] .cn-dare .cn-bloom {
+  inset: -0.6em -2.6em -0.4em 30%;
+  background: radial-gradient(ellipse at 75% 50%, color-mix(in oklab, var(--fx-a1) 46%, transparent) 0%, transparent 66%);
+  animation: cinder-bloom-dare 6.8s var(--fx-ease-sine) infinite !important;
+}
+
+@keyframes cinder-bloom-closer {
+  0%,
+  40%,
+  100% {
+    opacity: 0.1;
+    transform: scale(0.9);
+  }
+  62% {
+    opacity: 0.9;
+    transform: scale(1.06);
+  }
+  88% {
+    opacity: 0.25;
+    transform: scale(1);
+  }
+}
+
+@keyframes cinder-bloom-lightup {
+  0%,
+  12%,
+  100% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 0.95;
+    transform: scale(1.05);
+  }
+  78% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  94% {
+    opacity: 0;
+  }
+}
+
+@keyframes cinder-breathe {
+  0% {
+    opacity: 0.35;
+    transform: scale(0.94);
+  }
+  100% {
+    opacity: 0.85;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes cinder-bloom-dare {
+  0%,
+  28%,
+  100% {
+    opacity: 0.05;
+    transform: scale(0.9);
+  }
+  42% {
+    opacity: 0.85;
+    transform: scale(1.04);
+  }
+  60% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  82% {
+    opacity: 0.08;
+  }
+}
+
+/* ---- closer: embers drift in and settle against the word --------------------- */
+.fx[data-fx='cinder'] .cn-drift {
+  opacity: 0;
+  animation: cinder-drift 5.6s cubic-bezier(0.4, 0, 0.3, 1) var(--d) infinite !important;
+}
+
+.fx[data-fx='cinder'] .cn-bob {
+  animation: cinder-bob 0.9s var(--fx-ease-sine) infinite alternate !important;
+}
+
+@keyframes cinder-drift {
+  0% {
+    transform: translate(var(--sx), var(--sy)) scale(0.4) rotate(0deg);
+    opacity: 0;
+  }
+  14% {
+    transform: translate(calc(var(--sx) * 0.86), calc(var(--sy) * 0.86)) scale(0.85) rotate(calc(var(--r) * -1));
+    opacity: 1;
+  }
+  58% {
+    transform: translate(calc(var(--sx) * 0.12), calc(var(--sy) * 0.12)) scale(1) rotate(var(--r));
+    opacity: 1;
+  }
+  70% {
+    transform: translate(0, 0) scale(0.95) rotate(var(--r));
+    opacity: 1;
+  }
+  84% {
+    transform: translate(0, -0.2em) scale(0.55) rotate(var(--r));
+    opacity: 0;
+  }
+  100% {
+    transform: translate(0, -0.2em) scale(0.4) rotate(var(--r));
+    opacity: 0;
+  }
+}
+
+@keyframes cinder-bob {
+  0% {
+    transform: translateY(-0.06em) rotate(-7deg);
+  }
+  100% {
+    transform: translateY(0.06em) rotate(7deg);
+  }
+}
+
+/* ---- light up: a palm opens, a flame blooms in it --------------------------- */
+.fx[data-fx='cinder'] .cn-palm {
+  opacity: 0;
+  animation: cinder-palm 6.4s var(--fx-ease-sine) infinite !important;
+}
+
+.fx[data-fx='cinder'] .cn-palm-box {
+  position: absolute;
+  left: calc(var(--w) * -0.5);
+  top: 0;
+  width: var(--w);
+  aspect-ratio: 64 / 26;
+}
+
+.fx[data-fx='cinder'] .cn-palm-svg {
+  display: block;
+  overflow: visible;
+  filter: drop-shadow(0 0.08em 0.12em color-mix(in oklab, black 45%, transparent));
+}
+
+.fx[data-fx='cinder'] .cn-palm-back {
+  fill: color-mix(in oklab, var(--fx-a1) 30%, var(--fx-deep));
+}
+
+.fx[data-fx='cinder'] .cn-palm-lip {
+  fill: color-mix(in oklab, var(--fx-a1) 76%, var(--fx-a2));
+  opacity: 0.3;
+  animation: cinder-palmlit 6.4s var(--fx-ease-sine) infinite !important;
+}
+
+.fx[data-fx='cinder'] .cn-palm-line {
+  fill: none;
+  stroke: color-mix(in oklab, var(--fx-a2) 60%, var(--fx-deep));
+  stroke-width: 0.8;
+  stroke-linecap: round;
+  opacity: 0.55;
+}
+
+.fx[data-fx='cinder'] .cn-bloomflame {
+  opacity: 0;
+  animation: cinder-bloomflame 6.4s cubic-bezier(0.3, 0.7, 0.3, 1) infinite !important;
+}
+
+.fx[data-fx='cinder'] .cn-sway {
+  animation: cinder-sway 0.5s var(--fx-ease-sine) infinite alternate !important;
+}
+
+@keyframes cinder-palm {
+  0% {
+    opacity: 0;
+    transform: translateY(0.3em);
+  }
+  10%,
+  86% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  97%,
+  100% {
+    opacity: 0;
+    transform: translateY(0.2em);
+  }
+}
+
+@keyframes cinder-palmlit {
+  0%,
+  14% {
+    opacity: 0.12;
+  }
+  42%,
+  76% {
+    opacity: 0.75;
+  }
+  94%,
+  100% {
+    opacity: 0.12;
+  }
+}
+
+@keyframes cinder-bloomflame {
+  0%,
+  14% {
+    opacity: 0;
+    transform: scale(0.05);
+  }
+  22% {
+    opacity: 1;
+    transform: scale(0.5);
+  }
+  38% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  46% {
+    transform: scale(0.94);
+  }
+  56% {
+    transform: scale(1.06);
+  }
+  68% {
+    transform: scale(0.97);
+  }
+  80% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  93% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.05);
+  }
+}
+
+@keyframes cinder-sway {
+  0% {
+    transform: skewX(-6deg) scaleY(0.95);
+  }
+  100% {
+    transform: skewX(6deg) scaleY(1.07);
+  }
+}
+
+/* ---- burn: tongues lick the top edge, a soft heat wobble moves the flames only */
+.fx[data-fx='cinder'] .cn-tongue {
+  animation: cinder-lick var(--t) linear var(--d) infinite !important;
+}
+
+.fx[data-fx='cinder'] .cn-tongue .cn-sprite {
+  filter: hue-rotate(var(--hue)) drop-shadow(0 0 0.3em var(--cn-glow));
+}
+
+.fx[data-fx='cinder'] .cn-wobble {
+  animation: cinder-wobble var(--k, 0.66s) var(--fx-ease-sine) var(--d, 0s) infinite alternate !important;
+}
+
+@keyframes cinder-lick {
+  0% {
+    transform: scale(0.88, 0.6);
+    opacity: 0.45;
+  }
+  14% {
+    transform: scale(0.96, 1.08);
+    opacity: 0.95;
+  }
+  33% {
+    transform: scale(1.1, 0.8);
+    opacity: 0.75;
+  }
+  52% {
+    transform: scale(0.85, 1.25);
+    opacity: 1;
+  }
+  74% {
+    transform: scale(1, 0.9);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(0.88, 0.6);
+    opacity: 0.45;
+  }
+}
+
+@keyframes cinder-wobble {
+  0% {
+    transform: translateX(-0.03em) skewX(-8deg);
+  }
+  100% {
+    transform: translateX(0.03em) skewX(8deg);
+  }
+}
+
+/* ---- dare: a card catches fire at its corner, curls, turns to ash ------------- */
+.fx[data-fx='cinder'] .cn-card {
+  opacity: 0;
+  animation: cinder-card 6.8s cubic-bezier(0.4, 0, 0.3, 1) infinite !important;
+}
+
+.fx[data-fx='cinder'] .cn-card-box {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--w);
+  transform: translate(-50%, -50%);
+}
+
+.fx[data-fx='cinder'] .cn-card-img {
+  position: static;
+  width: 100%;
+  left: auto;
+  top: auto;
+  animation: cinder-char 6.8s linear infinite !important;
+}
+
+.fx[data-fx='cinder'] .cn-cardflame {
+  left: 80%;
+  top: 22%;
+  opacity: 0;
+  animation: cinder-cardfire 6.8s cubic-bezier(0.3, 0.7, 0.3, 1) infinite !important;
+}
+
+@keyframes cinder-card {
+  0% {
+    opacity: 0;
+    transform: translate(0.7em, -1em) rotate(-30deg) scale(0.8);
+  }
+  9% {
+    opacity: 1;
+    transform: translate(0.1em, 0) rotate(2deg) scale(1);
+  }
+  20% {
+    transform: translate(0, 0) rotate(5deg) scale(1);
+  }
+  24% {
+    transform: translate(0.02em, 0) rotate(2deg) scale(1);
+  }
+  27% {
+    transform: translate(-0.02em, 0) rotate(7deg) scale(1);
+  }
+  32% {
+    transform: translate(0, 0) rotate(5deg) scale(1);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(0, 0.04em) rotate(16deg) skewX(-8deg) scale(0.88, 0.8);
+  }
+  80% {
+    opacity: 0.85;
+    transform: translate(0, 0.08em) rotate(20deg) skewX(-10deg) scale(0.82, 0.74);
+  }
+  94% {
+    opacity: 0;
+    transform: translate(0.15em, 0.5em) rotate(28deg) skewX(-12deg) scale(0.6, 0.5);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0.15em, 0.5em) rotate(28deg) scale(0.6);
+  }
+}
+
+@keyframes cinder-char {
+  0%,
+  30% {
+    filter: brightness(1) sepia(0) drop-shadow(0 0.08em 0.12em color-mix(in oklab, black 50%, transparent));
+  }
+  72%,
+  100% {
+    filter: brightness(0.38) sepia(0.9) drop-shadow(0 0 0.25em var(--cn-glow));
+  }
+}
+
+@keyframes cinder-cardfire {
+  0%,
+  29% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  34% {
+    opacity: 1;
+    transform: scale(0.55);
+  }
+  42% {
+    transform: scale(1.05);
+  }
+  50% {
+    transform: scale(0.9);
+  }
+  60% {
+    transform: scale(1.1);
+  }
+  70% {
+    transform: scale(0.95);
+  }
+  80% {
+    opacity: 0.8;
+    transform: scale(0.6);
+  }
+  90%,
+  100% {
+    opacity: 0;
+    transform: scale(0.1);
+  }
+}
+
+/* ---- front plate: sparks and ash pop off and rise ------------------------------ */
+.fx[data-fx='cinder'] .cn-fleck {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--s);
+  height: var(--s);
+  margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2);
+  opacity: 0;
+  animation: cinder-rise var(--t) cubic-bezier(0.2, 0.55, 0.4, 1) var(--d) infinite !important;
+}
+
+.fx[data-fx='cinder'] .cn-fleck-dot {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--cn-spark);
+  box-shadow: 0 0 0.3em 0.06em color-mix(in oklab, var(--fx-a1) 80%, transparent);
+  animation: cinder-flick 0.9s var(--fx-ease-sine) var(--d) infinite alternate !important;
+}
+
+@keyframes cinder-rise {
+  0% {
+    transform: translate(0, 0) scale(0.4);
+    opacity: 0;
+  }
+  8% {
+    transform: translate(calc(var(--dx) * 0.08), calc(var(--rise) * -0.1)) scale(1.3);
+    opacity: 1;
+  }
+  45% {
+    opacity: 0.85;
+  }
+  60% {
+    opacity: 0.45;
+  }
+  70% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(var(--dx), calc(var(--rise) * -1)) scale(0.2);
+    opacity: 0;
+  }
+}
+
+@keyframes cinder-flick {
+  0% {
+    transform: translateX(-0.12em);
+  }
+  100% {
+    transform: translateX(0.12em);
+  }
+}
+
+/* forced colors: plain text, no overlays */
+@media (forced-colors: active) {
+  .fx[data-fx='cinder'] .fx-text {
+    background-image: none;
+    color: CanvasText;
+    filter: none;
+    animation: none !important;
+  }
+  .fx[data-fx='cinder'] .fx-text::after,
+  .fx[data-fx='cinder'] .fx-layer {
+    display: none;
+  }
+}

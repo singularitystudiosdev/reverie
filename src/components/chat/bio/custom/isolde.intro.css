@@ -1,0 +1,240 @@
+/* Isolde's opening cinematic: frost freezes in from the edges, the text
+   shatters and re-forms. Scoped under .isolde-intro, keyframes are
+   isolde-intro-*. Motion: transform, opacity, filter only. The whole timeline
+   is --ii-total (2600 ms); the text's own shatter is timed in the component to
+   the same total, so the flash and the rings land on its cuts:
+     0 to 34%     frost creeps in, crystals grow
+     37%          the freeze completes: flash, shock ring, the text shatters
+     37 to 82%    shards fly apart in 3D, hang, and fly back in
+     82 to 100%   the frost thaws */
+
+.isolde-intro {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: layout paint;
+  perspective: 900px;
+}
+
+/* ---- back plate ----------------------------------------------------------------- */
+.isolde-intro-night {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, transparent 20%, color-mix(in oklab, var(--ii-deep) 70%, transparent) 100%);
+  opacity: 0;
+  animation: isolde-intro-night var(--ii-total) ease-in-out both;
+}
+
+/* the rime: ice white at the edges, clear in the middle; it scales in from outside the frame */
+.isolde-intro-rime {
+  position: absolute;
+  inset: -4%;
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    transparent 40%,
+    color-mix(in oklab, var(--ii-ice) 26%, transparent) 62%,
+    color-mix(in oklab, var(--ii-ice) 72%, transparent) 86%,
+    color-mix(in oklab, var(--ii-glacier) 40%, white) 100%
+  );
+  opacity: 0;
+  transform-origin: 50% 50%;
+  animation: isolde-intro-rime var(--ii-total) cubic-bezier(0.25, 0.6, 0.3, 1) both;
+}
+
+/* crystalline facets inside the same rime: fine diagonal ridges, masked to the edge */
+.isolde-intro-rime-pattern {
+  background:
+    repeating-linear-gradient(62deg, color-mix(in oklab, white 34%, transparent) 0 1px, transparent 1px 11px),
+    repeating-linear-gradient(-58deg, color-mix(in oklab, var(--ii-ice) 30%, transparent) 0 1px, transparent 1px 17px);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 50%, transparent 48%, black 92%);
+  mask-image: radial-gradient(ellipse at 50% 50%, transparent 48%, black 92%);
+}
+
+.isolde-intro-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at var(--cx) var(--cy), white 0%, color-mix(in oklab, var(--ii-ice) 55%, transparent) 40%, transparent 72%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: isolde-intro-flash var(--ii-total) linear both;
+}
+
+.isolde-intro-ring {
+  position: absolute;
+  left: var(--cx);
+  top: var(--cy);
+  width: min(var(--W), var(--H));
+  height: min(var(--W), var(--H));
+  margin: calc(min(var(--W), var(--H)) / -2) 0 0 calc(min(var(--W), var(--H)) / -2);
+  border-radius: 50%;
+  border: 2px solid color-mix(in oklab, white 85%, var(--ii-ice));
+  box-shadow: 0 0 22px 4px color-mix(in oklab, var(--ii-ice) 70%, transparent), inset 0 0 26px color-mix(in oklab, var(--ii-ice) 50%, transparent);
+  opacity: 0;
+  animation: isolde-intro-ring calc(var(--ii-total) * 0.4) cubic-bezier(0.1, 0.6, 0.3, 1) calc(var(--ii-total) * 0.37) forwards;
+}
+
+.isolde-intro-ring-late {
+  animation-name: isolde-intro-ring-late;
+  animation-delay: calc(var(--ii-total) * 0.55);
+  animation-fill-mode: forwards;
+}
+
+/* ---- mid plate -------------------------------------------------------------------- */
+.isolde-intro-crystal {
+  position: absolute;
+  width: var(--cs);
+  height: var(--cs);
+  margin: calc(var(--cs) / -2) 0 0 calc(var(--cs) / -2);
+  opacity: 0;
+  animation: isolde-intro-grow var(--ii-total) cubic-bezier(0.2, 0.7, 0.3, 1) var(--cd) both;
+}
+
+.isolde-intro-crystal img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 10px color-mix(in oklab, var(--ii-ice) 80%, transparent));
+}
+
+.isolde-intro-shard {
+  position: absolute;
+  left: var(--cx);
+  top: var(--cy);
+  width: var(--ss);
+  height: var(--ss);
+  margin: calc(var(--ss) / -2) 0 0 calc(var(--ss) / -2);
+  opacity: 0;
+  animation: isolde-intro-burst var(--ii-total) cubic-bezier(0.15, 0.7, 0.3, 1) both;
+}
+
+.isolde-intro-shard img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(var(--sflip, 1));
+  filter: drop-shadow(0 0 14px color-mix(in oklab, var(--ii-ice) 75%, transparent)) drop-shadow(0 8px 10px color-mix(in oklab, var(--ii-deep) 60%, transparent));
+}
+
+/* ---- keyframes ---------------------------------------------------------------------- */
+@keyframes isolde-intro-night {
+  0% {
+    opacity: 0;
+  }
+  20%,
+  80% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes isolde-intro-rime {
+  0% {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+  34% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  82% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+@keyframes isolde-intro-flash {
+  0%,
+  34% {
+    opacity: 0;
+  }
+  38% {
+    opacity: 0.85;
+  }
+  52% {
+    opacity: 0.12;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes isolde-intro-ring {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.05);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+
+@keyframes isolde-intro-ring-late {
+  0% {
+    opacity: 0.55;
+    transform: scale(1.4);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.1);
+  }
+}
+
+@keyframes isolde-intro-grow {
+  0% {
+    opacity: 0;
+    transform: scale(0) rotate(var(--ct));
+  }
+  14% {
+    opacity: 1;
+    transform: scale(0.6) rotate(calc(var(--ct) * 0.5));
+  }
+  34% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  80% {
+    opacity: 1;
+    transform: scale(1.04) rotate(4deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.7) rotate(10deg);
+  }
+}
+
+@keyframes isolde-intro-burst {
+  0%,
+  36% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.3) rotate(0deg);
+  }
+  38% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(0.5) rotate(0deg);
+  }
+  52% {
+    opacity: 1;
+    transform: translate3d(var(--sx), var(--sy), var(--sz)) scale(1.1) rotate(var(--sspin));
+  }
+  60% {
+    opacity: 1;
+    transform: translate3d(calc(var(--sx) * 1.1), calc(var(--sy) * 1.1 + 8px), var(--sz)) scale(1.1) rotate(calc(var(--sspin) * 1.1));
+  }
+  82% {
+    opacity: 0.8;
+    transform: translate3d(0, 0, 0) scale(0.35) rotate(calc(var(--sspin) * 2));
+  }
+  86%,
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.1) rotate(calc(var(--sspin) * 2));
+  }
+}
