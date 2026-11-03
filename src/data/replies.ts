@@ -1213,34 +1213,6 @@ const unscripted: Voice = {
   setting: /$^/,
 };
 
-/**
- * The line she sends with her video message, in her voice: flirty but tasteful,
- * never explicit. One per character; the fallback covers a roster addition.
- */
-const clipCaptions: Record<string, string> = {
-  sylvara: 'Filmed this by the fireflies for you. The forest said to send it.',
-  vesper: 'A little something from the manor, darling. Mind the third stair.',
-  hanami: 'I made this after the lanterns were lit. Do not tell the shrine maiden.',
-  nerissa: 'Recorded on the shore at moonrise. The tide insisted I share it.',
-  cinder: 'Careful with this one. I run a little warm, remember.',
-  isolde: 'The palace is cold tonight. I thought you might like the view.',
-  nova: 'Uploaded straight from my deck, no firewall could stop it.',
-  luna: 'The stars said you would like this. I always listen to the stars.',
-  clementine: 'Took a break from the pies. Thought of you in the sunflower light.',
-  maya: 'Golden hour, one take, no filter. You were on my mind.',
-  kiyo: 'Nine lifetimes of practice and this is still the boldest thing I have sent.',
-  zahra: 'A wish, granted. Do not waste it on anyone else.',
-  raven: 'From the rooftop after the show. Black lipstick stays on.',
-  ada: 'Shot this in the workshop. The engine can wait, the view cannot.',
-};
-
-const CLIP_FALLBACK = 'I recorded this just for you. Do not share it with anyone.';
-
-/** The caption under her video message. */
-export function getClipCaption(id: string): string {
-  return clipCaptions[id] ?? CLIP_FALLBACK;
-}
-
 const QUICK_WORLD = 'tell me about your world';
 const QUICK_DOING = 'what are you doing right now';
 const QUICK_PLACES = 'take me somewhere';
