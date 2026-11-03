@@ -1,20 +1,24 @@
 /*
-  The match moment: reads state.pendingMatchId. A full-frame dialog in her
-  world: the frame is themed to her, a veil of her canvas keeps type legible
-  over the moving atmosphere, and the burst of her own particles plays behind.
-  Her portrait pops in on the playful spring inside the live ring, then
-  "<Name> likes you too" in Instrument Serif, her opener as a quoted line, and
-  two buttons: "Say hi" (opens the chat) and "Keep exploring".
+  The instant-match modal: reads state.pendingMatchId, which the store sets
+  only when a right swipe is an instant match. A SMALL card centered in the
+  frame over a light scrim, so her world (the frame is themed to her and her
+  particles burst) stays visible around it: her animated portrait in the live
+  ring, her name in Instrument Serif, "You Matched!", and one primary "Chat"
+  button (opens the chat). Escape or a tap on the scrim dismisses and keeps
+  exploring.
 
-  Entrance 500ms. Reduced motion: a fade only, no pop, no rise, no burst.
-  Escape dismisses; focus moves in, is held inside, and returns on close.
+  Entrance: a scale from 0.92 to 1 on the snappy spring plus a fade. Reduced
+  motion: a fade only, no scale, no burst.
+  Dialog: role="dialog" aria-modal, named by her name and the heading; focus
+  moves to "Chat" (the only control, so Tab stays on it) and returns on close.
 */
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useRef, type JSX, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Avatar } from '../Avatar';
-import { dur, ease, instant, matchPopFrom, spring } from '../../lib/motion';
+import { dur, ease, instant, spring } from '../../lib/motion';
 import { useApp, useCharacter } from '../../state/store';
 import { useFrameTheme } from '../../theme/ThemeProvider';
+import { deckConfig } from './deckConfig';
 import './explore.css';
 
 export function MatchOverlay(): JSX.Element {
@@ -22,8 +26,7 @@ export function MatchOverlay(): JSX.Element {
   const character = useCharacter(state.pendingMatchId);
   const { setTheme, burst } = useFrameTheme();
   const reduce = useReducedMotion() ?? false;
-  const sayHi = useRef<HTMLButtonElement>(null);
-  const keep = useRef<HTMLButtonElement>(null);
+  const chat = useRef<HTMLButtonElement>(null);
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
   const id = character?.id;
@@ -34,7 +37,7 @@ export function MatchOverlay(): JSX.Element {
     const before = document.activeElement;
     setTheme(character.theme, character.scene);
     if (!reduce) burst();
-    sayHi.current?.focus();
+    chat.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -50,18 +53,11 @@ export function MatchOverlay(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // Two buttons: Tab and Shift+Tab wrap between them.
-  const trapTab = (e: ReactKeyboardEvent) => {
-    if (e.key !== 'Tab') return;
-    const first = sayHi.current;
-    const last = keep.current;
-    if (!first || !last) return;
-    if (e.shiftKey && document.activeElement === first) {
+  // One control: Tab and Shift+Tab stay on it.
+  const holdFocus = (e: ReactKeyboardEvent) => {
+    if (e.key === 'Tab') {
       e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault();
-      first.focus();
+      chat.current?.focus();
     }
   };
 
@@ -70,67 +66,47 @@ export function MatchOverlay(): JSX.Element {
       {character ? (
         <motion.div
           key={character.id}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="match-title"
-          aria-describedby="match-opener"
-          onKeyDown={trapTab}
-          className="safe-x absolute inset-0 z-40 flex flex-col items-center justify-center gap-24 bg-canvas/(--match-veil) pt-[var(--statusbar-h)] pb-[var(--tabbar-h)] text-center text-ink land:gap-16"
+          className="safe-x absolute inset-0 z-40 grid place-items-center"
           initial={{ opacity: 0 }}
-          animate={{
-            opacity: 1,
-            transition: { duration: reduce ? dur.quick : dur.deliberate /* deliberate */, ease: ease.enter },
-          }}
+          animate={{ opacity: 1, transition: { duration: dur.base, ease: ease.enter } }}
           exit={{ opacity: 0, transition: { duration: dur.quick, ease: ease.exit } }}
         >
+          <div
+            aria-hidden="true"
+            data-slot="match-scrim"
+            onClick={actions.dismissMatch}
+            className="absolute inset-0 bg-(color:--match-scrim)"
+          />
           <motion.div
-            className="flex w-full flex-col items-center gap-24 land:flex-row land:gap-16 land:text-left"
-            initial={reduce ? false : { y: 'var(--match-rise)' }}
-            animate={{ y: 0, transition: reduce ? instant : spring.gentle }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="match-name match-title"
+            onKeyDown={holdFocus}
+            className="surface-solid relative flex w-full max-w-[var(--match-card-w)] flex-col items-center gap-16 rounded-20 border border-hairline p-24 text-center text-ink shadow-16"
+            initial={reduce ? false : { scale: deckConfig.matchModalFrom }}
+            animate={{ scale: 1, transition: reduce ? instant : spring.snappy }}
           >
-            <motion.div
-              initial={reduce ? false : { scale: matchPopFrom }}
-              animate={{ scale: 1, transition: reduce ? instant : spring.playful }}
-            >
-              <Avatar character={character} size="xl" ring eager />
-            </motion.div>
-
-            {/* Land: beside her portrait, left-aligned, so the moment fits the short height. */}
-            <div className="flex flex-col items-center gap-24 land:min-w-0 land:flex-1 land:items-start land:gap-12">
-              <h2 id="match-title" className="font-display text-name">
-                {character.name} likes you too
+            <Avatar character={character} size="xl" ring eager />
+            <div className="flex flex-col items-center gap-4">
+              <p id="match-name" className="font-display text-name">
+                {character.name}
+              </p>
+              <h2 id="match-title" className="text-heading text-muted">
+                You Matched!
               </h2>
-
-              <blockquote
-                id="match-opener"
-                className="max-w-[var(--match-quote-max)] rounded-20 border border-hairline bg-surface px-16 py-12 text-body text-ink"
-              >
-                {`“${character.opener}”`}
-              </blockquote>
             </div>
-          </motion.div>
-
-          <div className="flex w-full flex-col gap-8 land:flex-row land:*:flex-1">
             <button
-              ref={sayHi}
+              ref={chat}
               type="button"
               onClick={() => {
                 actions.openChat(character.id);
                 actions.dismissMatch();
               }}
-              className="inline-flex h-[var(--target-touch)] items-center justify-center rounded-full bg-accent px-24 text-label text-on-accent transition-opacity duration-[var(--duration-150)] ease-standard active:opacity-80"
+              className="mt-8 inline-flex h-[var(--target-touch)] w-full items-center justify-center rounded-full bg-accent px-24 text-label text-on-accent transition-opacity duration-[var(--duration-150)] ease-standard active:opacity-80 motion-reduce:transition-none"
             >
-              Say hi
+              Chat
             </button>
-            <button
-              ref={keep}
-              type="button"
-              onClick={actions.dismissMatch}
-              className="inline-flex h-[var(--target-touch)] items-center justify-center rounded-full border border-hairline bg-surface-strong px-24 text-label text-ink transition-opacity duration-[var(--duration-150)] ease-standard active:opacity-80"
-            >
-              Keep exploring
-            </button>
-          </div>
+          </motion.div>
         </motion.div>
       ) : null}
     </AnimatePresence>

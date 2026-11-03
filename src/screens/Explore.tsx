@@ -1,7 +1,9 @@
 /*
-  Explore: the swipe deck. A title, the style filter, the top card with the
-  next one behind it, and two round buttons (X passes, check likes), the only
-  two actions. Drag the card, tap the buttons, or press Left / Right.
+  Explore: the swipe deck. A title, the top card with the next one behind it
+  (her animated portrait, see Portrait), and two round liquid glass buttons
+  (X passes, check likes), the only two actions. Drag the card, tap the
+  buttons, or press Left / Right. There are no filters: the card takes the
+  height the style chips used to hold.
 
   Atmosphere (RTPC): the top card's world is the frame's theme. While the top
   card is dragged, `drag` follows its offset over the commit threshold and the
@@ -10,20 +12,19 @@
   armed; a commit gusts, then the new top card's theme is set (the engine
   promotes the armed preview). An empty deck is the base theme. While a match
   moment shows, the overlay owns the theme, and the preview stays armed on the
-  top card (the deck has already advanced under it) so "Keep exploring"
+  top card (the deck has already advanced under it) so dismissing the modal
   promotes that decoded world instead of cold-crossfading to it.
 
   Entrance: the top card rises in, once, on the first visit (not under reduced
   motion).
 
-  A short landscape screen (`land:`) is too short for one column: the card takes
-  the left column at full height, the title, filter and buttons the right.
+  A short screen (`short:`, measured on the section itself) tightens the
+  gutters and uses the smaller round buttons so the card keeps its height.
 */
 import { Check, X } from 'lucide-react';
 import { motion, useMotionValue, useReducedMotion } from 'motion/react';
 import { useCallback, useEffect, useLayoutEffect, useRef, type JSX } from 'react';
 import { EmptyDeck } from '../components/explore/EmptyDeck';
-import { StyleFilter } from '../components/explore/StyleFilter';
 import { SwipeCard, type SwipeCardHandle } from '../components/explore/SwipeCard';
 import { deckConfig, type SwipeDir } from '../components/explore/deckConfig';
 import { cn } from '../lib/cn';
@@ -141,32 +142,21 @@ export function Explore(): JSX.Element {
       inert={!!state.pendingMatchId}
       className={cn(
         'flex h-full flex-col pt-[var(--statusbar-h)] pb-[var(--tabbar-h)] [container-type:size]',
-        // Land: the section carries the safe insets (rail and notch) and its
-        // columns reset them, so each column keeps the plain gutter.
-        top &&
-          'land:grid land:grid-cols-2 land:grid-rows-[auto_minmax(0,1fr)] land:gap-x-16 land:pr-[var(--safe-right)] land:pl-[var(--safe-left)] land:*:[--safe-left:var(--inset-none)] land:*:[--safe-right:var(--inset-none)]',
         // The match moment owns the frame: the deck steps back behind it.
         'transition-opacity duration-[var(--duration-300)] ease-standard motion-reduce:transition-none',
         state.pendingMatchId && 'opacity-0'
       )}
     >
-      <div className="land:col-start-2 land:row-start-1 land:min-w-0 short:flex short:items-center short:pt-8">
-        <header className="safe-x pt-16 pb-8 short:shrink-0 short:pt-0 short:pr-12 short:pb-0">
-          <h1 id="explore-title" className="font-display text-title text-ink">
-            Explore
-          </h1>
-        </header>
-        <StyleFilter
-          value={state.filter}
-          onChange={actions.setFilter}
-          className="short:min-w-0 short:flex-1 short:pl-0"
-        />
-      </div>
+      <header className="safe-x pt-16 pb-8 short:pt-8 short:pb-0">
+        <h1 id="explore-title" className="font-display text-title text-ink">
+          Explore
+        </h1>
+      </header>
 
       {top ? (
         <>
           <motion.div
-            className="safe-x min-h-0 flex-1 pt-12 pb-[var(--deck-peek)] short:pt-8 land:col-start-1 land:row-span-2 land:row-start-1 land:px-0"
+            className="safe-x min-h-0 flex-1 pt-12 pb-[var(--deck-peek)] short:pt-8"
             initial={rise ? { opacity: 0, y: deckConfig.riseY } : false}
             animate={{
               opacity: 1,
@@ -200,12 +190,12 @@ export function Explore(): JSX.Element {
           <p aria-live="polite" className="sr-only">
             {`${top.name}, ${top.kind}`}
           </p>
-          <div className="flex items-center justify-center gap-24 pt-12 pb-12 short:pt-8 short:pb-8 land:col-start-2 land:row-start-2 land:self-center">
+          <div className="flex items-center justify-center gap-24 pt-12 pb-12 short:pt-8 short:pb-8">
             <button
               type="button"
               aria-label={`Pass on ${top.name}`}
               onClick={() => topHandle.current?.swipe('pass', 'fly')}
-              className="grid size-[var(--deck-button)] short:size-[var(--deck-button-short)] place-items-center rounded-full border border-hairline bg-surface-strong text-ink transition-opacity duration-[var(--duration-150)] ease-standard active:opacity-80"
+              className="deck-button liquid-glass grid size-[var(--deck-button)] short:size-[var(--deck-button-short)] place-items-center rounded-full"
             >
               <X aria-hidden="true" className="size-24" />
             </button>
@@ -213,7 +203,7 @@ export function Explore(): JSX.Element {
               type="button"
               aria-label={`Like ${top.name}`}
               onClick={() => topHandle.current?.swipe('like', 'fly')}
-              className="grid size-[var(--deck-button)] short:size-[var(--deck-button-short)] place-items-center rounded-full bg-accent text-on-accent transition-opacity duration-[var(--duration-150)] ease-standard active:opacity-80"
+              className="deck-button deck-button--like liquid-glass liquid-glass--accent grid size-[var(--deck-button)] short:size-[var(--deck-button-short)] place-items-center rounded-full"
             >
               <Check aria-hidden="true" className="size-24" />
             </button>

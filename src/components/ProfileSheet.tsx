@@ -1,9 +1,9 @@
 /*
   Profile sheet: a bottom sheet over a scrim (reads state.profileId; App
-  renders it above the tab bar). Opened from the chat header's Profile pill
-  or a tap on a swipe card; no theme change, it opens over a frame already
+  renders it above the tab bar). Opened from her avatar or name in the
+  chat header, or a tap on a swipe card; no theme change, it opens over a frame already
   themed to her.
-  - Content: her portrait as the tall header image with her name (--text-name)
+  - Content: her animated portrait (Portrait) as the tall header image with her name (--text-name)
     over a bottom scrim; kind, style, bio, the 3 interest chips; a primary
     "Message" when matched (opens the chat), else "Close".
   - Mechanics after design-web sheet.tsx: the header image is the drag handle
@@ -26,14 +26,14 @@ import {
   useTransform,
   type PanInfo,
 } from 'motion/react';
-import { useEffect, useId, useRef, useState, type JSX } from 'react';
+import { useEffect, useId, useRef, type JSX } from 'react';
 import { clsx } from 'clsx';
 import { trapTab } from './chat/focus';
 import { stateLayer } from './chat/stateLayer';
-import { artSize } from '../data/characters';
 import type { Character } from '../data/types';
 import { dur, ease, spring } from '../lib/motion';
 import { useApp, useCharacter } from '../state/store';
+import { Portrait } from './Portrait';
 
 export function ProfileSheet(): JSX.Element {
   const { state } = useApp();
@@ -56,7 +56,6 @@ function Sheet(props: { character: Character; matched: boolean }): JSX.Element {
   const returnTo = useRef<HTMLElement | null>(null);
   const controls = useDragControls();
   const nameId = useId();
-  const [loaded, setLoaded] = useState(false);
 
   const close = () => actions.openProfile(null);
 
@@ -156,18 +155,10 @@ function Sheet(props: { character: Character; matched: boolean }): JSX.Element {
             onPointerDown={(e) => controls.start(e)}
             className="relative aspect-square min-h-[var(--avatar-xl)] w-full shrink touch-none overflow-hidden bg-surface select-none"
           >
-            <img
-              src={character.portrait}
-              alt=""
-              width={artSize.full.width}
-              height={artSize.full.height}
-              decoding="async"
-              draggable={false}
-              onLoad={() => setLoaded(true)}
-              className={clsx(
-                'size-full object-cover transition-opacity duration-[var(--duration-150)] ease-standard',
-                loaded ? 'opacity-100' : 'opacity-0'
-              )}
+            <Portrait
+              character={character}
+              priority
+              className="size-full"
               style={{ objectPosition: character.avatarPosition }}
             />
             <span

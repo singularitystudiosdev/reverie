@@ -21,10 +21,10 @@
   /* Round stamp/chip metrics */
   --deck-stamp-h: 36px;
   --deck-chip-h: 24px;
-  /* Match moment */
-  --match-rise: 24px;
-  --match-quote-max: 30ch;
-  --match-veil: 50%;
+  /* Instant-match modal: a small card over a light scrim, her world still
+     visible around it. */
+  --match-card-w: 320px;
+  --match-scrim: rgb(8 6 12 / 0.32);
 }
 
 /* A bottom scrim for legibility: solid under the type, easing out above it. */
@@ -37,10 +37,28 @@
   );
 }
 
-/* Horizontal chip row: scrolls, no visible scrollbar. */
-.deck-scroll-x {
-  scrollbar-width: none;
+/* The round X and check buttons are liquid glass (glass.css, @layer
+   components). This is only the base they wear if the glass rules are absent;
+   it sits in @layer base so the glass pane, and any utility, always win. */
+@layer base {
+  .deck-button {
+    border: 1px solid var(--t-hairline);
+    background-color: var(--t-surface-strong);
+    color: var(--t-ink);
+    transition: opacity var(--duration-150) var(--ease-standard);
+  }
+  .deck-button:active {
+    opacity: 0.8;
+  }
+  .deck-button--like {
+    border-color: transparent;
+    background-color: var(--t-accent);
+    color: var(--t-on-accent);
+  }
 }
-.deck-scroll-x::-webkit-scrollbar {
-  display: none;
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-button {
+    transition: none;
+  }
 }

@@ -4,6 +4,8 @@ import type { Character, CharacterStyle, ThemeId } from './types';
 export const artSize = {
   full: { width: 893, height: 1600 },
   sm: { width: 357, height: 640 },
+  /** The animated loops (public/characters/<id>-loop.mp4). */
+  loop: { width: 720, height: 1280 },
 } as const;
 
 /** Round-crop defaults: object-position + transform-origin, and zoom. */
@@ -52,6 +54,7 @@ function art(seed: Seed): Character {
     interests: [...seed.interests],
     portrait: `${base}.webp`,
     portraitSm: `${base}-sm.webp`,
+    loop: `${base}-loop.mp4`,
     scene: `${base}-scene.webp`,
     sceneSm: `${base}-scene-sm.webp`,
     avatarPosition: seed.avatarPosition ?? AVATAR_POSITION,

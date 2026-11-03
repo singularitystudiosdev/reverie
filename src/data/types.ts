@@ -59,6 +59,7 @@ export interface Character {
   interests: string[];    // exactly 3 chips
   portrait: string;       // /characters/<id>.webp         900x1600
   portraitSm: string;     // /characters/<id>-sm.webp      360x640
+  loop: string;           // /characters/<id>-loop.mp4     720x1280, muted seamless loop
   scene: string;          // /characters/<id>-scene.webp   900x1600
   sceneSm: string;        // /characters/<id>-scene-sm.webp 360x640
   avatarPosition: string; // CSS object-position + transform-origin for round crops, e.g. '50% 24%'

@@ -1,7 +1,7 @@
 /*
   One card of the Explore deck. The deck renders two of these, the top card
   and the next one behind it; the same element moves from "next" to "top" when
-  the deck advances, so her portrait never reloads.
+  the deck advances, so her portrait (an animated loop, see Portrait) never reloads.
 
   Gesture model (motion values only, no React state per frame):
   - the inner layer drags on x; rotation and the Pass / Like stamps are derived
@@ -30,14 +30,12 @@ import {
   useImperativeHandle,
   useLayoutEffect,
   useRef,
-  useState,
   type JSX,
   type Ref,
 } from 'react';
-import { artSize } from '../../data/characters';
 import type { Character } from '../../data/types';
-import { cn } from '../../lib/cn';
 import { dur, ease, instant, spring } from '../../lib/motion';
+import { Portrait } from '../Portrait';
 import { clamp, deckConfig, type SwipeDir } from './deckConfig';
 import './explore.css';
 
@@ -75,8 +73,6 @@ export function SwipeCard(props: SwipeCardProps): JSX.Element {
   const busy = useRef(false);
   const gone = useRef(false);
   const dragged = useRef(false);
-  const [loaded, setLoaded] = useState(false);
-  const img = useRef<HTMLImageElement>(null);
 
   useLayoutEffect(() => {
     isTopRef.current = isTop;
@@ -92,11 +88,6 @@ export function SwipeCard(props: SwipeCardProps): JSX.Element {
     });
     ro.observe(node);
     return () => ro.disconnect();
-  }, []);
-
-  // A cached image can finish before React attaches onLoad.
-  useLayoutEffect(() => {
-    if (img.current?.complete && img.current.naturalWidth > 0) setLoaded(true);
   }, []);
 
   const threshold = () => width.current * deckConfig.commitShare;
@@ -203,21 +194,10 @@ export function SwipeCard(props: SwipeCardProps): JSX.Element {
           }}
           className="absolute inset-0 block size-full text-left focus-visible:[outline-offset:calc(var(--focus-ring-width)*-1)]"
         >
-          <img
-            ref={img}
-            src={character.portrait}
-            alt=""
-            width={artSize.full.width}
-            height={artSize.full.height}
-            decoding="async"
-            loading={isTop ? 'eager' : 'lazy'}
-            fetchPriority={isTop ? 'high' : 'auto'}
-            draggable={false}
-            onLoad={() => setLoaded(true)}
-            className={cn(
-              'absolute inset-0 size-full object-cover transition-opacity duration-[var(--duration-150)] ease-standard',
-              loaded ? 'opacity-100' : 'opacity-0'
-            )}
+          <Portrait
+            character={character}
+            priority={isTop}
+            className="absolute inset-0 size-full"
           />
           <span
             aria-hidden="true"

@@ -26,6 +26,8 @@ export const deckConfig = {
   stampStartAt: 0.12,
   /** Top card entrance (first visit only): rise from this many px. */
   riseY: 24,
+  /** The instant-match modal enters from this scale (snappy spring). */
+  matchModalFrom: 0.92,
 } as const;
 
 export const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
