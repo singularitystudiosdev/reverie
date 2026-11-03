@@ -1,4 +1,5 @@
 import type { Character, CharacterStyle, ThemeId } from './types';
+import { asset } from '../lib/asset';
 
 /** Intrinsic sizes of the generated art, for <img width/height>. */
 export const artSize = {
@@ -42,7 +43,7 @@ interface Seed {
 }
 
 function art(seed: Seed): Character {
-  const base = `/characters/${seed.id}`;
+  const base = asset(`/characters/${seed.id}`);
   return {
     id: seed.id,
     name: seed.name,

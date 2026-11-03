@@ -8,9 +8,10 @@
    variant is read from the scene's data-word attribute by CSS :has(). */
 import type { JSX } from 'react';
 import { FxWord, v, type FxProps } from '../FxWord';
+import { asset } from '../../../../lib/asset';
 import './clementine.css';
 
-const SPRITE = '/fx/clementine/';
+const SPRITE = asset('/fx/clementine/');
 
 function Sprite(props: { name: string; className?: string }): JSX.Element {
   return <img className={props.className} src={`${SPRITE}${props.name}.png`} alt="" draggable={false} decoding="async" />;

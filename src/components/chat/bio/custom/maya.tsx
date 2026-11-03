@@ -7,9 +7,10 @@
    word variant is read from the scene's data-word attribute by CSS :has(). */
 import type { JSX } from 'react';
 import { FxWord, v, type FxProps } from '../FxWord';
+import { asset } from '../../../../lib/asset';
 import './maya.css';
 
-const SPRITE = '/fx/maya/';
+const SPRITE = asset('/fx/maya/');
 
 function Sprite(props: { name: string; className?: string }): JSX.Element {
   return <img className={props.className} src={`${SPRITE}${props.name}.png`} alt="" draggable={false} decoding="async" />;

@@ -10,6 +10,7 @@
 */
 import { useEffect, useState, type JSX } from 'react';
 import { v } from '../FxWord';
+import { asset } from '../../../../lib/asset';
 import './hanami.intro.css';
 
 type IntroProps = { bio: HTMLElement; frame: HTMLElement };
@@ -114,7 +115,7 @@ export default function HanamiIntro(props: IntroProps): JSX.Element | null {
       {LANTERNS.map((l, n) => (
         <span key={n} className="hanami-i-lantern" style={v({ '--x': `${l.x}cqw`, '--sz': `${l.size}cqw`, '--d': `${l.delay}s`, '--t': `${l.dur}s`, '--sw': `${l.sway}deg` })}>
           <span className="hanami-i-lantern-glow" />
-          <img className="hanami-i-lantern-img" src="/fx/hanami/lantern.png" alt="" draggable={false} />
+          <img className="hanami-i-lantern-img" src={asset("/fx/hanami/lantern.png")} alt="" draggable={false} />
         </span>
       ))}
       {PETALS.map((p) => (
@@ -137,7 +138,7 @@ export default function HanamiIntro(props: IntroProps): JSX.Element | null {
           <span className="hanami-i-flutter" style={v({ '--wob': `${b.wob}cqh`, '--wt': `${0.55 + n * 0.07}s`, '--d': `${-b.delay}s` })}>
             <img
               className="hanami-i-bloom-img"
-              src="/fx/hanami/blossom.png"
+              src={asset("/fx/hanami/blossom.png")}
               alt=""
               draggable={false}
               style={v({ '--turns': b.turns, '--ax': 0.4 + n * 0.1, '--ay': 0.7 - n * 0.15, '--d': `${b.delay}s`, '--t': `${b.dur}s` })}

@@ -7,6 +7,7 @@
    hidden only while the clones stand in for it, and restored on cleanup. */
 import { useEffect, useRef, useState } from 'react';
 import type { JSX } from 'react';
+import { asset } from '../../../../lib/asset';
 import './raven.intro.css';
 
 type IntroProps = { bio: HTMLElement; frame: HTMLElement };
@@ -307,7 +308,7 @@ export default function RavenIntro({ bio, frame }: IntroProps): JSX.Element | nu
         <div className="raven-scythe">
           <img
             className="raven-scythe-img"
-            src="/fx/raven/scythe-lg.png"
+            src={asset("/fx/raven/scythe-lg.png")}
             alt=""
             draggable={false}
             style={{ width: SW, left: -SPRITE.ox * scale, top: -SPRITE.oy * scale }}
@@ -315,7 +316,7 @@ export default function RavenIntro({ bio, frame }: IntroProps): JSX.Element | nu
         </div>
       </div>
       {FEATHERS.map((f, i) => (
-        <img key={i} className="raven-feather" src="/fx/raven/feather.png" alt="" draggable={false} style={{ width: f.s }} />
+        <img key={i} className="raven-feather" src={asset("/fx/raven/feather.png")} alt="" draggable={false} style={{ width: f.s }} />
       ))}
     </div>
   );

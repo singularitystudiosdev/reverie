@@ -16,9 +16,10 @@
 */
 import type { JSX } from 'react';
 import { FxWord, v, type FxProps } from '../FxWord';
+import { asset } from '../../../../lib/asset';
 import './sylvara.css';
 
-const SPR = '/fx/sylvara/';
+const SPR = asset('/fx/sylvara/');
 const src = (name: string): string => `${SPR}${name}.png`;
 
 const f = (n: number): string => n.toFixed(3);

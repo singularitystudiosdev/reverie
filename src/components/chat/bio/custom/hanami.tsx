@@ -12,13 +12,14 @@
 */
 import type { JSX } from 'react';
 import { FxWord, v, type FxProps } from '../FxWord';
+import { asset } from '../../../../lib/asset';
 import './hanami.css';
 
 function Sprite(props: { name: string; className?: string }): JSX.Element {
   return (
     <img
       className={props.className ? `hn-sprite ${props.className}` : 'hn-sprite'}
-      src={`/fx/hanami/${props.name}.png`}
+      src={asset(`/fx/hanami/${props.name}.png`)}
       alt=""
       draggable={false}
       decoding="async"

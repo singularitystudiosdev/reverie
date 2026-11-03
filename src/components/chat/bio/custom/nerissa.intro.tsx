@@ -4,6 +4,7 @@
    the length of the crash), and bubbles rush up the frame. Plays once (about
    2.8s), restores the text, then unmounts. */
 import { useEffect, useRef, useState, type CSSProperties, type JSX } from 'react';
+import { asset } from '../../../../lib/asset';
 import './nerissa.intro.css';
 
 type IntroProps = { bio: HTMLElement; frame: HTMLElement };
@@ -100,15 +101,15 @@ export default function NerissaIntro(props: IntroProps): JSX.Element | null {
         <div className="ne-i-body" />
         <div className="ne-i-foam" />
         {[0, 1, 2].map((i) => (
-          <img key={i} className="ne-i-crest" data-i={i} src="/fx/nerissa/wave.png" alt="" draggable={false} />
+          <img key={i} className="ne-i-crest" data-i={i} src={asset("/fx/nerissa/wave.png")} alt="" draggable={false} />
         ))}
         {SPRAY.map((p, i) => (
-          <img key={i} className="ne-i-spray" src="/fx/nerissa/bubble.png" alt="" draggable={false} style={v({ '--y': p.y, '--s': p.s, '--d': p.d, '--dx': p.dx, '--dy': p.dy })} />
+          <img key={i} className="ne-i-spray" src={asset("/fx/nerissa/bubble.png")} alt="" draggable={false} style={v({ '--y': p.y, '--s': p.s, '--d': p.d, '--dx': p.dx, '--dy': p.dy })} />
         ))}
       </div>
       {BUBBLES.map((b, i) => (
         <span key={i} className="ne-i-bubble" style={v({ '--x': b.x, '--s': b.s, '--d': b.d, '--t': b.t, '--sx': b.sx })}>
-          <img src="/fx/nerissa/bubble.png" alt="" draggable={false} />
+          <img src={asset("/fx/nerissa/bubble.png")} alt="" draggable={false} />
         </span>
       ))}
     </div>

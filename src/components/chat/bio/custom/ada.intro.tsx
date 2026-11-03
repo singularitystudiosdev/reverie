@@ -8,6 +8,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { JSX } from 'react';
 import { v } from '../FxWord';
+import { asset } from '../../../../lib/asset';
 import './ada.intro.css';
 
 type IntroProps = { bio: HTMLElement; frame: HTMLElement };
@@ -243,7 +244,7 @@ export default function AdaIntro({ bio, frame }: IntroProps): JSX.Element | null
         <div key={i} className="ada-gear" style={{ left: s.fx * g.fw + s.px - s.w / 2, top: s.fy * g.fh + s.py - s.w / 2, width: s.w, height: s.w }}>
           <img
             className="ada-gear-img"
-            src="/fx/ada/gear.png"
+            src={asset("/fx/ada/gear.png")}
             alt=""
             draggable={false}
             style={v({ '--spin': `${s.t}s`, '--p': `${s.phase}deg`, '--turn': `${s.dir * 360}deg` })}
@@ -259,8 +260,8 @@ export default function AdaIntro({ bio, frame }: IntroProps): JSX.Element | null
         <span className="ada-rivet ada-rivet-bl" />
         <span className="ada-rivet ada-rivet-br" />
       </div>
-      <img className="ada-burst" src="/fx/ada/spark.png" alt="" draggable={false} />
-      <img className="ada-burst" src="/fx/ada/spark.png" alt="" draggable={false} />
+      <img className="ada-burst" src={asset("/fx/ada/spark.png")} alt="" draggable={false} />
+      <img className="ada-burst" src={asset("/fx/ada/spark.png")} alt="" draggable={false} />
       <span className="ada-ring" />
       {SPARKS.map((_, i) => (
         <span key={i} className="ada-streak" />

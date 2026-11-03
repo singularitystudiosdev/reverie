@@ -9,13 +9,14 @@
    frame's .fx-layer, behind the text, so no letter is ever covered. */
 import type { JSX } from 'react';
 import { FxWord, v, type FxProps } from '../FxWord';
+import { asset } from '../../../../lib/asset';
 import './isolde.css';
 
 const SRC = {
-  steam: '/fx/isolde/steam.png',
-  snowflake: '/fx/isolde/snowflake.png',
-  shard: '/fx/isolde/shard.png',
-  icicle: '/fx/isolde/icicle.png',
+  steam: asset('/fx/isolde/steam.png'),
+  snowflake: asset('/fx/isolde/snowflake.png'),
+  shard: asset('/fx/isolde/shard.png'),
+  icicle: asset('/fx/isolde/icicle.png'),
 } as const;
 
 function Sprite(props: { src: string; className?: string }): JSX.Element {

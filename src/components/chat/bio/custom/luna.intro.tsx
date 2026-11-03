@@ -7,11 +7,12 @@
    paragraph). A crescent moon, with a sparkle trail, sweeps across the top the
    whole time, under a soft midnight wash that makes the gold pop. */
 import { useEffect, useLayoutEffect, useState, type CSSProperties, type JSX } from 'react';
+import { asset } from '../../../../lib/asset';
 import './luna.intro.css';
 
 type IntroProps = { bio: HTMLElement; frame: HTMLElement };
 
-const SPRITE = '/fx/luna';
+const SPRITE = asset('/fx/luna');
 const TOTAL = 2650;
 const LEAP_AT = 0.32;
 const LEAP_FOR = 1.25;

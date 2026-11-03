@@ -4,6 +4,7 @@
    left to right, and everything settles back to ink. The text itself is only
    acted on through Web Animations (color + filter), always handed back. */
 import { useLayoutEffect, useState, type CSSProperties, type JSX } from 'react';
+import { asset } from '../../../../lib/asset';
 import './kiyo.intro.css';
 
 type IntroProps = { bio: HTMLElement; frame: HTMLElement };
@@ -96,7 +97,7 @@ export default function KiyoIntro({ bio, frame }: IntroProps): JSX.Element | nul
             className="ky-i-flame"
             style={{ left: x, top: by + 4, '--s': `${big ? 58 : 44}px`, '--t': `${t}s`, '--fd': `${-0.11 * i}s` } as CSSProperties}
           >
-            <img src="/fx/kiyo/wisp.png" alt="" draggable={false} />
+            <img src={asset("/fx/kiyo/wisp.png")} alt="" draggable={false} />
           </span>
         );
       })}
@@ -109,7 +110,7 @@ export default function KiyoIntro({ bio, frame }: IntroProps): JSX.Element | nul
             className="ky-i-flame ky-i-flame-low"
             style={{ left: x, top: by + bh + 2, '--s': '36px', '--t': `${t}s`, '--fd': `${-0.17 * i}s` } as CSSProperties}
           >
-            <img src="/fx/kiyo/wisp.png" alt="" draggable={false} />
+            <img src={asset("/fx/kiyo/wisp.png")} alt="" draggable={false} />
           </span>
         );
       })}
@@ -120,14 +121,14 @@ export default function KiyoIntro({ bio, frame }: IntroProps): JSX.Element | nul
             <span className="ky-i-streak" />
             {TRAIL.map((w, i) => (
               <span key={i} className="ky-i-trail" style={{ left: w.dx, top: w.dy, '--s': `${w.s}px`, '--fd': w.d } as CSSProperties}>
-                <img src="/fx/kiyo/wisp.png" alt="" draggable={false} />
+                <img src={asset("/fx/kiyo/wisp.png")} alt="" draggable={false} />
               </span>
             ))}
             <span className="ky-i-tail">
-              <img src="/fx/kiyo/tail.png" alt="" draggable={false} />
+              <img src={asset("/fx/kiyo/tail.png")} alt="" draggable={false} />
             </span>
             <span className="ky-i-mask">
-              <img src="/fx/kiyo/mask.png" alt="" draggable={false} />
+              <img src={asset("/fx/kiyo/mask.png")} alt="" draggable={false} />
             </span>
           </div>
         </div>

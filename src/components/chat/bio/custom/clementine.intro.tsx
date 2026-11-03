@@ -6,6 +6,7 @@
    once (about 2.8 s), then removes itself. */
 import { useLayoutEffect, useState, type JSX } from 'react';
 import { v } from '../FxWord';
+import { asset } from '../../../../lib/asset';
 import './clementine.intro.css';
 
 type IntroProps = { bio: HTMLElement; frame: HTMLElement };
@@ -19,7 +20,7 @@ interface Geo {
   bh: number;
 }
 
-const SPRITE = '/fx/clementine/butterfly.png';
+const SPRITE = asset('/fx/clementine/butterfly.png');
 const TOTAL_MS = 3000;
 const GOLDEN = 0.6180339887;
 

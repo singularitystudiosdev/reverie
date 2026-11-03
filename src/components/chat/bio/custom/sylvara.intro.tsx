@@ -16,11 +16,12 @@
   handling: the user asked for it to always play.
 */
 import { useLayoutEffect, useMemo, useState, type CSSProperties, type JSX } from 'react';
+import { asset } from '../../../../lib/asset';
 import './sylvara.intro.css';
 
 type IntroProps = { bio: HTMLElement; frame: HTMLElement };
 
-const SPR = '/fx/sylvara/';
+const SPR = asset('/fx/sylvara/');
 const TOTAL_MS = 2900;
 
 type Pt = readonly [number, number];

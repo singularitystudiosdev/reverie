@@ -8,9 +8,10 @@
    Each word's beat is its own loop with its own length, so they never fire together. */
 import type { JSX } from 'react';
 import { FxWord, v, type FxProps } from '../FxWord';
+import { asset } from '../../../../lib/asset';
 import './ada.css';
 
-const SPRITE = (name: string): string => `/fx/ada/${name}.png`;
+const SPRITE = (name: string): string => asset(`/fx/ada/${name}.png`);
 
 function Sprite(props: { name: string; className: string }): JSX.Element {
   return <img className={`ada-sp ${props.className}`} src={SPRITE(props.name)} alt="" draggable={false} />;

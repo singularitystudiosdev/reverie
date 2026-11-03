@@ -10,10 +10,11 @@
    Everything sits above, below or behind the letters (the layer is z -1). */
 import type { JSX } from 'react';
 import { FxWord, v, type FxProps } from '../FxWord';
+import { asset } from '../../../../lib/asset';
 import './vesper.css';
 
 function Sprite(props: { name: string }): JSX.Element {
-  return <img className="vs-sprite" src={`/fx/vesper/${props.name}.png`} alt="" draggable={false} />;
+  return <img className="vs-sprite" src={asset(`/fx/vesper/${props.name}.png`)} alt="" draggable={false} />;
 }
 
 function PetalShape(): JSX.Element {

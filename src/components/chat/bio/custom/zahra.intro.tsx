@@ -5,6 +5,7 @@
    haze to sharp ink. The text is only acted on through Web Animations
    (opacity, filter, mask), always handed back. */
 import { useLayoutEffect, useState, type CSSProperties, type JSX } from 'react';
+import { asset } from '../../../../lib/asset';
 import './zahra.intro.css';
 
 type IntroProps = { bio: HTMLElement; frame: HTMLElement };
@@ -168,7 +169,7 @@ export default function ZahraIntro({ bio, frame }: IntroProps): JSX.Element | nu
         >
           <span className="zh-i-plume-y">
             <span className="zh-i-plume-in">
-              <img src="/fx/zahra/smoke.png" alt="" draggable={false} />
+              <img src={asset("/fx/zahra/smoke.png")} alt="" draggable={false} />
             </span>
           </span>
         </span>
@@ -177,11 +178,11 @@ export default function ZahraIntro({ bio, frame }: IntroProps): JSX.Element | nu
       <span className="zh-i-flash" />
       <span className="zh-i-lamp">
         <span className="zh-i-lamp-rub">
-          <img src="/fx/zahra/lamp.png" alt="" draggable={false} />
+          <img src={asset("/fx/zahra/lamp.png")} alt="" draggable={false} />
         </span>
       </span>
       <span className="zh-i-glitter">
-        <img src="/fx/zahra/glitter.png" alt="" draggable={false} />
+        <img src={asset("/fx/zahra/glitter.png")} alt="" draggable={false} />
       </span>
     </div>
   );

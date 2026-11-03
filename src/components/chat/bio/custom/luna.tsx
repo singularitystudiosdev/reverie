@@ -10,10 +10,11 @@
    twinkles. Everything sits above, below or beside the letters. */
 import type { JSX } from 'react';
 import { FxWord, v, type FxProps } from '../FxWord';
+import { asset } from '../../../../lib/asset';
 import './luna.css';
 
 function Sprite(props: { name: string; className?: string }): JSX.Element {
-  return <img className={`lu-sprite${props.className ? ` ${props.className}` : ''}`} src={`/fx/luna/${props.name}.png`} alt="" draggable={false} />;
+  return <img className={`lu-sprite${props.className ? ` ${props.className}` : ''}`} src={asset(`/fx/luna/${props.name}.png`)} alt="" draggable={false} />;
 }
 
 const LEANERS = [

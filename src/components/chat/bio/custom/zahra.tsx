@@ -8,6 +8,7 @@
      "desire":     a magic lamp is rubbed to life, blooms, and breathes smoke */
 import type { JSX, ReactNode } from 'react';
 import { v, type FxProps } from '../FxWord';
+import { asset } from '../../../../lib/asset';
 import './zahra.css';
 
 type Word = 'wants' | 'smoke' | 'desire';
@@ -20,10 +21,10 @@ function wordOf(text: string): Word {
 }
 
 const SRC = {
-  coin: '/fx/zahra/coin.png',
-  smoke: '/fx/zahra/smoke.png',
-  lamp: '/fx/zahra/lamp.png',
-  glitter: '/fx/zahra/glitter.png',
+  coin: asset('/fx/zahra/coin.png'),
+  smoke: asset('/fx/zahra/smoke.png'),
+  lamp: asset('/fx/zahra/lamp.png'),
+  glitter: asset('/fx/zahra/glitter.png'),
 } as const;
 
 function Frame(props: { word: Word; text: string; children: ReactNode }): JSX.Element {

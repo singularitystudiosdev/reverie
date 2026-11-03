@@ -6,6 +6,7 @@
    The bio is acted on with the Web Animations API and always returns to its
    own look (no fill, the animation is cancelled on unmount). */
 import { useEffect, useMemo, useState, type CSSProperties, type JSX } from 'react';
+import { asset } from '../../../../lib/asset';
 import './cinder.intro.css';
 
 type IntroProps = { bio: HTMLElement; frame: HTMLElement };
@@ -163,7 +164,7 @@ export default function CinderIntro({ bio, frame }: IntroProps): JSX.Element | n
               '--flip': f.flip,
             })}
           >
-            <img src={`/fx/cinder/${f.sprite}.png`} alt="" draggable={false} decoding="async" />
+            <img src={asset(`/fx/cinder/${f.sprite}.png`)} alt="" draggable={false} decoding="async" />
           </div>
         ))}
       </div>
@@ -173,7 +174,7 @@ export default function CinderIntro({ bio, frame }: IntroProps): JSX.Element | n
           className="cinder-intro-ember"
           style={css({ '--es': `${e.size}px`, '--ey': `${e.y}px`, '--earc': `${e.arc}px`, '--ed': `${e.delay}ms`, '--edur': `${e.dur}ms`, '--espin': `${e.spin}deg` })}
         >
-          <img src="/fx/cinder/ember.png" alt="" draggable={false} decoding="async" />
+          <img src={asset("/fx/cinder/ember.png")} alt="" draggable={false} decoding="async" />
         </div>
       ))}
 

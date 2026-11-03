@@ -7,6 +7,7 @@
    laid over the original; every clone is removed, and the original is returned
    to its own look, when the cinematic ends or the component unmounts. */
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type JSX } from 'react';
+import { asset } from '../../../../lib/asset';
 import './isolde.intro.css';
 
 type IntroProps = { bio: HTMLElement; frame: HTMLElement };
@@ -281,7 +282,7 @@ export default function IsoldeIntro({ bio, frame }: IntroProps): JSX.Element | n
       {/* mid plate: crystals grow along the edges, shards burst from the text and fly back in */}
       {parts.crystals.map((c) => (
         <div key={c.key} className="isolde-intro-crystal" style={css({ left: c.x, top: c.y, '--cs': `${c.size}px`, '--ct': `${c.turn}deg`, '--cd': `${c.delay}ms` })}>
-          <img src="/fx/isolde/snowflake.png" alt="" draggable={false} decoding="async" />
+          <img src={asset("/fx/isolde/snowflake.png")} alt="" draggable={false} decoding="async" />
         </div>
       ))}
       {parts.shards.map((s) => (
@@ -290,7 +291,7 @@ export default function IsoldeIntro({ bio, frame }: IntroProps): JSX.Element | n
           className="isolde-intro-shard"
           style={css({ '--ss': `${s.size}px`, '--sx': `${s.x}px`, '--sy': `${s.y}px`, '--sz': `${s.z}px`, '--sspin': `${s.spin}deg`, '--sflip': s.flip })}
         >
-          <img src="/fx/isolde/shard.png" alt="" draggable={false} decoding="async" />
+          <img src={asset("/fx/isolde/shard.png")} alt="" draggable={false} decoding="async" />
         </div>
       ))}
     </div>

@@ -12,11 +12,12 @@
   play.
 */
 import { useLayoutEffect, useMemo, useState, type CSSProperties, type JSX } from 'react';
+import { asset } from '../../../../lib/asset';
 import './vesper.intro.css';
 
 type IntroProps = { bio: HTMLElement; frame: HTMLElement };
 
-const SPR = '/fx/vesper/';
+const SPR = asset('/fx/vesper/');
 const TOTAL_MS = 2700;
 
 function sv(vars: Record<string, string | number>): CSSProperties {

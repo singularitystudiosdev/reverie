@@ -4,6 +4,8 @@ import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Must match the GitHub repo name: Pages serves the app from /<repo>/.
+  base: '/reverie/',
   plugins: [react(), tailwindcss()],
   build: {
     rolldownOptions: {

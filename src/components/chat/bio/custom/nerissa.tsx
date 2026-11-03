@@ -7,10 +7,11 @@
    Anything else gets her signature: caustic light and two rising bubbles. */
 import type { JSX } from 'react';
 import { FxWord, v, type FxProps } from '../FxWord';
+import { asset } from '../../../../lib/asset';
 import './nerissa.css';
 
 function Sprite(props: { name: string; className?: string }): JSX.Element {
-  return <img className={`ne-sprite${props.className ? ` ${props.className}` : ''}`} src={`/fx/nerissa/${props.name}.png`} alt="" draggable={false} />;
+  return <img className={`ne-sprite${props.className ? ` ${props.className}` : ''}`} src={asset(`/fx/nerissa/${props.name}.png`)} alt="" draggable={false} />;
 }
 
 /* x = where along the word, s = size, sx = sideways wobble, d = start of its burst */

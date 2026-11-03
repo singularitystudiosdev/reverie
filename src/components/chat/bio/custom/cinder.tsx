@@ -9,13 +9,14 @@
    the text (the frame's .fx-layer), so no letter is ever covered. */
 import type { JSX } from 'react';
 import { FxWord, v, type FxProps } from '../FxWord';
+import { asset } from '../../../../lib/asset';
 import './cinder.css';
 
 const SRC = {
-  ember: '/fx/cinder/ember.png',
-  flame: '/fx/cinder/flame.png',
-  card: '/fx/cinder/card.png',
-  tongue: '/fx/cinder/tongue.png',
+  ember: asset('/fx/cinder/ember.png'),
+  flame: asset('/fx/cinder/flame.png'),
+  card: asset('/fx/cinder/card.png'),
+  tongue: asset('/fx/cinder/tongue.png'),
 } as const;
 
 function Sprite(props: { src: string; className?: string }): JSX.Element {

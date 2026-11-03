@@ -6,6 +6,7 @@
    2.8 s), then removes itself and returns the bio to normal. */
 import { useLayoutEffect, useState, type JSX } from 'react';
 import { v } from '../FxWord';
+import { asset } from '../../../../lib/asset';
 import './maya.intro.css';
 
 type IntroProps = { bio: HTMLElement; frame: HTMLElement };
@@ -49,20 +50,20 @@ export default function MayaIntro({ bio }: IntroProps): JSX.Element | null {
     <div className="maya-intro" aria-hidden="true">
       {ORBS.map((o, i) => (
         <span key={i} className="maya-intro-orb" style={v({ '--x': `${o.x}%`, '--y': `${o.y}%`, '--s': `${o.s}px`, '--delay': `${o.delay}s`, '--dur': `${o.dur}s`, '--dx': `${o.dx}px` })}>
-          <img src="/fx/maya/bokeh.png" alt="" draggable={false} />
+          <img src={asset("/fx/maya/bokeh.png")} alt="" draggable={false} />
         </span>
       ))}
       <span className="maya-intro-leak maya-intro-leak-a">
-        <img src="/fx/maya/leak.png" alt="" draggable={false} />
+        <img src={asset("/fx/maya/leak.png")} alt="" draggable={false} />
       </span>
       <span className="maya-intro-leak maya-intro-leak-b">
-        <img src="/fx/maya/leak.png" alt="" draggable={false} />
+        <img src={asset("/fx/maya/leak.png")} alt="" draggable={false} />
       </span>
       <span className="maya-intro-print">
-        <img src="/fx/maya/frame.png" alt="" draggable={false} />
+        <img src={asset("/fx/maya/frame.png")} alt="" draggable={false} />
       </span>
       <span className="maya-intro-cam">
-        <img src="/fx/maya/camera.png" alt="" draggable={false} />
+        <img src={asset("/fx/maya/camera.png")} alt="" draggable={false} />
         <span className="maya-intro-lens" />
       </span>
       <div className="maya-intro-white" />

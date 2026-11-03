@@ -17,9 +17,10 @@
    the layer (:has), so one component can style the text it renders. */
 import type { JSX } from 'react';
 import { FxWord, v, type FxProps } from '../FxWord';
+import { asset } from '../../../../lib/asset';
 import './nova.css';
 
-const SPRITE = '/fx/nova';
+const SPRITE = asset('/fx/nova');
 
 function Sprite(props: { name: string; className: string }): JSX.Element {
   return <img className={`nova-s ${props.className}`} src={`${SPRITE}/${props.name}.png`} alt="" draggable={false} decoding="async" />;

@@ -9,6 +9,7 @@
      "steal a kiss":      a kitsune mask tilts up while a tail swishes behind */
 import type { JSX, ReactNode } from 'react';
 import { v, type FxProps } from '../FxWord';
+import { asset } from '../../../../lib/asset';
 import './kiyo.css';
 
 type Word = 'riddle' | 'foxfire' | 'maples' | 'kiss';
@@ -22,10 +23,10 @@ function wordOf(text: string): Word {
 }
 
 const SRC = {
-  wisp: '/fx/kiyo/wisp.png',
-  maple: '/fx/kiyo/maple.png',
-  mask: '/fx/kiyo/mask.png',
-  tail: '/fx/kiyo/tail.png',
+  wisp: asset('/fx/kiyo/wisp.png'),
+  maple: asset('/fx/kiyo/maple.png'),
+  mask: asset('/fx/kiyo/mask.png'),
+  tail: asset('/fx/kiyo/tail.png'),
 } as const;
 
 function Frame(props: { word: Word; text: string; children: ReactNode }): JSX.Element {
