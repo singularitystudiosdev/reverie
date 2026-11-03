@@ -73,7 +73,10 @@ function along(g: Geo, s: number): { x: number; y: number } {
   return { x: g.tx + g.ux * s, y: g.ty + g.uy * s };
 }
 
-/** Two clones of the bio, clipped to either side of the cut, stood in the bio's own parent. */
+/** Two clones of the bio, clipped to either side of the cut. They are stood in
+    the intro's own overlay, so their coordinate space is the frame's: the bio's
+    own ancestors are not a stable containing block (an ancestor that gains and
+    then drops a transform re-resolves the top/left of absolute descendants). */
 function makeHalves(bio: HTMLElement, g: Geo): { left: HTMLElement; right: HTMLElement } {
   const mk = (side: 'l' | 'r'): HTMLElement => {
     const c = bio.cloneNode(true) as HTMLElement;
@@ -81,9 +84,10 @@ function makeHalves(bio: HTMLElement, g: Geo): { left: HTMLElement; right: HTMLE
     c.removeAttribute('data-slot');
     c.style.position = 'absolute';
     c.style.margin = '0';
-    c.style.left = `${bio.offsetLeft}px`;
-    c.style.top = `${bio.offsetTop}px`;
-    c.style.width = `${bio.offsetWidth}px`;
+    c.style.left = `${g.bx}px`;
+    c.style.top = `${g.by}px`;
+    c.style.width = `${g.bw}px`;
+    c.style.height = `${g.bh}px`;
     c.style.zIndex = '6';
     c.style.pointerEvents = 'none';
     c.style.visibility = 'visible';
@@ -119,12 +123,34 @@ export default function RavenIntro({ bio, frame }: IntroProps): JSX.Element | nu
       anims.push(target.animate(frames, { fill: 'both', ...opts }));
     };
 
-    const parent = bio.parentElement;
     const wasVisibility = bio.style.visibility;
     const halves = makeHalves(bio, g);
     halves.left.style.visibility = 'hidden';
     halves.right.style.visibility = 'hidden';
-    parent?.append(halves.left, halves.right);
+    el.append(halves.left, halves.right);
+
+    /* The halves sit exactly over the bio at every frame: both rects are read in
+       the frame's coordinate space and the clone is placed with the same numbers.
+       That holds through a swipe, where the sheet and the bio move under the
+       overlay. */
+    let syncing = true;
+    let syncRaf = 0;
+    const sync = (): void => {
+      const f = frame.getBoundingClientRect();
+      const b = bio.getBoundingClientRect();
+      const left = `${b.left - f.left}px`;
+      const top = `${b.top - f.top}px`;
+      const width = `${b.width}px`;
+      const height = `${b.height}px`;
+      for (const c of [halves.left, halves.right]) {
+        if (c.style.left !== left) c.style.left = left;
+        if (c.style.top !== top) c.style.top = top;
+        if (c.style.width !== width) c.style.width = width;
+        if (c.style.height !== height) c.style.height = height;
+      }
+      if (syncing) syncRaf = requestAnimationFrame(sync);
+    };
+    sync();
 
     // the cut's normal: the right half moves along +n, the left half along -n
     const len = Math.hypot(g.ux, g.uy);
@@ -230,14 +256,25 @@ export default function RavenIntro({ bio, frame }: IntroProps): JSX.Element | nu
       );
     });
 
-    const end = window.setTimeout(() => setDone(true), TOTAL);
-    return () => {
+    /* The real bio is never left hidden: the cut hides it, and the end of the
+       cinematic (or the sheet being swiped shut, which unmounts this) puts it
+       back and drops the halves. */
+    const restore = (): void => {
       window.clearTimeout(cutTimer);
-      window.clearTimeout(end);
-      anims.forEach((a) => a.cancel());
+      syncing = false;
+      cancelAnimationFrame(syncRaf);
+      bio.style.visibility = wasVisibility;
       halves.left.remove();
       halves.right.remove();
-      bio.style.visibility = wasVisibility;
+    };
+    const end = window.setTimeout(() => {
+      restore();
+      setDone(true);
+    }, TOTAL);
+    return () => {
+      window.clearTimeout(end);
+      restore();
+      anims.forEach((a) => a.cancel());
     };
   }, [bio, frame]);
 

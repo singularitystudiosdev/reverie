@@ -54,7 +54,40 @@ export function AnimatedBio(props: { text: string; style: CharacterStyle }): JSX
   useEffect(() => {
     const bio = bioRef.current;
     const frame = bio?.closest<HTMLElement>('[data-frame]') ?? null;
-    if (bio && frame) setHosts({ bio, frame });
+    if (!bio || !frame) return undefined;
+    /*
+      The sheet slides and fades up as the bio mounts, so a rect read on the first
+      frame is a mid-flight one. Hold every intro back until the paragraph's box
+      has been still for two frames, so what an intro measures is the layout it
+      actually plays over. The cap keeps a sheet that never settles (a drag held
+      still, a swiped-open profile) from leaving her opening unseen.
+    */
+    const still = (a: DOMRect, b: DOMRect): boolean =>
+      Math.abs(a.left - b.left) < 0.5 &&
+      Math.abs(a.top - b.top) < 0.5 &&
+      Math.abs(a.width - b.width) < 0.5 &&
+      Math.abs(a.height - b.height) < 0.5;
+    let prev = bio.getBoundingClientRect();
+    let stable = 0;
+    let raf = 0;
+    let stopped = false;
+    const started = performance.now();
+    const step = (): void => {
+      if (stopped) return;
+      const now = bio.getBoundingClientRect();
+      stable = still(prev, now) ? stable + 1 : 0;
+      prev = now;
+      if (stable >= 2 || performance.now() - started > 1000) {
+        setHosts({ bio, frame });
+        return;
+      }
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => {
+      stopped = true;
+      cancelAnimationFrame(raf);
+    };
   }, []);
   const tint = atmosphereTints[themeId];
   const scheme = getTheme(themeId).scheme;

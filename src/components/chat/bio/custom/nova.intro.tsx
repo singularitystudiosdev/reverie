@@ -116,6 +116,18 @@ export default function NovaIntro({ bio, frame }: IntroProps): JSX.Element | nul
     place();
     scramble(slots, 0);
 
+    /* the clone is pinned to the bio every frame, not only on the decode tick, so
+       a sheet still easing (or a swipe under the overlay) never leaves it off by
+       a whole tick's worth of motion */
+    let placing = true;
+    let placeRaf = 0;
+    const placeLoop = (): void => {
+      if (!placing) return;
+      place();
+      placeRaf = requestAnimationFrame(placeLoop);
+    };
+    placeRaf = requestAnimationFrame(placeLoop);
+
     let revealed = false;
     const reveal = (): void => {
       if (revealed) return;
@@ -136,6 +148,8 @@ export default function NovaIntro({ bio, frame }: IntroProps): JSX.Element | nul
     const end = window.setTimeout(() => setDone(true), TOTAL);
 
     return () => {
+      placing = false;
+      cancelAnimationFrame(placeRaf);
       window.clearInterval(tick);
       window.clearTimeout(end);
       reveal();

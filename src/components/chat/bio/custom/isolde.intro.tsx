@@ -6,7 +6,7 @@
    itself, cut into shards. The shards are clipped clones of the bio paragraph
    laid over the original; every clone is removed, and the original is returned
    to its own look, when the cinematic ends or the component unmounts. */
-import { useEffect, useMemo, useState, type CSSProperties, type JSX } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type JSX } from 'react';
 import './isolde.intro.css';
 
 type IntroProps = { bio: HTMLElement; frame: HTMLElement };
@@ -64,6 +64,7 @@ function cutShards(): Pt[][] {
 
 export default function IsoldeIntro({ bio, frame }: IntroProps): JSX.Element | null {
   const [done, setDone] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number; cx: number; cy: number; bw: number; bh: number } | null>(null);
 
   useEffect(() => {
@@ -74,18 +75,28 @@ export default function IsoldeIntro({ bio, frame }: IntroProps): JSX.Element | n
 
   /* the text: frosts over, shatters into clipped clones, re-forms, thaws */
   useEffect(() => {
-    const parent = bio.parentElement;
-    if (!parent || typeof bio.animate !== 'function') {
+    const el = root.current;
+    if (!el || !bio.parentElement || typeof bio.animate !== 'function') {
       return undefined;
     }
     const ice = read(bio, '--fx-light', 'white');
     const frosted = `saturate(0.45) brightness(1.3) contrast(0.95) drop-shadow(0 0 4px ${ice})`;
     const clones: HTMLElement[] = [];
     const anims: Animation[] = [];
-    const cx = bio.offsetLeft;
-    const cy = bio.offsetTop;
-    const bw = bio.offsetWidth;
-    const bh = bio.offsetHeight;
+    const fr = frame.getBoundingClientRect();
+    const br = bio.getBoundingClientRect();
+    const cx = br.left - fr.left;
+    const cy = br.top - fr.top;
+    const bw = br.width;
+    const bh = br.height;
+
+    /* the shards live in the intro's own overlay, in frame coordinates: the bio's
+       ancestors are not a stable containing block (a transformed ancestor becomes
+       one, then stops being one, and the clones jump with it) */
+    const host = document.createElement('div');
+    host.setAttribute('aria-hidden', 'true');
+    host.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
+    el.appendChild(host);
 
     const tris = cutShards();
     tris.forEach((tri, i) => {
@@ -105,7 +116,7 @@ export default function IsoldeIntro({ bio, frame }: IntroProps): JSX.Element | n
         clipPath: `polygon(${tri.map((p) => `${p.x.toFixed(2)}% ${p.y.toFixed(2)}%`).join(',')})`,
         willChange: 'transform, opacity',
       });
-      parent.insertBefore(clone, bio.nextSibling);
+      host.appendChild(clone);
       clones.push(clone);
 
       /* the shard flies away from the middle of the paragraph, toward the viewer */
@@ -155,16 +166,41 @@ export default function IsoldeIntro({ bio, frame }: IntroProps): JSX.Element | n
         { duration: TOTAL }
       )
     );
+    /* each shard stays exactly over the bio: both rects are read in the frame's
+       coordinate space and the shard is placed with the same numbers, so a swipe
+       that moves the sheet under this overlay keeps them together */
+    let syncing = true;
+    let syncRaf = 0;
+    const sync = (): void => {
+      const f = frame.getBoundingClientRect();
+      const b = bio.getBoundingClientRect();
+      const left = `${b.left - f.left}px`;
+      const top = `${b.top - f.top}px`;
+      const width = `${b.width}px`;
+      const height = `${b.height}px`;
+      for (const c of clones) {
+        if (c.style.left !== left) c.style.left = left;
+        if (c.style.top !== top) c.style.top = top;
+        if (c.style.width !== width) c.style.width = width;
+        if (c.style.height !== height) c.style.height = height;
+      }
+      if (syncing) syncRaf = requestAnimationFrame(sync);
+    };
+    sync();
+
     const end = window.setTimeout(() => {
-      clones.forEach((c) => c.remove());
+      syncing = false;
+      host.remove();
       setDone(true);
     }, TOTAL + 80);
     return () => {
       window.clearTimeout(end);
+      syncing = false;
+      cancelAnimationFrame(syncRaf);
       anims.forEach((a) => a.cancel());
-      clones.forEach((c) => c.remove());
+      host.remove();
     };
-  }, [bio]);
+  }, [bio, frame]);
 
   const parts = useMemo(() => {
     if (!size) return null;
@@ -219,7 +255,7 @@ export default function IsoldeIntro({ bio, frame }: IntroProps): JSX.Element | n
     return { crystals, shards };
   }, [size]);
 
-  if (done || !size || !parts) return <div className="isolde-intro" aria-hidden="true" />;
+  if (done || !size || !parts) return <div ref={root} className="isolde-intro" aria-hidden="true" />;
 
   const rootVars = css({
     '--W': `${size.w}px`,
@@ -233,7 +269,7 @@ export default function IsoldeIntro({ bio, frame }: IntroProps): JSX.Element | n
   });
 
   return (
-    <div className="isolde-intro" aria-hidden="true" style={rootVars}>
+    <div ref={root} className="isolde-intro" aria-hidden="true" style={rootVars}>
       {/* back plate: night closes in, rime creeps from the edges, a flash when it fully freezes */}
       <div className="isolde-intro-night" />
       <div className="isolde-intro-rime" />
