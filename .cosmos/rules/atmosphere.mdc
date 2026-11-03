@@ -1,0 +1,33 @@
+---
+description: >-
+  Reverie atmosphere engine: per-character worlds driven by conversation parameters. Read before
+  changing src/theme/** or any screen that shows a character.
+alwaysApply: false
+globs: ["src/theme/**", "src/screens/**", "src/components/**"]
+---
+
+# Atmosphere rules
+
+- Every screen that shows a character calls `setTheme(theme, scene)` and sets the conversation
+  parameters (`setParam('typing'|'drag'|'affinity')`), the pulses (`pulse('gust'|'bloom')`) and the
+  next-world preview (`setPreview`) through `useFrameTheme()`. A screen owns WHEN; `src/theme/` owns
+  what each world does in response.
+- Never write CSS custom properties per frame. Per-frame parameter changes go into refs the
+  atmosphere loop reads; a registered custom property write forces a style recalc of the whole
+  subtree (web.dev measured ~3.9ms on a 1000-element tree). The `--t-*` colors tween only on a theme
+  change.
+- `backdrop-filter` belongs to the floating controls only (tab bar, chat menu button, deck buttons,
+  at most 12px). Bubbles, rows, cards and sheets use an opaque or >= 0.86 alpha surface: a blurred
+  layer over the live canvas is re-blurred every frame.
+- Every animated or moving element carries its own reduced-motion guard next to it. Under reduced
+  motion the canvas draws one still frame and stops, overlays are static, and screens swap without
+  sliding.
+- Theme palettes live in `src/theme/themes.ts`; atmosphere tints too (hex values are allowed there
+  and nowhere else in components). Each world keeps its contrast checks passing over its own plate.
+- The atmosphere is modelled on game-audio RTPC: conversation params (`typing`, `drag`, `affinity`),
+  pulses (`gust`, `bloom`) and `setPreview` drive per-world response curves. That lateral was chosen
+  because incumbents have no conversation-driven world (Telegram moves one fixed wallpaper per send;
+  character apps offer static or looped backgrounds). Keep the curves; do not replace the mechanism
+  with per-screen special cases.
+- No per-frame CSS custom property writes: params go through refs into the atmosphere loop. Reason:
+  registered properties recalc the subtree on every write (web.dev @property benchmark).
