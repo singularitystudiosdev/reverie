@@ -196,6 +196,20 @@
       transform: rotate(1turn);
     }
   }
+
+  /* Dictation is live: a soft accent ring swells off the mic and fades, on repeat. */
+  --animate-dictate-pulse: dictate-pulse 1.6s ease-out infinite;
+
+  @keyframes dictate-pulse {
+    from {
+      opacity: 0.55;
+      transform: scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: scale(1.3);
+    }
+  }
 }
 
 /* Layout variants.
@@ -323,6 +337,7 @@
   --composer-tint: 45%;
   --composer-placeholder-mix: 70%;          /* ink share in the placeholder */
   --composer-focus-mix: 7%;
+  --dictate-fill-mix: 24%;                  /* accent share in the listening mic's fill */
 
   /* Frame. Portrait phone (< 600px): the app fills the viewport, safe areas
      from env(). Everywhere else: an exact 9:16 rounded rectangle, see the media
