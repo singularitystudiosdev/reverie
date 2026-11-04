@@ -30,12 +30,13 @@
     on the quick band; the scrim fades.
 */
 import { clsx } from 'clsx';
+import { Search } from 'lucide-react';
 import { AnimatePresence, motion, useAnimationControls } from 'motion/react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { Avatar } from '../Avatar';
 import type { Message } from '../../data/types';
-import { dur, ease, instant, rowStagger, spring, useReducedMotion } from '../../lib/motion';
+import { dur, ease, instant, lens, rowStagger, spring, useReducedMotion } from '../../lib/motion';
 import { useSwipeDismiss } from '../../lib/useSwipeDismiss';
 import { isoTime, relativeTime } from '../../lib/time';
 import { useApp } from '../../state/store';
@@ -277,13 +278,16 @@ function DrawerPanel(props: {
           {entries.length === 1 ? (
             <div className="flex flex-col items-center gap-12 px-16 pt-24 text-center">
               <p className="text-label font-normal text-muted">Swipe right on more people to start new chats.</p>
-              <button
+              <motion.button
                 type="button"
+                aria-label="Explore new people"
                 onClick={() => actions.setTab('explore')}
-                className="min-h-[var(--target)] rounded-full bg-accent px-24 text-label text-on-accent"
+                whileTap={reduce ? undefined : { scale: lens.pressScale }}
+                transition={spring.snappy}
+                className="liquid-glass grid size-[var(--target-touch)] place-items-center rounded-full"
               >
-                Explore
-              </button>
+                <Search aria-hidden="true" className="size-20" />
+              </motion.button>
             </div>
           ) : null}
         </div>
