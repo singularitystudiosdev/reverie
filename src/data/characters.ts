@@ -252,3 +252,58 @@ const byId = new Map(characters.map((c) => [c.id, c]));
 export function getCharacter(id: string): Character | undefined {
   return byId.get(id);
 }
+
+/** A persona card from the backend (server/personas/<id>.md, served by /v1/feed). */
+export interface RemoteCharacterCard {
+  id: string;
+  name: string;
+  kind: string;
+  style: CharacterStyle;
+  theme: ThemeId;
+  tagline: string;
+  bio: string;
+  opener: string;
+  art: Partial<Record<'portrait' | 'portraitSm' | 'loop' | 'clip' | 'clipPoster' | 'scene' | 'sceneSm' | 'sceneLoop', string>>;
+}
+
+/** Root-relative art paths resolve against the app base; absolute URLs (generated art) pass through. */
+function artUrl(path: string | undefined, fallback: string): string {
+  if (!path) return fallback;
+  return /^https?:\/\//.test(path) ? path : asset(path);
+}
+
+/**
+ * Add a persona the backend created (the evolution loop's new personas) to the
+ * roster, so the deck, chat and profile screens can show it like a launch
+ * character. Personas already in the roster keep their local definition.
+ * Returns false when the card has no portrait (nothing to draw yet).
+ */
+export function registerRemoteCharacter(card: RemoteCharacterCard): boolean {
+  if (byId.has(card.id)) return true;
+  if (!card.art.portrait) return false;
+  const portrait = artUrl(card.art.portrait, '');
+  const scene = artUrl(card.art.scene, portrait);
+  const c: Character = {
+    id: card.id,
+    name: card.name,
+    kind: card.kind,
+    style: card.style,
+    theme: card.theme,
+    tagline: card.tagline,
+    bio: card.bio,
+    portrait,
+    portraitSm: artUrl(card.art.portraitSm, portrait),
+    loop: artUrl(card.art.loop, ''),
+    clip: artUrl(card.art.clip, ''),
+    clipPoster: artUrl(card.art.clipPoster, portrait),
+    scene,
+    sceneSm: artUrl(card.art.sceneSm, scene),
+    sceneLoop: artUrl(card.art.sceneLoop, ''),
+    avatarPosition: AVATAR_POSITION,
+    avatarScale: AVATAR_SCALE,
+    opener: card.opener,
+  };
+  characters.push(c);
+  byId.set(c.id, c);
+  return true;
+}

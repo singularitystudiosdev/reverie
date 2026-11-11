@@ -54,6 +54,13 @@ export function Explore(): JSX.Element {
   const { setTheme, setPreview, setParam, pulse } = useFrameTheme();
   const reduce = useReducedMotion();
 
+  // The card on top of the deck is the one the user is looking at: an impression, and it stays on top.
+  const topId = top?.id;
+  const shown = actions.shown;
+  useEffect(() => {
+    if (topId) shown(topId);
+  }, [topId, shown]);
+
   const unlocked = state.matchIds.length > 0;
   const unread = state.matchIds.reduce((sum, id) => sum + (state.conversations[id]?.unread ?? 0), 0);
 

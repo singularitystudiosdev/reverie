@@ -9,11 +9,12 @@ import {
   type JSX,
   type ReactNode,
 } from 'react';
-import { characters, getCharacter } from '../data/characters';
+import { characters, getCharacter, registerRemoteCharacter } from '../data/characters';
 import { getReply } from '../data/replies';
 import { deckOrder } from '../data/seed';
 import type { Character, Conversation, Message, StyleFilter } from '../data/types';
 import { makeId } from '../lib/id';
+import { apiEnabled, fetchFeed, messageText, remoteReply, startSession, track } from '../lib/api';
 import {
   BUILD_TAG,
   clipDelayMs,
@@ -44,6 +45,9 @@ export interface AppState {
   matchNotices: string[];     // the match-notification queue (instant and delayed matches alike), head shown, one at a time
   resumingIds: string[];      // matches resolved at load whose opener is still to be typed
   filter: StyleFilter;
+  feedOrder: string[] | null; // the backend feed's ranked ids for this user (null: local deck order)
+  feedRequestId: string | null;
+  shownTopId: string | null;  // the card on top of the deck the user has already seen (stays on top when the feed lands)
 }
 
 export interface AppActions {
@@ -58,6 +62,7 @@ export interface AppActions {
   resetDeck(): void;          // clears passedIds so passed characters return
   send(id: string, text: string): void; // append 'me' message, typing on, await getReply, append, typing off, unread++ if not open, move to top
   setFilter(f: StyleFilter): void;
+  shown(id: string): void;              // the card on top of the deck was seen (telemetry impression + keeps it on top)
 }
 
 /* ---------------------------------------------------------------- persistence */
@@ -194,6 +199,9 @@ function initState(): AppState {
     matchNotices: notices,
     resumingIds: resuming,
     filter: 'All',
+    feedOrder: null,
+    feedRequestId: null,
+    shownTopId: null,
   };
 }
 
@@ -214,7 +222,9 @@ type Action =
   | { type: 'received'; id: string; messages: Message[]; stillTyping: boolean }
   | { type: 'clip'; id: string; message: Message }
   | { type: 'resumingDone' }
-  | { type: 'setFilter'; filter: StyleFilter };
+  | { type: 'setFilter'; filter: StyleFilter }
+  | { type: 'feed'; order: string[]; requestId: string }
+  | { type: 'shown'; id: string };
 
 function toFront(ids: string[], id: string): string[] {
   return [id, ...ids.filter((x) => x !== id)];
@@ -397,6 +407,15 @@ function reducer(state: AppState, action: Action): AppState {
 
     case 'setFilter':
       return { ...state, filter: action.filter };
+
+    case 'shown':
+      return state.shownTopId === action.id ? state : { ...state, shownTopId: action.id };
+
+    case 'feed': {
+      // New ranked ids go first; ids from the previous page the user has not reached keep their place after them.
+      const rest = (state.feedOrder ?? []).filter((id) => !action.order.includes(id));
+      return { ...state, feedOrder: [...action.order, ...rest], feedRequestId: action.requestId };
+    }
   }
 }
 
@@ -433,6 +452,46 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
     stampBuild();
   }, []);
 
+  // Backend (optional): the session, and the ranked deck from the feed.
+  const feedLoading = useRef(false);
+  const refreshFeed = useCallback((includePassed = false) => {
+    if (!apiEnabled || feedLoading.current) return;
+    feedLoading.current = true;
+    const s = stateRef.current;
+    const exclude = [...s.matchIds, ...s.pendingMatches.map((p) => p.characterId)];
+    void fetchFeed({ limit: 10, includePassed, exclude })
+      .then((r) => {
+        if (!r) return;
+        const order = r.cards.filter((c) => registerRemoteCharacter(c)).map((c) => c.id);
+        if (order.length) dispatch({ type: 'feed', order, requestId: r.requestId });
+      })
+      .finally(() => {
+        feedLoading.current = false;
+      });
+  }, []);
+  useEffect(() => {
+    startSession();
+    refreshFeed();
+  }, [refreshFeed]);
+  // Top up the ranked deck before it runs out.
+  useEffect(() => {
+    if (!apiEnabled || !state.feedOrder) return;
+    const gone = new Set([...state.matchIds, ...state.passedIds, ...state.pendingMatches.map((p) => p.characterId)]);
+    if (state.feedOrder.filter((id) => !gone.has(id)).length < 3) refreshFeed();
+  }, [state.feedOrder, state.matchIds, state.passedIds, state.pendingMatches, refreshFeed]);
+
+  // Chat open time, for chat_close durations.
+  const chatOpenedAt = useRef<{ id: string; at: number } | null>(null);
+  const noteChatOpen = useCallback((id: string | null) => {
+    const prev = chatOpenedAt.current;
+    if (prev && prev.id !== id) track('chat_close', prev.id, { duration_ms: Date.now() - prev.at });
+    if (id && prev?.id !== id) track('chat_open', id);
+    chatOpenedAt.current = id ? (prev?.id === id ? prev : { id, at: Date.now() }) : null;
+  }, []);
+  useEffect(() => {
+    noteChatOpen(state.openChatId);
+  }, [state.openChatId, noteChatOpen]);
+
   // Replies in flight per character: typing stays on until the last one lands.
   const pending = useRef<Record<string, number>>({});
   // Pending-match resolve timers, one per character.
@@ -457,6 +516,7 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
         messages: [{ ...opener, at: Date.now() }],
         stillTyping: pending.current[id] > 0,
       });
+      track('message', id, { from: 'persona', text: c.opener, opener: true });
     });
   }, []);
 
@@ -471,6 +531,7 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
       resolving.current.add(id);
       const already = Boolean(stateRef.current.conversations[id]);
       dispatch({ type: 'resolve', id });
+      track('match', id, { delayed: true });
       if (already) return;
       deliverOpener(id);
     },
@@ -560,7 +621,16 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
     pending.current[id] = (pending.current[id] ?? 0) + 1;
 
     const delay = typingDelayMs.min + Math.random() * (typingDelayMs.max - typingDelayMs.min);
-    void Promise.all([getReply(character, body, history), wait(delay)])
+    // The backend records the user's message itself when it answers; otherwise report it here.
+    const answer = (async (): Promise<Message[]> => {
+      const remote = apiEnabled ? await remoteReply(id, body) : null;
+      if (remote?.messages.length) return remote.messages;
+      if (apiEnabled && !remote?.recorded) track('message', id, { from: 'user', text: body, local: true });
+      const local = await getReply(character, body, history);
+      for (const m of local) track('message', id, { from: 'persona', text: messageText(m), local: true });
+      return local;
+    })();
+    void Promise.all([answer, wait(delay)])
       .then(([replies]) => replies)
       .catch((): Message[] => [])
       .then((replies) => {
@@ -589,6 +659,11 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
     const matchedBefore = hasLikedRef.current || current.hasMatchedBefore;
     hasLikedRef.current = true;
     const instant = rollInstant(matchedBefore);
+    track('swipe', id, { dir: 'like', request_id: current.feedRequestId });
+    if (instant) {
+      track('match', id, { delayed: false });
+      track('message', id, { from: 'persona', text: c.opener, opener: true });
+    }
     const opener: Message = { id: makeId('her'), from: 'her', kind: 'text', text: c.opener, at: Date.now() };
     dispatch({
       type: 'like',
@@ -603,17 +678,35 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
     () => ({
       setTab: (tab) => dispatch({ type: 'setTab', tab }),
       openChat: (id) => dispatch({ type: 'openChat', id }),
-      closeChat: () => dispatch({ type: 'closeChat' }),
+      closeChat: () => {
+        const open = stateRef.current.openChatId;
+        if (open) track('deck_return', open);
+        dispatch({ type: 'closeChat' });
+      },
       setDrawer: (open) => dispatch({ type: 'setDrawer', open }),
-      openProfile: (id) => dispatch({ type: 'openProfile', id }),
+      openProfile: (id) => {
+        if (id) track('profile_open', id);
+        dispatch({ type: 'openProfile', id });
+      },
       like,
-      pass: (id) => dispatch({ type: 'pass', id }),
+      pass: (id) => {
+        track('swipe', id, { dir: 'pass', request_id: stateRef.current.feedRequestId });
+        dispatch({ type: 'pass', id });
+      },
       dismissNotice: (id) => dispatch({ type: 'dismissNotice', id }),
-      resetDeck: () => dispatch({ type: 'resetDeck' }),
+      resetDeck: () => {
+        track('deck_reset');
+        dispatch({ type: 'resetDeck' });
+        refreshFeed(true);
+      },
       send,
       setFilter: (filter) => dispatch({ type: 'setFilter', filter }),
+      shown: (id) => {
+        track('impression', id, { request_id: stateRef.current.feedRequestId });
+        dispatch({ type: 'shown', id });
+      },
     }),
-    [send, like]
+    [send, like, refreshFeed]
   );
 
   const value = useMemo(() => ({ state, actions }), [state, actions]);
@@ -638,15 +731,19 @@ const rosterRank = new Map<string, number>(characters.map((c, i) => [c.id, deckO
  */
 export function useDeck(): Character[] {
   const { state } = useApp();
-  const { matchIds, passedIds, pendingMatches } = state;
+  const { matchIds, passedIds, pendingMatches, feedOrder, shownTopId } = state;
   return useMemo(() => {
     const pendingIds = pendingMatches.map((p) => p.characterId);
     const out = characters.filter(
       (c) => !matchIds.includes(c.id) && !passedIds.includes(c.id) && !pendingIds.includes(c.id)
     );
-    const rank = (id: string) => deckRank.get(id) ?? rosterRank.get(id) ?? 0;
+    // The backend's ranked order first (when it answered), then the local order for anyone it did not rank.
+    const feedRank = new Map((feedOrder ?? []).map((id, i) => [id, i]));
+    const offset = feedOrder ? feedOrder.length : 0;
+    const rank = (id: string) =>
+      id === shownTopId ? -1 : feedRank.get(id) ?? offset + (deckRank.get(id) ?? rosterRank.get(id) ?? 0);
     return out.sort((a, b) => rank(a.id) - rank(b.id));
-  }, [matchIds, passedIds, pendingMatches]);
+  }, [matchIds, passedIds, pendingMatches, feedOrder, shownTopId]);
 }
 
 /** True once the first match has RESOLVED: the Chats tab works. */

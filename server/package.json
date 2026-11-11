@@ -1,0 +1,22 @@
+{
+  "name": "reverie-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Reverie persona backend: persona markdown registry, telemetry, autonomous A/B testing, persona evolution and the feed ranker.",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "start": "node src/main.ts",
+    "dev": "node --watch src/main.ts",
+    "tick": "node src/jobs/tick-once.ts",
+    "simulate": "node src/sim/simulate.ts",
+    "test": "node --test test/",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2"
+  }
+}
