@@ -76,5 +76,30 @@ export function computeGate(ctx: Ctx, stats: PersonaStats[]): GateStatus {
     }
   }
   const blocking = personas.filter((g) => !g.reached && !g.flagged).map((g) => g.id);
-  return { open: personas.length > 0 && blocking.length === 0, nImpressions, nConversations, personas, blocking };
+  // The parents route (cfg.lifecycle.gateTopK > 0). Waiting for EVERY persona's chat sample never
+  // ends at launch traffic: chats follow likes (about 0.9 per like), so the 120-200 chat floor needs
+  // 800 to 4,000 impressions of a persona, while the feed serves about 15 a day per persona and
+  // starves the bottom half (7% of impressions); in the paired closed loop no seed opened in 25
+  // days, and the 3x-median timeout would only fire around day 30 to 100, freeing 120+ personas at
+  // once. What a generation needs is resolved parents: the exploit branch varies the top personas
+  // by score lower bound and only reached personas are eligible (scheduler.ts), so the gate also
+  // opens once K personas have reached (both samples, so their scores are powered) with a score at
+  // or above the roster's median: K resolved, better-than-typical parents. (Requiring the top K by
+  // lower bound opened at 1 of 3 closed-loop seeds: rising personas with high scores and half
+  // their chats sit in that top K; requiring each parent's lower bound over the median, also 1 of
+  // 3: with 50 pseudo-observations of shrinkage the bounds stay about 0.6 wide.) At most one generation per
+  // cfg.lifecycle.generationCooldownDays; each new persona still has to earn its place (the fade's
+  // like-rate path retires it on its served cards), and the roster stays under maxActive (evolve.ts).
+  let parentsOpen = false;
+  const k = l.gateTopK;
+  if (k > 0 && blocking.length) {
+    const scored = rows.filter((s) => s.score);
+    const medianScore = median(scored.map((s) => s.score!.score));
+    const reachedIds = new Set(personas.filter((g) => g.reached).map((g) => g.id));
+    const parents = scored.filter((s) => reachedIds.has(s.personaId) && s.score!.score >= medianScore);
+    const last = ctx.db.prepare("SELECT MAX(ts) AS ts FROM lifecycle_log WHERE kind IN ('spawn_explore', 'spawn_exploit')").get() as { ts: number | null };
+    const cooled = last.ts === null || now - last.ts >= l.generationCooldownDays * ctx.cfg.dayMs;
+    parentsOpen = scored.length > k && parents.length >= k && cooled;
+  }
+  return { open: personas.length > 0 && (blocking.length === 0 || parentsOpen), nImpressions, nConversations, personas, blocking };
 }

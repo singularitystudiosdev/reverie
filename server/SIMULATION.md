@@ -495,6 +495,38 @@ setting. Deep chats per user dip at seed 7 (0.41 against 0.43) at both strict se
 this loop's noise, but worth watching. The gate (spawning) still waits on every persona's
 sample and never opens in 25 days.
 
+## Why the gate never opens, and a parents route (2026-11-12, later)
+
+Replaying `computeGate` tick by tick over the same runs: every blocker is short of chats, not
+impressions. Chats follow likes (0.92 chats per like; a match is chatted the day it is made), so the
+gate's 190-210 chat floor needs about 220 likes, which is 800 impressions of a persona at a 25% like
+rate and 4,000 at 5%, while about 2,300 cards a day are served in all (15 per persona if even; the
+bottom half of the roster gets 7% of them). By day 25: 12 to 17 of about 150 personas had reached;
+conversations per persona had a median of 10.5; the 3x-median timeout was at 30 to 40 days and
+rising as more personas reached, and a linear projection fires it around day 30 to 100, freeing
+120+ personas at once. About 120 personas would need over 60 days to reach the chat floor, 80 to 90
+over a year.
+
+The spawn only needs resolved parents (the exploit branch varies reached personas with the best
+score lower bounds), so the gate also opens once 10 personas have both samples and score at or
+above the roster median, at most one generation per 3 days. Variants that failed in the same
+loops: the top 10 by score lower bound all reached (opened at 1 of 3 seeds: rising personas with
+high scores and half their chats sit in the top 10), and each parent's lower bound over the median
+(1 of 3: the score bounds stay about 0.6 wide). Paired closed loop, seeds 7 / 11 / 3, against the
+like-rate fade alone:
+
+| | gate opens | spawned by day 25 | like rate per impression | deep chats per user |
+|---|---|---|---|---|
+| all personas must reach (before) | never | 0 | 23.0% / 24.0% / 22.8% | 0.41 / 0.45 / 0.43 |
+| **+ parents route (shipped)** | **day 14 / 10 / 13** | 16 / 17 / 17 | **23.7% / 25.0% / 23.8%** | 0.44 / 0.47 / 0.43 |
+
+The spawned duds fade through the like-rate path (`jasper` rank 28, `dorian` rank 8, `mateo`
+rank 2, `silas` rank 9 of 170 to 178); no persona spawned while the gate was shut. The lift is the
+loop doing what it is for, but read it with the world's design in mind: the simulator plants demand
+for categories the launch roster lacks (18% of users), which the explore branch is built to find.
+The roster grows to 168-178 by day 25 and reaches `maxActive` (200) a few weeks later, after which
+a generation only fills the room fading makes.
+
 ## Settings
 
 The 45-day runs use relaxed thresholds so a run finishes in minutes (gate: a

@@ -89,6 +89,12 @@ export interface Config {
     gateMinConversations: number;
     /** A persona still short of the gate after this multiple of the median time is flagged and stops blocking. */
     gateTimeoutMultiple: number;
+    /** The gate also opens once K personas have reached both samples with a score at or above the
+     *  roster's median (resolved, better-than-typical exploit parents), without waiting for every
+     *  persona's chat sample (lifecycle/gate.ts); 0 turns that route off. */
+    gateTopK: number;
+    /** With the parents route: at most one generation per this many days. */
+    generationCooldownDays: number;
     /** New personas per generation, per branch. */
     exploreCount: number;
     exploitCount: number;
@@ -274,6 +280,8 @@ export function loadConfig(overrides: DeepPartial<Config> = {}): Config {
       gateMinImpressions: 400,
       gateMinConversations: 100,
       gateTimeoutMultiple: 3,
+      gateTopK: 10,
+      generationCooldownDays: 3,
       exploreCount: 2,
       exploitCount: 2,
       fadeQuantile: 0.25,

@@ -154,6 +154,32 @@ test('the gate stays closed until every active persona has its sample, and spawn
   assert.ok(after.blocking.some((id) => created.some((p) => p.meta.id === id)));
 });
 
+test('the gate also opens once 10 better-than-median parents have both samples, at most one generation per cooldown', () => {
+  const { ctx, clock } = scratch();
+  const stats = computeAllStats(ctx, false);
+  const g0 = computeGate(ctx, stats);
+  // The 10 best by score lower bound have their impressions and chats; the rest of the roster is short of chats.
+  stats.forEach((s, i) => {
+    s.score = { score: 100 - i, lower: 100 - i, upper: 101 - i, components: {} };
+    s.impressions = g0.nImpressions + 10;
+    s.conversations = i < 10 ? g0.nConversations + 1 : 5;
+  });
+  assert.equal(computeGate(ctx, stats).open, true, 'parents resolved');
+  assert.equal(computeGate(ctx, stats).blocking.length, stats.length - 10, 'the tail still counts as blocking');
+  // One of the 10 short of chats: closed.
+  stats[3].conversations = 5;
+  assert.equal(computeGate(ctx, stats).open, false);
+  // A rising persona on top by lower bound with few chats does not block once 10 others qualify.
+  stats[10].conversations = g0.nConversations + 1;
+  stats[3].score = { score: 200, lower: 150, upper: 250, components: {} };
+  assert.equal(computeGate(ctx, stats).open, true, 'a rising persona at the top does not block');
+  // A generation just spawned: closed until the cooldown passes.
+  ctx.db.prepare('INSERT INTO lifecycle_log (ts, kind, persona_id, detail) VALUES (?, ?, ?, ?)').run(clock.t, 'spawn_explore', 'x', '{}');
+  assert.equal(computeGate(ctx, stats).open, false, 'cooling down');
+  clock.t += ctx.cfg.lifecycle.generationCooldownDays * ctx.cfg.dayMs;
+  assert.equal(computeGate(ctx, stats).open, true, 'cooled');
+});
+
 test('the feed never re-serves liked personas, respects passes, and logs propensities', () => {
   const { ctx, clock } = scratch();
   ingest(ctx, { type: 'swipe', user_id: 'f', persona_id: 'raven', props: { dir: 'like' }, ts: clock.t });
