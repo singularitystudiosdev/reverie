@@ -289,10 +289,11 @@ realistic...) relative to their overall like rate (nearby age bands share
 evidence). After 8 swipes the explore slots also skip cards whose expected trait
 factor is under 0.5.
 
-- **Tempered draws.** Every Beta draw (category affinity, persona quality,
-  P(deep chat), P(report)) is pulled toward its mean by `feed.tsScale` (0.3):
-  plain Thompson draws at weight 5 on a persona's Beta(1, 4) deep-chat prior
-  reordered whole decks at random while data was thin.
+- **Tempered draws.** Only what the user's swipes inform is drawn: their
+  affinity for tags they have swiped on, and each persona's like rate, both
+  pulled toward their means by `feed.tsScale` (0.3). Tags the user has never
+  seen, P(deep chat) and P(report) take their means: drawn, they were pure prior
+  noise (a Beta(1, 4) deep-chat prior at weight about 5 reordered whole decks).
 - **Persona quality prior.** Each persona's like rate is shrunk toward what its
   features (theme tags, gender, age band, art style) predict across the roster:
   a ridge logistic regression on every persona's likes, strength by the method
@@ -305,7 +306,10 @@ factor is under 0.5.
   "variety".
 - **Exploration.** Every 5th card is an exploration slot: half uniformly random
   (the unbiased sample the fade check reads), half the user's best-scoring
-  persona among the least-shown quarter (traffic for the gate).
+  persona among the least-shown quarter (traffic for the gate). A brand-new
+  user's first deck keeps the random slots (first decks are a large share of all
+  decks, and the fade check needs that unbiased sample) but gives the
+  undersampled ones back to exploit cards; X shields new accounts the same way.
 - **Recycling.** When the unseen roster cannot fill the deck, personas passed
   more than `feed.recycleAfterMs` (3 days) ago compete again, ranked by the
   model (Tinder's "dynamic recycling").

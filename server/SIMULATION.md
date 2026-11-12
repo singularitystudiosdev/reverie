@@ -155,10 +155,39 @@ strong persona) at seed 7 and `isolde` at 11, the new one `nerissa` at 7 and
 `mirelle` and `isolde` at 11; neither faded `raven` within 25 days.
 
 A known cost: a feed that personalises harder shows each persona more to its
-fans, so the raw like rate overstates it more (mean bias 2.7 points against 1.3 to
-1.7) and the IPW rate, clipped at 20, removes only part of it (1.6 against 0.5 to
-1.1 points). The fade decisions read the IPW rate; a doubly robust estimator would
+fans, so the raw like rate overstates it more (mean bias 3.1 to 3.2 points with the
+current ranker, against 1.3 to 1.7) and the IPW rate, clipped at 20, removes only
+part of it (1.5 to 1.7 against 0.5 to 1.1 points). The fade decisions read the IPW rate; a doubly robust estimator would
 close the gap.
+
+### Second pass: the first deck
+
+After those fixes a new user's first deck still scored 0.219 against 0.273 for the
+true-popularity deck (seed 7). Toggling each piece at serve time on one trained
+model (1,500 decks per setting, SE about 0.0004; Shapley shares, seed 7 / 11) split
+that 0.055 / 0.049 gap into: tempered randomness 0.022 / 0.021, the explore slot
+0.013 / 0.012, the DPP 0.009 / -0.007, and the persona estimates themselves
+0.012 / 0.023. For a zero-swipe user the score is exactly the persona's like-rate
+estimate, so that last part is the cost of learning from about 12,000 impressions
+(it is gone at 3,000 warm-up users), not a ranking bug. Two changes:
+
+- Only user-informed parameters are drawn: affinity on tags the user has swiped
+  on and the persona's like rate. Unseen tags, P(deep chat) and P(report) take
+  their means (drawn, they were prior noise: 0.024 of the gap).
+- A first deck (zero swipes) keeps its uniformly random slots but gives its
+  undersampled slots to exploit cards. Dropping both slots won more in the bench
+  but left no persona with the 30 random-slot impressions the fade check needs.
+
+| | bench seed 7 | bench seed 11 | latent look | closed loop like rate, seed 7 / 11 | deep chats per user, seed 7 / 11 |
+|---|---|---|---|---|---|
+| old ranker | 0.187 (first deck 0.179) | 0.184 (0.176) | 0.203 | 19.1% / 19.1% | 0.39 / 0.38 |
+| first fixes | 0.205 (0.219) | 0.206 (0.214) | 0.230 | 21.5% / 21.0% | 0.38 / 0.42 |
+| **+ first-deck changes (current)** | **0.211 (0.243)** | **0.212 (0.239)** | **0.234** | **23.1% / 23.0%** | **0.43 / 0.48** |
+| same, both explore slots dropped on first decks | 0.215 (0.256) | 0.214 (0.251) | 0.231 | 22.9% / 23.0% | 0.41 / 0.43 |
+
+With the random slots kept, 20 to 21 personas still reach 30 random-slot
+impressions (bias 0.0 and -1.6 points); with both dropped, none did, and seed 11
+then faded `sylvara`, one of the strongest personas.
 
 Tried and dropped (bench, seed 7): plain Thompson sampling on one coherent
 taste draw per deck (0.166 to 0.180: whole decks flip with the draw); a

@@ -367,3 +367,16 @@ test('an impression from an earlier page keeps the propensity its own request lo
   assert.equal(row.slot, card.slot);
   assert.ok(Math.abs(row.p_shown - card.pShown) < 1e-12, `logged ${row.p_shown} vs served ${card.pShown}`);
 });
+
+test("a brand-new user's first deck keeps its random slots but no undersampled ones", () => {
+  const { ctx, clock } = scratch();
+  const slots = { random: 0, undersampled: 0 };
+  for (let i = 0; i < 40; i++) for (const c of buildFeed(ctx, `n${i}`, { limit: 10, dryRun: true }).cards) if (c.slot !== 'exploit') slots[c.slot]++;
+  assert.equal(slots.undersampled, 0, 'no undersampled card on a first deck');
+  assert.ok(slots.random > 20, `random slots kept: ${slots.random} in 40 first decks`);
+  const first = buildFeed(ctx, 'n', { limit: 10, dryRun: true }).cards;
+  ingest(ctx, { type: 'swipe', user_id: 'n', persona_id: first[0].personaId, props: { dir: 'like' }, ts: clock.t });
+  let later = 0;
+  for (let i = 0; i < 20; i++) later += buildFeed(ctx, 'n', { limit: 10, dryRun: true }).cards.filter((c) => c.slot === 'undersampled').length;
+  assert.ok(later > 5, `undersampled slots return once the user has swiped: ${later} in 20 decks`);
+});

@@ -112,8 +112,9 @@ export interface Config {
     exploreEvery: number;
     /** Per-user category posterior is shrunk toward the global category rate with this pseudo-count. */
     userShrink: number;
-    /** Thompson draw spread: each Beta draw is pulled toward its mean by this factor (1 = plain
-     *  Thompson sampling, 0 = posterior means, no randomness). Chapelle & Li (NeurIPS 2011) found a
+    /** Thompson draw spread: each user-informed Beta draw (affinity on tags the user has swiped,
+     *  persona like rate) is pulled toward its mean by this factor (1 = plain Thompson sampling,
+     *  0 = posterior means, no randomness). Chapelle & Li (NeurIPS 2011) found a
      *  shrunk posterior did better on display-ad data; 0.3 from the feed bench (SIMULATION.md),
      *  kept above 0 so exploit cards keep a selection propensity strictly between 0 and 1. */
     tsScale: number;

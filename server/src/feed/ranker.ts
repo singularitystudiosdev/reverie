@@ -192,9 +192,11 @@ function hydrate(ctx: Ctx, userId: string): UserState {
 
 /**
  * A Beta draw pulled toward its mean by `scale` (1: plain Thompson sampling, 0: the posterior
- * mean). Untempered, a persona with no chats yet draws P(deep chat) from its Beta(1, 4) prior
- * (sd 0.16) at weight 1 / (mean deep rate), about 5, and the per-tag affinity draws carry the
- * same noise: together they reordered whole decks at random while data was thin.
+ * mean). Only what the user's own swipes inform is drawn: their affinity for a tag they have
+ * evidence on, and the persona's like rate. A tag the user has never swiped on, and a persona's
+ * P(deep chat) and P(report), are persona- or population-level and take their means: drawn,
+ * they were pure prior noise (P(deep) from Beta(1, 4) at weight about 5) and cost a new user's
+ * first deck 0.024 of its 0.055 gap to a true-popularity deck in the feed bench.
  */
 function tempered(rng: Rng, a: number, b: number, scale: number): number {
   const mean = a / (a + b);
@@ -220,7 +222,7 @@ function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink:
       m = Math.min(0.95, m * (0.6 + 0.4 * Math.min(lift, 4)));
     }
     const ua = u.affinity.get(c) ?? { a: 0, b: 0 };
-    affSum += tempered(rng, ua.a + shrink * m + 1e-3, ua.b + shrink * (1 - m) + 1e-3, scale);
+    affSum += tempered(rng, ua.a + shrink * m + 1e-3, ua.b + shrink * (1 - m) + 1e-3, ua.a + ua.b > 0 ? scale : 0);
     catMeanSum += g.a / (g.a + g.b);
   }
   const k = Math.max(tags.length, 1);
@@ -230,8 +232,8 @@ function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink:
   const quality = Math.min(qualityDraw / catMean, 3);
   const traits = traitFactor(u.traits, p);
   const pLike = Math.min(affinity * quality * traits, 0.99);
-  const pDeep = tempered(rng, post.deep.a, post.deep.b, scale);
-  const pNeg = tempered(rng, post.negative.a, post.negative.b, scale);
+  const pDeep = post.deep.a / (post.deep.a + post.deep.b);
+  const pNeg = post.negative.a / (post.negative.a + post.negative.b);
   const w = weights(model);
   const score = pLike * (w.like + w.deep * pDeep - w.neg * pNeg) * fade;
   return { score, pLike, pDeep, pNeg, affinity, quality, traits, isNew: post.isNew, fade };
@@ -287,6 +289,12 @@ export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { re
     order.sort((a, b) => scores[b] - scores[a]);
     const picked: { idx: number; slot: FeedCard['slot'] }[] = order.map((idx) => ({ idx, slot: 'exploit' as const }));
     const used = new Set(order);
+    // A brand-new user's first deck keeps its uniformly random slots (the unbiased sample the fade
+    // check needs, and first decks are a large share of all decks) but gives its undersampled
+    // slots back to exploit cards: an explore card is worth about 0.13 against about 0.23 for an
+    // exploit card (feed bench), and the first deck decides whether they stay. X shields new
+    // accounts too (home-mixer NewUserMinEngagementFilter). Dropping both slots cost the closed
+    // loop every persona's 30 random-slot impressions, and with them the fade's cross-check.
     for (let pos = cfg.exploreEvery - 1; pos < picked.length; pos += cfg.exploreEvery) {
       const open = candidates.map((_, i) => i).filter((i) => !used.has(i));
       const preferred = open.filter((i) => explorable[i]);
@@ -294,7 +302,9 @@ export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { re
       if (!pool.length) break;
       let idx: number;
       let slot: FeedCard['slot'];
-      if (ctx.rng() < 0.5) {
+      const toGate = ctx.rng() < 0.5;
+      if (toGate && u.traits.swipes === 0) continue;
+      if (toGate) {
         // Toward the gate: the least-shown quarter of what is left, and of those the persona this
         // user is likeliest to like (not the one global argmin every user got until the model's
         // next rebuild, which is also the persona the ranker has learned nobody wants).
