@@ -431,7 +431,7 @@ test('an explore slot only spends traffic on personas still short of their sampl
 });
 
 test('with enough swipes the P(like) factors get fitted weights, and a factor that predicts nothing is turned down', () => {
-  const { ctx } = scratch();
+  const { ctx } = scratch({ feed: { calibrate: true } });
   const insert = ctx.db.prepare('INSERT INTO impressions (ts, user_id, persona_id, slot, p_shown, outcome, factors) VALUES (?, ?, ?, ?, ?, ?, ?)');
   // Likes follow the affinity factor; the quality factor is noise.
   let seed = 1;

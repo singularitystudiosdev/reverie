@@ -231,7 +231,7 @@ fade sample = personas with 30+ random-slot impressions:
 |---|---|---|---|---|---|---|
 | old ranker | 0.2127 (0.262) | 0.2060 (0.239) | 0.2346 (0.281) | 0.2334 (0.258) | 0% | 0 |
 | explore on the card stream | 0.2071 (0.245) | 0.2084 (0.228) | 0.2332 (0.277) | 0.2320 (0.263) | 18.6% | 44 to 50 |
-| **+ persona-to-persona term 0.5 (current)** | **0.2110 (0.242)** | **0.2064 (0.225)** | **0.2422 (0.282)** | **0.2337 (0.254)** | 18.6% | 44 to 51 |
+| **+ persona-to-persona term 0.5** | **0.2110 (0.242)** | **0.2064 (0.225)** | **0.2422 (0.282)** | **0.2337 (0.254)** | 18.6% | 44 to 51 |
 | same, term at 1.0 | 0.2105 | 0.2013 | 0.2451 | 0.2388 | 18.6% | 45 to 51 |
 | same at 1.0, explore every 8th card | 0.2175 | 0.2110 | 0.2526 | - | 9.3% | 0 |
 | static popularity deck (true means) | 0.2242 | 0.2180 | 0.2508 | 0.2461 | | |
@@ -266,6 +266,39 @@ are in, the bench's saturated proxy (targets 6 and 60) shows the steady state:
 | samples filling (current, as above) | 0.2110 | 0.2064 | 0.2422 | 0.2337 | 18.6% |
 | samples in | **0.2172** | **0.2121** | **0.2470** | **0.2432** | 11 to 12% |
 | static popularity deck (true means) | 0.2242 | 0.2180 | 0.2508 | 0.2461 | |
+
+**Fitted factor weights** (`feed.calibrate`). P(like) was the product affinity x quality x
+traits x persona-to-persona term at weight 1 each; binned against the true rate, its
+predictions ran from 0.021 to 0.628 where the truth ran from 0.109 to 0.301, a logit slope of
+about 0.29 (3x too spread). Each serve now logs the factors' logs (posterior means) and the
+model rebuild fits a logistic regression of every decided card on them, ridge toward the
+plain product, from 500 swipes on.
+
+Single runs turned out to move by up to 0.007 on the ranker's own random draws alone (the
+bench now takes `--rseed`), so the comparison that counts is three ranker seeds per arm,
+mean +/- sd, world seed 7 (first deck in brackets):
+
+| | app paging, tags explain taste | app paging, latent look | whole decks, tags | whole decks, latent look |
+|---|---|---|---|---|
+| old ranker | 0.2113 +/- 0.0067 (0.258) | 0.2340 +/- 0.0027 (0.286) | 0.2132 +/- 0.0004 (0.251) | 0.2373 (one run) |
+| **current (fitted weights off)** | **0.2118 +/- 0.0022 (0.243)** | **0.2399 +/- 0.0007 (0.281)** | **0.2100 +/- 0.0024 (0.252)** | **0.2422 +/- 0.0028 (0.278)** |
+| current with fitted weights on | 0.2116 +/- 0.0018 (0.249) | 0.2487 +/- 0.0014 (0.292) | 0.2118 +/- 0.0015 (0.249) | 0.2479 +/- 0.0007 (0.283) |
+| static popularity deck (true means) | 0.2242 | 0.2508 | 0.2242 | 0.2508 |
+
+Under the app's paging the current ranker ties the old one where tags explain taste and beats
+it by 0.006 with a latent look, while it now shows the 18.6% explore cards the old one never
+did, its runs vary a third as much (the old ranker without exploration sometimes locks into bad
+persona estimates: 0.2042 in one run), and its persona estimates track the truth at 0.81 to
+0.84 against 0.39 to 0.48. With whole decks it costs 0.003 where tags explain taste (one explore
+card in 5 instead of 1 in 6).
+
+The fitted weights win every bench cell they are in (+0.009 with a latent look under the app's
+paging), but the closed loop, which also has chats feeding the affinity and the whole
+lifecycle, disagrees: like rate 20.6% against 23.1% at seed 7 (21.5% in an earlier run of the
+unbounded fit) and 22.8% against 22.6% at seed 11, deep chats 0.42 / 0.47 against 0.46 / 0.48.
+With them on, both seeds faded the true dud `isolde` (off: nothing at seed 7, two non-duds at
+11) and the naive like-rate error fell to 1.5 / 2.0 points from 3.2 / 3.1. They ship off
+(`feed.calibrate`) until a live A/B settles it.
 
 Closed loop, 25 days, 220 users a day, all 154 personas, `--no-premium`, seed 7 (whole decks
 of 6, so the paging bug does not show here), before the exploration cap: like rate 23.1% -> 23.2%, deep chats per user

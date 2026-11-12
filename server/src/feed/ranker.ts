@@ -29,9 +29,9 @@
  *             the top cfg.feed.dppPool x k candidates by score only, theta
  *             cfg.feed.dppTheta (X ships 0.65), the chosen cards then shown in
  *             score order; the kernel is theme categories only (model.ts).
- *             The factors are combined with weights a logistic regression fits
- *             to the logged swipes (cfg.feed.calibrate; the plain product was
- *             about 3x too spread in logit space).
+ *             With cfg.feed.calibrate (off until a live A/B) the factors are
+ *             combined with weights a logistic regression fits to the logged
+ *             swipes (the plain product is about 3x too spread in logit space).
  *             A persona-to-persona term multiplies P(like): how much more the
  *             users who liked what this user liked liked the candidate than the
  *             ranker predicted (O/E on its logged predictions; item-based CF on

@@ -48,6 +48,7 @@ const cache = new WeakMap<Ctx, FeedModel>();
 
 export function invalidateFeedModel(ctx: Ctx): void {
   cache.delete(ctx);
+  calibCache.delete(ctx);
 }
 
 export function getFeedModel(ctx: Ctx, ttlMs = 60_000): FeedModel {
@@ -185,7 +186,7 @@ export function buildFeedModel(ctx: Ctx): FeedModel {
     impressions: new Map([...imp].map(([k, v]) => [k, v.n])),
     randomN,
     gateImpressions,
-    calib: cfg.feed.calibrate ? fitCalibration(ctx) : null,
+    calib: cfg.feed.calibrate ? calibration(ctx) : null,
     conversations,
     categories,
   };
@@ -324,13 +325,31 @@ function buildCf(ctx: Ctx): Map<string, Map<string, { o: number; e: number }>> {
   return cf;
 }
 
+const CALIB_ROWS = 20_000;
+const CALIB_TTL_MS = 10 * 60_000;
+const calibCache = new WeakMap<Ctx, { at: number; w: number[] | null }>();
+
+/** The fitted factor weights, refitted at most every 10 minutes (the model itself rebuilds every minute). */
+function calibration(ctx: Ctx): number[] | null {
+  const c = calibCache.get(ctx);
+  if (c && ctx.now() - c.at < CALIB_TTL_MS) return c.w;
+  const w = fitCalibration(ctx);
+  calibCache.set(ctx, { at: ctx.now(), w });
+  return w;
+}
+
 /**
- * Weights for the P(like) factors: a logistic regression of every decided card on the logs of
- * the factors the ranker logged when it served it (posterior means), ridge 1 on each weight
- * around 1 (the plain product) and a vague prior on the intercept. Null below 500 such cards.
+ * Weights for the P(like) factors: a logistic regression of the latest decided cards (at most
+ * 20,000: bounded cost, and it follows drift) on the logs of the factors the ranker logged when
+ * it served each (posterior means), ridge 1 on each weight around 1 (the plain product) and a
+ * vague prior on the intercept. Null below 500 such cards.
  */
 function fitCalibration(ctx: Ctx): number[] | null {
-  const rows = (ctx.db.prepare('SELECT outcome, factors FROM impressions WHERE outcome IS NOT NULL AND factors IS NOT NULL').all() as { outcome: string; factors: string }[])
+  const rows = (
+    ctx.db
+      .prepare('SELECT outcome, factors FROM impressions WHERE outcome IS NOT NULL AND factors IS NOT NULL ORDER BY id DESC LIMIT ?')
+      .all(CALIB_ROWS) as { outcome: string; factors: string }[]
+  )
     .map((r) => ({ y: r.outcome === 'like' ? 1 : 0, x: [1, ...(JSON.parse(r.factors) as number[])] }))
     .filter((r) => r.x.length === 5 && r.x.every(Number.isFinite));
   if (rows.length < 500) return null;

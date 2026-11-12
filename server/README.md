@@ -321,9 +321,11 @@ factor is under 0.5.
 - **Fitted factor weights.** Affinity, persona quality, trait factor and the
   persona-to-persona term are not simply multiplied: each serve logs their
   logs (at posterior means), and the model rebuild fits a logistic regression
-  of every decided card on them (ridge toward weight 1 each, the plain product;
-  `feed.calibrate`, from 500 swipes). The plain product spread predictions
-  about 3x too wide in logit space; the fit turns down the noisier factors.
+  of the latest decided cards on them (ridge toward weight 1 each, the plain
+  product; `feed.calibrate`, from 500 swipes). The plain product spread
+  predictions about 3x too wide in logit space. **Off by default** until a live
+  A/B: it gains in the feed bench (+0.009 with a latent look) but cost 2.5
+  points of like rate in one closed-loop seed (SIMULATION.md).
 - **Persona-to-persona term.** P(like) is multiplied by how much more the
   user's fellow fans liked the candidate than the ranker predicted for them:
   among users who liked persona i, the likes of j over the ranker's logged mean

@@ -150,8 +150,10 @@ export interface Config {
     /** Combine the P(like) factors with weights fitted to the swipes (a logistic regression on
      *  the logs of the factors logged with each serve, ridge toward the plain product) instead of
      *  multiplying them at weight 1 each, which made predictions about 3x too spread in logit
-     *  space. Feed bench under the app's paging: +0.005 / +0.0025 / +0.0065 (seed 7, seed 11,
-     *  latent look), first decks +0.004 to +0.010. Falls back to the product below 500 swipes. */
+     *  space. OFF until a live A/B: the feed bench (3 ranker seeds) gains +0.009 with a latent
+     *  look and ties without, but the closed loop lost 2.5 points of like rate at seed 7 (level at
+     *  11) while it faded the true dud and halved the estimate error (SIMULATION.md). Falls back
+     *  to the product below 500 swipes. */
     calibrate: boolean;
   };
 
@@ -262,7 +264,7 @@ export function loadConfig(overrides: DeepPartial<Config> = {}): Config {
       cfShrink: 3,
       randomTarget: 40,
       undersampledTarget: 0,
-      calibrate: true,
+      calibrate: false,
     },
     art: {
       enabled: env('REVERIE_AUTO_ART') === '1',

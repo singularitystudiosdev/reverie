@@ -9,7 +9,7 @@
  *   (c) new personas spawn only after every active persona reached the gate
  *   (d) the personalised feed beats a static deck (a 10% static holdout)
  *
- *   node src/sim/simulate.ts [--days 40] [--users-per-day 220] [--seed 7] [--quiet] [--no-premium] [--no-reports] [--shipped] [--launch-only]
+ *   node src/sim/simulate.ts [--days 40] [--users-per-day 220] [--seed 7] [--quiet] [--no-premium] [--no-reports] [--shipped] [--launch-only] [--cfg '{"feed":{...}}']
  *
  * The hidden world: users belong to 1-2 taste clusters over feed categories;
  * one cluster wants categories the seed roster does not have (animal-anthro,
@@ -53,6 +53,11 @@ const SHIPPED = args.includes('--shipped');
 // --launch-only: the 14 launch personas alone (the roster the first acceptance runs used).
 const LAUNCH_ONLY = args.includes('--launch-only');
 const QUIET = args.includes('--quiet');
+// --cfg: feed settings to compare in the closed loop (only `feed` is read; the rest stays the run's own).
+const CFG_FEED = (() => {
+  const i = args.indexOf('--cfg');
+  return i >= 0 ? (JSON.parse(args[i + 1]) as { feed?: Record<string, unknown> }).feed : undefined;
+})();
 const DAY = 86_400_000;
 const T0 = Date.UTC(2026, 10, 12);
 
@@ -222,6 +227,7 @@ async function run() {
     {
       dbPath: path.join(dir, 'sim.db'),
       personasDir,
+      ...(CFG_FEED ? { feed: CFG_FEED } : {}),
       ...(SHIPPED
         ? { lifecycle: { requireArt: false }, experiments: { requireServedReplies: false } }
         : {
