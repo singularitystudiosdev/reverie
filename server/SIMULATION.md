@@ -59,6 +59,39 @@ What the numbers say:
   rarely helps at this size: while personas keep reaching the gate one by
   one, the median keeps rising with them.
 
+## Gender, age and art style (2026-11-12, later)
+
+A real session swiped right only on women it found attractive and was dealt a
+64-year-old man. The feed had learned gender as one of a persona's 5 to 7
+tags, each swipe split across them, so after 9 likes the user's "female" tag
+stood at 1.01 for against 1.24 against. The ranker now keeps each user's like
+rate per gender, age band and art style, counting every swipe in full, and
+multiplies P(like) by it (posterior mean; a Thompson draw on three axes was
+tried first and lost to the old ranker, because the noise scrambled decks).
+
+Replaying that user's 53 real events, 400 decks of 6:
+
+| | old ranker | new ranker |
+|---|---|---|
+| the 64-year-old man in the deck | 3.3% of decks | 0.0% |
+| men | 21.1% of cards | 11.5% (the user did like one man) |
+| mature or senior | 7.7% of cards | 3.5% |
+
+The simulated users now have these preferences too (78% prefer women, 12% men,
+10% either; 65% prefer under-40s; 45% anime, 30% realistic, 25% either), so
+like rates drop for everyone and these rows are not comparable with the table
+above. Same world, 25 days, all 154 personas, app events:
+
+| Seed | feed like rate, old -> new ranker | deep chats per user, old -> new |
+|---|---|---|
+| 7 | 18.6% -> 19.1% | 0.33 -> 0.39 |
+| 11 | 18.8% -> 19.1% | 0.41 -> 0.38 |
+
+A small aggregate gain (about 2 standard errors on seed 7), as expected: most
+users prefer women and three quarters of the roster are women, so the trait
+model matters most for the minority the old feed served worst. In this world
+the static deck (the 14 launch women first) is a strong baseline on deep chats.
+
 ## Settings
 
 The 45-day runs use relaxed thresholds so a run finishes in minutes (gate: a

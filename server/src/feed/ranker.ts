@@ -86,7 +86,7 @@ interface UserState {
 type TraitAxis = 'gender' | 'age' | 'style';
 const AGE_BANDS: Record<string, number> = { 'young-adult': 0, adult: 1, 'ageless-adult': 1, 'mature-adult': 2, 'senior-adult': 3 };
 const AGE_SHARE = [1, 0.5, 0.2, 0.05];
-const TRAIT_PRIOR = 2; // pseudo-swipes at the user's overall like rate
+const TRAIT_PRIOR = 3; // pseudo-swipes at the user's overall like rate
 
 export interface TraitModel {
   swipes: number;
@@ -133,17 +133,20 @@ function traitEvidence(t: TraitModel, axis: TraitAxis, value: string): { x: numb
   return { x, n };
 }
 
-/** Multiplier on P(like) from the three trait axes: a Thompson draw, or the posterior mean without rng. */
-export function traitFactor(t: TraitModel, p: Persona, rng?: Rng): number {
+/**
+ * Multiplier on P(like) from the three trait axes: the posterior mean of the user's like rate for
+ * each value over their overall rate. Deliberately not a Thompson draw: three skewed Beta draws at
+ * a low base rate multiply into noise that scrambles the deck (it lost to the plain tag average in
+ * simulation); the category affinity's draw already supplies the exploration.
+ */
+export function traitFactor(t: TraitModel, p: Persona): number {
   if (!t.swipes) return 1;
   let f = 1;
   for (const [axis, value] of Object.entries(traitValues(p)) as [TraitAxis, string][]) {
     const { x, n } = traitEvidence(t, axis, value);
-    const a = x + TRAIT_PRIOR * t.rate;
-    const b = n - x + TRAIT_PRIOR * (1 - t.rate);
-    f *= (rng ? rng.beta(a, b) : a / (a + b)) / t.rate;
+    f *= (x + TRAIT_PRIOR * t.rate) / (n + TRAIT_PRIOR) / t.rate;
   }
-  return Math.min(Math.max(f, 0.02), 4);
+  return Math.min(Math.max(f, 0.05), 3);
 }
 
 function hydrate(ctx: Ctx, userId: string): UserState {
@@ -194,7 +197,7 @@ function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink:
   const catMean = Math.max(catMeanSum / k, 1e-3);
   const qualityDraw = rng.beta(post.like.a, post.like.b);
   const quality = Math.min(qualityDraw / catMean, 3);
-  const traits = traitFactor(u.traits, p, rng);
+  const traits = traitFactor(u.traits, p);
   const pLike = Math.min(affinity * quality * traits, 0.99);
   const pDeep = rng.beta(post.deep.a, post.deep.b);
   const pNeg = rng.beta(post.negative.a, post.negative.b);
