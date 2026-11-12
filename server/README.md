@@ -281,7 +281,13 @@ with w_deep = 1 / (mean deep-chat rate) so the chat a card leads to weighs as
 much as the swipe. P(like) combines the user's category affinity (likes, every
 message sent and deep chats zoom in; passes and reports zoom out), shrunk toward the global category rate and
 boosted by categories co-liked with the user's likes, with the persona's
-quality relative to its category. New personas draw from a dynamic prior.
+quality relative to its category, times a trait factor: the user's own like
+rate for the persona's gender, age band and art style (anime, realistic...)
+relative to their overall like rate. Themes are soft and shared across a
+persona's 5 to 7 tags, but people swipe on who, how old and how drawn far more
+decisively, so those three count every swipe in full (nearby age bands share
+evidence) and multiply P(like). After 8 swipes the explore slots also skip
+cards whose expected trait factor is under 0.5. New personas draw from a dynamic prior.
 DPP rerank over category and descriptor vectors. Every 5th card is an
 exploration slot (half furthest from the gate, half uniform random). Each card
 logs its selection propensity for the IPW rollups: the share of 32 fresh

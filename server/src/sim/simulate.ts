@@ -91,6 +91,10 @@ interface SimUser {
   premium: boolean;
   matches: string[];
   resetPending: boolean;
+  /** Hard-ish preferences real users have and the loop is not told: who, how old, which art style. */
+  genderPref: 'female' | 'male' | 'any';
+  maxAgeBand: number; // 0 young adult .. 3 senior; 3 = no age preference
+  stylePref: 'anime' | 'realistic' | null;
 }
 
 const sig = (x: number) => 1 / (1 + Math.exp(-x));
@@ -112,7 +116,31 @@ function makeUser(rng: Rng, i: number, day: number): SimUser {
     premium: false,
     matches: [],
     resetPending: false,
+    // Drawn last so the earlier draws (taste, chattiness...) are what they always were for a seed.
+    genderPref: (() => {
+      const r = rng();
+      return r < 0.78 ? 'female' : r < 0.9 ? 'male' : 'any';
+    })(),
+    maxAgeBand: rng() < 0.65 ? 1 : 3,
+    stylePref: (() => {
+      const r = rng();
+      return r < 0.45 ? 'anime' : r < 0.75 ? 'realistic' : null;
+    })(),
   };
+}
+
+const AGE_BAND: Record<string, number> = { 'young-adult': 0, adult: 1, 'ageless-adult': 1, 'mature-adult': 2, 'senior-adult': 3 };
+
+/** Log-odds penalty for a persona outside the user's gender, age and style preferences. */
+function traitPenalty(u: SimUser, p: { meta: { gender: string; descriptors: { age_group: string; aesthetic: string } } }): number {
+  let x = 0;
+  const g = p.meta.gender;
+  if (u.genderPref !== 'any' && g !== u.genderPref) x -= g === 'group' ? 0.8 : 2.5;
+  const band = AGE_BAND[p.meta.descriptors.age_group] ?? 1;
+  if (band > u.maxAgeBand) x -= band - u.maxAgeBand === 1 ? 1.0 : 2.0;
+  const style = p.meta.descriptors.aesthetic;
+  if (u.stylePref && style !== u.stylePref) x -= style === 'anime' || style === 'realistic' ? 1.2 : 0.5;
+  return x;
 }
 
 interface Truth {
@@ -162,9 +190,10 @@ function truthFor(ctx: Ctx, rng: Rng, cache: Map<string, Truth>, userId: string,
 }
 
 function likeProb(u: SimUser, ctx: Ctx, personaId: string, quality: number): number {
-  const cats = ctx.personas.get(personaId)?.meta.categories ?? [];
+  const p = ctx.personas.get(personaId);
+  const cats = p?.meta.categories ?? [];
   const aff = cats.reduce((a, c) => a + (u.taste.get(c) ?? 0), 0) / Math.max(cats.length, 1);
-  return sig(-1.6 + 1.3 * aff + quality);
+  return sig(-1.6 + 1.3 * aff + quality + (p ? traitPenalty(u, p) : 0));
 }
 
 const FILLER = 'The light here moves slowly, like it has all evening. I keep thinking about what you said.';

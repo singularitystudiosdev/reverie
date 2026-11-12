@@ -17,7 +17,10 @@
  *             toward the global category rate and boosted by categories
  *             co-liked with their likes (TinVec's co-swipe idea reduced to a
  *             catalog this size), with the persona's own quality relative to
- *             its category. New personas draw from a dynamic prior.
+ *             its category, times the user's TRAIT factor: their own like rate
+ *             for the persona's gender, age band and art style (every swipe
+ *             counts in full, nearby age bands share evidence) relative to
+ *             their overall like rate. New personas draw from a dynamic prior.
  *   diversity DPP rerank over category/descriptor vectors (X vm-ranker).
  *   explore   every k-th card is an exploration slot: half go to the persona
  *             furthest from the significance gate, half uniformly at random
@@ -43,7 +46,7 @@ export interface FeedCard {
   slot: 'exploit' | 'random' | 'undersampled';
   pShown: number;
   score: number;
-  why: { pLike: number; pDeep: number; pNeg: number; affinity: number; quality: number; isNew: boolean; fade: number };
+  why: { pLike: number; pDeep: number; pNeg: number; affinity: number; quality: number; traits: number; isNew: boolean; fade: number };
 }
 
 export interface FeedRequest {
@@ -70,6 +73,77 @@ interface UserState {
   liked: Set<string>;
   passed: Set<string>;
   likedCategories: string[];
+  traits: TraitModel;
+}
+
+/**
+ * Hard-ish traits: who the persona is (gender), how old (age band) and how they are drawn (art
+ * style). People swipe on these far more decisively than on themes, so they are not diluted into
+ * the category average: each swipe counts in full toward the user's like rate for the persona's
+ * value on each axis, and that rate, relative to the user's overall like rate, multiplies P(like).
+ * Neighbouring age bands share evidence (passing on 40-somethings says something about 60-somethings).
+ */
+type TraitAxis = 'gender' | 'age' | 'style';
+const AGE_BANDS: Record<string, number> = { 'young-adult': 0, adult: 1, 'ageless-adult': 1, 'mature-adult': 2, 'senior-adult': 3 };
+const AGE_SHARE = [1, 0.5, 0.2, 0.05];
+const TRAIT_PRIOR = 2; // pseudo-swipes at the user's overall like rate
+
+export interface TraitModel {
+  swipes: number;
+  rate: number;
+  counts: Record<TraitAxis, Map<string, { x: number; n: number }>>;
+}
+
+function traitValues(p: Persona): Record<TraitAxis, string> {
+  return { gender: p.meta.gender, age: p.meta.descriptors.age_group, style: p.meta.descriptors.aesthetic };
+}
+
+function buildTraits(ctx: Ctx, liked: Set<string>, passed: Set<string>): TraitModel {
+  const counts: TraitModel['counts'] = { gender: new Map(), age: new Map(), style: new Map() };
+  let likes = 0;
+  let swipes = 0;
+  for (const [ids, x] of [[liked, 1], [passed, 0]] as const) {
+    for (const id of ids) {
+      const p = ctx.personas.get(id);
+      if (!p) continue;
+      swipes++;
+      likes += x;
+      for (const [axis, value] of Object.entries(traitValues(p)) as [TraitAxis, string][]) {
+        const c = counts[axis].get(value) ?? { x: 0, n: 0 };
+        c.x += x;
+        c.n += 1;
+        counts[axis].set(value, c);
+      }
+    }
+  }
+  return { swipes, rate: (likes + 1) / (swipes + 3), counts };
+}
+
+/** The user's evidence for one axis value: exact for gender and style, shared across nearby age bands. */
+function traitEvidence(t: TraitModel, axis: TraitAxis, value: string): { x: number; n: number } {
+  if (axis !== 'age') return t.counts[axis].get(value) ?? { x: 0, n: 0 };
+  const band = AGE_BANDS[value] ?? 1;
+  let x = 0;
+  let n = 0;
+  for (const [v, c] of t.counts.age) {
+    const w = AGE_SHARE[Math.abs((AGE_BANDS[v] ?? 1) - band)] ?? 0;
+    x += w * c.x;
+    n += w * c.n;
+  }
+  return { x, n };
+}
+
+/** Multiplier on P(like) from the three trait axes: a Thompson draw, or the posterior mean without rng. */
+export function traitFactor(t: TraitModel, p: Persona, rng?: Rng): number {
+  if (!t.swipes) return 1;
+  let f = 1;
+  for (const [axis, value] of Object.entries(traitValues(p)) as [TraitAxis, string][]) {
+    const { x, n } = traitEvidence(t, axis, value);
+    const a = x + TRAIT_PRIOR * t.rate;
+    const b = n - x + TRAIT_PRIOR * (1 - t.rate);
+    f *= (rng ? rng.beta(a, b) : a / (a + b)) / t.rate;
+  }
+  return Math.min(Math.max(f, 0.02), 4);
 }
 
 function hydrate(ctx: Ctx, userId: string): UserState {
@@ -90,7 +164,7 @@ function hydrate(ctx: Ctx, userId: string): UserState {
     const p = ctx.personas.get(id);
     return p ? feedTags(p) : [];
   });
-  return { affinity, liked, passed, likedCategories };
+  return { affinity, liked, passed, likedCategories, traits: buildTraits(ctx, liked, passed) };
 }
 
 /** One Thompson draw of a candidate's score for this user. */
@@ -120,12 +194,13 @@ function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink:
   const catMean = Math.max(catMeanSum / k, 1e-3);
   const qualityDraw = rng.beta(post.like.a, post.like.b);
   const quality = Math.min(qualityDraw / catMean, 3);
-  const pLike = Math.min(affinity * quality, 0.99);
+  const traits = traitFactor(u.traits, p, rng);
+  const pLike = Math.min(affinity * quality * traits, 0.99);
   const pDeep = rng.beta(post.deep.a, post.deep.b);
   const pNeg = rng.beta(post.negative.a, post.negative.b);
   const w = weights(model);
   const score = pLike * (w.like + w.deep * pDeep - w.neg * pNeg) * fade;
-  return { score, pLike, pDeep, pNeg, affinity, quality, isNew: post.isNew, fade };
+  return { score, pLike, pDeep, pNeg, affinity, quality, traits, isNew: post.isNew, fade };
 }
 
 export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { requestId: string; cards: FeedCard[] } {
@@ -148,12 +223,18 @@ export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { re
   const vectors = candidates.map((p) => model.vectors.get(p.meta.id) ?? [1]);
   const sim = cosineCache(vectors);
   const k = Math.min(limit, candidates.length);
+  // Exploration stays inside what the user has not clearly ruled out: after 8 swipes, a card whose
+  // expected trait factor is under 0.5 (a gender, age or art style they keep passing on) is not
+  // spent on an explore slot. The slots still sample everything else uniformly.
+  const explorable = candidates.map((p) => u.traits.swipes < 8 || traitFactor(u.traits, p) >= 0.5);
   const select = (scores: number[]): { idx: number; slot: FeedCard['slot'] }[] => {
     const order = dppSelect(scores, vectors, k, cfg.dppTheta, sim);
     const picked: { idx: number; slot: FeedCard['slot'] }[] = order.map((idx) => ({ idx, slot: 'exploit' as const }));
     const used = new Set(order);
     for (let pos = cfg.exploreEvery - 1; pos < picked.length; pos += cfg.exploreEvery) {
-      const pool = candidates.map((_, i) => i).filter((i) => !used.has(i));
+      const open = candidates.map((_, i) => i).filter((i) => !used.has(i));
+      const preferred = open.filter((i) => explorable[i]);
+      const pool = preferred.length ? preferred : open;
       if (!pool.length) break;
       let idx: number;
       let slot: FeedCard['slot'];
@@ -189,7 +270,7 @@ export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { re
     const p = candidates[idx];
     const d = draws[idx];
     const pShown = Math.min(1, Math.max(freq[idx] / M, 1 / (2 * M)));
-    return { personaId: p.meta.id, position, slot, pShown, score: d.score, why: { pLike: d.pLike, pDeep: d.pDeep, pNeg: d.pNeg, affinity: d.affinity, quality: d.quality, isNew: d.isNew, fade: d.fade } };
+    return { personaId: p.meta.id, position, slot, pShown, score: d.score, why: { pLike: d.pLike, pDeep: d.pDeep, pNeg: d.pNeg, affinity: d.affinity, quality: d.quality, traits: d.traits, isNew: d.isNew, fade: d.fade } };
   });
 
   if (!req.dryRun) {

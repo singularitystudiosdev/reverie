@@ -276,3 +276,26 @@ test('a dud with its like sample in fades even with almost no chats; a liked per
   assert.deepEqual(faded, ['raven']);
   assert.equal(ctx.personas.get('nova')!.meta.status, 'active');
 });
+
+test('someone who likes only young women stops getting men and seniors, explore slots included', () => {
+  const { ctx, clock } = scratch();
+  const all = ctx.personas.servable();
+  const youngWomen = all.filter((p) => p.meta.gender === 'female' && ['young-adult', 'adult'].includes(p.meta.descriptors.age_group)).slice(0, 12);
+  const men = all.filter((p) => p.meta.gender === 'male').slice(0, 5);
+  const older = all.filter((p) => p.meta.gender === 'female' && p.meta.descriptors.age_group === 'mature-adult').slice(0, 3);
+  for (const p of youngWomen) ingest(ctx, { type: 'swipe', user_id: 'w', persona_id: p.meta.id, props: { dir: 'like' }, ts: clock.t });
+  for (const p of [...men, ...older]) ingest(ctx, { type: 'swipe', user_id: 'w', persona_id: p.meta.id, props: { dir: 'pass' }, ts: clock.t });
+  let cards = 0;
+  let male = 0;
+  let senior = 0;
+  for (let i = 0; i < 60; i++) {
+    for (const c of buildFeed(ctx, 'w', { limit: 10, dryRun: true }).cards) {
+      const p = ctx.personas.get(c.personaId)!;
+      cards++;
+      if (p.meta.gender === 'male') male++;
+      if (p.meta.descriptors.age_group === 'senior-adult') senior++;
+    }
+  }
+  assert.ok(male / cards < 0.05, `men ${(100 * male / cards).toFixed(1)}% of cards`);
+  assert.ok(senior / cards < 0.03, `seniors ${(100 * senior / cards).toFixed(1)}% of cards`);
+});
