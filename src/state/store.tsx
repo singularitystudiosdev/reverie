@@ -347,7 +347,8 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, matchNotices: state.matchNotices.filter((x) => x !== action.id) };
 
     case 'resetDeck':
-      return { ...state, passedIds: [] };
+      // The card that was on top has been passed with the rest: it no longer holds the top.
+      return { ...state, passedIds: [], shownTopId: null };
 
     case 'endMatch': {
       const id = action.id;
@@ -771,8 +772,10 @@ export function useDeck(): Character[] {
     // The backend's ranked order first (when it answered), then the local order for anyone it did not rank.
     const feedRank = new Map((feedOrder ?? []).map((id, i) => [id, i]));
     const offset = feedOrder ? feedOrder.length : 0;
+    // The card already on screen keeps the top when the ranked feed lands (only then).
+    const pinned = feedOrder ? shownTopId : null;
     const rank = (id: string) =>
-      id === shownTopId ? -1 : feedRank.get(id) ?? offset + (deckRank.get(id) ?? rosterRank.get(id) ?? 0);
+      id === pinned ? -1 : feedRank.get(id) ?? offset + (deckRank.get(id) ?? rosterRank.get(id) ?? 0);
     return out.sort((a, b) => rank(a.id) - rank(b.id));
   }, [matchIds, passedIds, blockedIds, pendingMatches, feedOrder, shownTopId]);
 }

@@ -5,9 +5,10 @@
 //   node scripts/starters/sync-art.mjs
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parsePersona, serializePersona } from '../../server/src/personas/markdown.ts';
 
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const roster = JSON.parse(fs.readFileSync(path.join(root, 'server/starters/roster.json'), 'utf8')).personas;
 const has = (f) => fs.existsSync(path.join(root, 'public/characters', f));
 let changed = 0;

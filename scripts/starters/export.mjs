@@ -6,9 +6,10 @@
 //   node scripts/starters/export.mjs
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { getSection, parsePersona } from '../../server/src/personas/markdown.ts';
 
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const roster = JSON.parse(fs.readFileSync(path.join(root, 'server/starters/roster.json'), 'utf8')).personas;
 const facesFile = path.join(root, '.tmp/starters-raw/faces.json');
 const faces = fs.existsSync(facesFile) ? JSON.parse(fs.readFileSync(facesFile, 'utf8')) : {};
