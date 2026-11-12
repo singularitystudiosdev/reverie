@@ -71,7 +71,7 @@ export function computeStats(ctx: Ctx, personaId: string): PersonaStats {
   const p = ctx.personas.get(personaId);
 
   const imp = db
-    .prepare('SELECT slot, p_shown, outcome FROM impressions WHERE persona_id = ?')
+    .prepare("SELECT slot, p_shown, outcome FROM impressions WHERE persona_id = ? AND slot != 'unranked'")
     .all(personaId) as { slot: string; p_shown: number; outcome: string | null }[];
   let likes = 0;
   let passes = 0;

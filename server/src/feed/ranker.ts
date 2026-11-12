@@ -238,6 +238,12 @@ function cfFactor(model: FeedModel, u: UserState, id: string, weight: number, sh
   return Math.min(Math.max(Math.exp((weight * s) / u.liked.size), 0.2), 5);
 }
 
+/** P(like) x the persona's chat term x fade; the chat term raised to `chatExponent` when P(like) is fitted. */
+export function combineScore(pLike: number, chatTerm: number, fade: number, calibrated: boolean, chatExponent: number): number {
+  const chat = Math.max(chatTerm, 0);
+  return pLike * (calibrated ? Math.pow(chat, chatExponent) : chat) * fade;
+}
+
 /** One tempered Thompson draw of a candidate's score for this user (`cf`: its cfFactor, which takes no draw). */
 function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink: number, fade: number, scale: number, cf = 1, chatExponent = 1): FeedCard['why'] & { score: number } {
   const post = model.persona.get(p.meta.id)!;
@@ -283,7 +289,7 @@ function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink:
   // the model misses.
   const pBase = cw
     ? sig(cw[0] + cw[1] * factors[0] + cw[2] * factors[1] + cw[3] * factors[2])
-    : Math.min(((affMeanSum / k) / catMean) * traits * (post.like.a / (post.like.a + post.like.b)), 0.99);
+    : Math.min((affMeanSum / k) * qualityMean * traits, 0.99);
   const pDeep = post.deep.a / (post.deep.a + post.deep.b);
   const pNeg = post.negative.a / (post.negative.a + post.negative.b);
   const w = weights(model);
@@ -292,8 +298,7 @@ function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink:
   // doubled that shared term's say and pulled every user toward the same chat-heavy personas: the
   // closed loop lost 2.5 points of like rate at seed 7. Calibrated, the term is compressed by the
   // same factor (cfg.feed.calibratedChatExponent).
-  const chat = Math.max(w.like + w.deep * pDeep - w.neg * pNeg, 0);
-  const score = pLike * (cw ? Math.pow(chat, chatExponent) : chat) * fade;
+  const score = combineScore(pLike, w.like + w.deep * pDeep - w.neg * pNeg, fade, cw !== null, chatExponent);
   return { score, pLike, pDeep, pNeg, affinity, quality, traits, cf, pBase, factors, isNew: post.isNew, fade };
 }
 
@@ -347,7 +352,7 @@ export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { re
       cfg.dppTheta,
       (a, b) => sim(pool[a], pool[b]),
     ).map((j) => pool[j]);
-    order.sort((a, b) => scores[b] - scores[a]);
+    if (cfg.dppOrder !== 'pick') order.sort((a, b) => scores[b] - scores[a]);
     const picked: { idx: number; slot: FeedCard['slot'] }[] = order.map((idx) => ({ idx, slot: 'exploit' as const }));
     const used = new Set(order);
     // A brand-new user's first deck keeps its uniformly random slots (the unbiased sample the fade

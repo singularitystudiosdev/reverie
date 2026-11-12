@@ -4,7 +4,7 @@
 //   chat and messages, with the feed's propensities on the impressions.
 //
 // Needs the server and an app build pointed at it:
-//   REVERIE_DB=/tmp/e2e.db PORT=8799 node server/src/main.ts &
+//   REVERIE_DB=/tmp/e2e.db PORT=8799 REVERIE_ADMIN_OPEN=1 node server/src/main.ts &
 //   VITE_REVERIE_API=http://127.0.0.1:8799 npx vite build --outDir .tmp/dist-api
 //   node scripts/qa/serve.mjs 44641 .tmp/dist-api &
 //   QA_URL=http://127.0.0.1:44641/ QA_API=http://127.0.0.1:8799 PLAYWRIGHT_MODULE=... node scripts/qa/backend.mjs

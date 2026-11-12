@@ -29,7 +29,7 @@ import { effectivePersona } from '../experiments/engine.ts';
 import { buildFeed } from '../feed/ranker.ts';
 import { offlineLlm } from '../llm/claude.ts';
 import { serializePersona } from '../personas/markdown.ts';
-import { makeRng, type Rng } from '../stats/random.ts';
+import { hash32, makeRng, type Rng } from '../stats/random.ts';
 import { tick, renderReport, type TickReport } from '../jobs/scheduler.ts';
 import { ingest, type IncomingEvent } from '../telemetry/ingest.ts';
 import { computeAllStats } from '../telemetry/rollups.ts';
@@ -52,6 +52,16 @@ const NO_REPORTS = args.includes('--no-reports');
 const SHIPPED = args.includes('--shipped');
 // --launch-only: the 14 launch personas alone (the roster the first acceptance runs used).
 const LAUNCH_ONLY = args.includes('--launch-only');
+// --paired: common random numbers, so runs that differ only in config see the same world. Every
+// world draw comes from a stream keyed by what it is about (a user, a persona, a (user, persona)
+// swipe, a chat turn), not from one shared stream whose position depends on what the ranker
+// showed; each user gets their own slot on the day's clock; the ranker and each tick get a stream
+// keyed by request. Without it a seed reproduces the earlier runs in SIMULATION.md.
+const PAIRED = args.includes('--paired');
+// --page 3: the app's paging (src/state/store.tsx): ask for 10 cards (visible 3), swipe up to 3,
+// keep the next card on top, ask again, until the session's 6 cards are swiped. 0: one deck of 6.
+const PAGE = arg('page', 0);
+const R = (...k: (string | number)[]): Rng => makeRng(hash32([SEED, ...k].join('|')));
 const QUIET = args.includes('--quiet');
 // --cfg: feed settings to compare in the closed loop (only `feed` is read; the rest stays the run's own).
 const CFG_FEED = (() => {
@@ -174,9 +184,10 @@ function truthFor(ctx: Ctx, rng: Rng, cache: Map<string, Truth>, userId: string,
     if (!base) {
       const novelHits = p.meta.categories.filter((c) => CLUSTERS.novel.includes(c)).length;
       const parent = p.meta.parent ? SEED_QUALITY[p.meta.parent] ?? 0 : null;
+      const g = PAIRED ? R('persona', personaId) : rng;
       base = {
-        quality: (parent !== null ? parent * 0.8 : -0.2) + 0.35 * novelHits + rng.normal() * 0.25,
-        habits: { q: 0.3 + rng() * 0.4, long: 0.15 + rng() * 0.35 },
+        quality: (parent !== null ? parent * 0.8 : -0.2) + 0.35 * novelHits + g.normal() * 0.25,
+        habits: { q: 0.3 + g() * 0.4, long: 0.15 + g() * 0.35 },
       };
       baseTruth.set(personaId, base);
     }
@@ -244,6 +255,7 @@ async function run() {
   ctx.db.exec('PRAGMA synchronous = OFF');
   const emit = (e: IncomingEvent) => ingest(ctx, { ...e, ts: now });
   const truthCache = new Map<string, Truth>();
+  const shownPairs = new Map<string, number>();
   const users: SimUser[] = [];
   const seedOrder = ['sylvara', 'kiyo', 'nerissa', 'cinder', 'isolde', 'clementine', 'zahra', 'raven', 'ada', 'vesper', 'nova', 'maya', 'luna', 'hanami'];
   const metrics = { feed: { imp: 0, likes: 0, deep: 0, users: new Set<string>() }, static: { imp: 0, likes: 0, deep: 0, users: new Set<string>() } };
@@ -254,9 +266,12 @@ async function run() {
 
   for (let day = 0; day < DAYS; day++) {
     now = T0 + day * DAY + 9 * 3_600_000;
-    for (let i = 0; i < USERS_PER_DAY; i++) users.push(makeUser(rng, i, day));
+    for (let i = 0; i < USERS_PER_DAY; i++) users.push(makeUser(PAIRED ? R('user', day, i) : rng, i, day));
     const today = users.filter((u) => u.active);
-    for (const u of today) {
+    for (const [slot, u] of today.entries()) {
+      // Paired: each user's session starts at their own slot between 09:00 and 17:00, whatever the
+      // users before them did (chats used to push everyone after them later, past the ticks).
+      if (PAIRED) now = T0 + day * DAY + 9 * 3_600_000 + Math.floor((slot * 8 * 3_600_000) / Math.max(today.length, 1));
       const arm = u.holdout ? metrics.static : metrics.feed;
       arm.users.add(u.id);
       emit({ type: 'session_start', user_id: u.id });
@@ -267,19 +282,64 @@ async function run() {
         deck = [...seedOrder, ...ctx.personas.servable().map((p) => p.meta.id).filter((id) => !seedOrder.includes(id))]
           .filter((id) => ctx.personas.get(id) && ctx.personas.get(id)!.meta.status !== 'retired' && ctx.personas.get(id)!.meta.status !== 'draft' && !seen.has(id))
           .slice(0, 6);
-      } else deck = buildFeed(ctx, u.id, { limit: 6, includePassed: u.resetPending }).cards.map((c) => c.personaId);
-      u.resetPending = false;
-      for (const pid of deck) {
+      } else deck = [];
+      const feed = (req: { limit: number; visible?: number; includePassed?: boolean; exclude?: string[] }) => {
+        if (PAIRED) ctx.rng = R('rank', u.id, day, requests++);
+        return buildFeed(ctx, u.id, req);
+      };
+      let requests = 0;
+      const swipeOne = (pid: string, requestId?: string, impressed = false) => {
         now += 4_000;
-        emit({ type: 'impression', user_id: u.id, persona_id: pid });
+        const props = requestId ? { request_id: requestId } : undefined;
+        if (!impressed) emit({ type: 'impression', user_id: u.id, persona_id: pid, props });
         arm.imp++;
         const t = truthFor(ctx, rng, truthCache, u.id, pid);
-        const like = rng() < likeProb(u, ctx, pid, t.quality);
-        emit({ type: 'swipe', user_id: u.id, persona_id: pid, props: { dir: like ? 'like' : 'pass' } });
+        const n = shownPairs.get(`${u.id}|${pid}`) ?? 0;
+        shownPairs.set(`${u.id}|${pid}`, n + 1);
+        const like = (PAIRED ? R('swipe', u.id, pid, n)() : rng()) < likeProb(u, ctx, pid, t.quality);
+        emit({ type: 'swipe', user_id: u.id, persona_id: pid, props: { dir: like ? 'like' : 'pass', ...props } });
         if (like) {
           arm.likes++;
           emit({ type: 'match', user_id: u.id, persona_id: pid });
           u.matches.push(pid);
+        } else passedToday.add(pid);
+        return like;
+      };
+      const passedToday = new Set<string>();
+      if (u.holdout) for (const pid of deck) swipeOne(pid);
+      else if (!PAGE) for (const c of feed({ limit: 6, includePassed: u.resetPending }).cards) swipeOne(c.personaId);
+      else {
+        // The app's paging: new page first, unreached cards after it, the card on screen pinned.
+        let order: string[] = [];
+        let rid = '';
+        let includePassed = u.resetPending;
+        let pinned: string | null = null;
+        let left = 6;
+        const gone = (x: string) => u.matches.includes(x) || passedToday.has(x);
+        const refresh = () => {
+          const r = feed({ limit: 10, visible: PAGE, includePassed, exclude: [...u.matches, ...(includePassed ? [] : passedToday)] });
+          includePassed = false;
+          const ids = r.cards.map((c) => c.personaId);
+          order = [...ids, ...order.filter((x) => !ids.includes(x))];
+          rid = r.requestId;
+        };
+        refresh();
+        while (left > 0) {
+          for (let n = 0; n < PAGE && left > 0; n++, left--) {
+            const pid = pinned && !gone(pinned) ? pinned : order.find((x) => !gone(x));
+            if (!pid) {
+              left = 0;
+              break;
+            }
+            swipeOne(pid, rid, pid === pinned);
+            pinned = null;
+          }
+          if (left > 0) {
+            pinned = order.find((x) => !gone(x)) ?? null;
+            // Seen on top while the next page loads, under the request that served it.
+            if (pinned) emit({ type: 'impression', user_id: u.id, persona_id: pinned, props: { request_id: rid } });
+            refresh();
+          }
         }
       }
       // 2) Chat with up to two matches (the newest first).
@@ -297,11 +357,12 @@ async function run() {
         for (let k = 0; k < 14 && continued; k++) {
           turn++;
           now += 25_000;
-          const bye = turn > 2 && rng() < 0.035;
-          emit({ type: 'message', user_id: u.id, persona_id: pid, props: { from: 'user', text: bye ? 'ok I gotta go, bye!' : rng.pick(USER_LINES) } });
+          const c = PAIRED ? R('chat', u.id, pid, turn) : rng;
+          const bye = turn > 2 && c() < 0.035;
+          emit({ type: 'message', user_id: u.id, persona_id: pid, props: { from: 'user', text: bye ? 'ok I gotta go, bye!' : c.pick(USER_LINES) } });
           if (bye) break;
           now += 8_000;
-          const text = personaText(rng, t, p.meta.flirt_level, last, turn);
+          const text = personaText(c, t, p.meta.flirt_level, last, turn);
           const repeated = text === last;
           last = text;
           emit({ type: 'message', user_id: u.id, persona_id: pid, props: { from: 'persona', text } });
@@ -309,16 +370,17 @@ async function run() {
           const isLong = text.length > 180;
           const early = turn <= 5;
           const x = 2.0 + u.chattiness + 0.6 * t.quality + (ends ? 0.5 : early ? -0.9 : -0.4) + (isLong ? -0.8 : 0) + (repeated ? -1.2 : 0) - 0.06 * turn - 0.08 * Math.abs(p.meta.flirt_level - u.flirtPref);
-          continued = rng() < sig(x);
+          continued = c() < sig(x);
         }
         emit({ type: 'chat_close', user_id: u.id, persona_id: pid, props: { duration_ms: now - start } });
         if (turn >= ctx.cfg.telemetry.deepChatTurns) (u.holdout ? metrics.static : metrics.feed).deep++;
-        if (rng() < 0.004 + (t.quality < -0.5 ? 0.02 : 0)) {
-          const type = rng() < 0.5 ? 'report' : 'block';
+        const pc = PAIRED ? R('post', u.id, pid, day) : rng;
+        if (pc() < 0.004 + (t.quality < -0.5 ? 0.02 : 0)) {
+          const type = pc() < 0.5 ? 'report' : 'block';
           if (!NO_REPORTS) emit({ type, user_id: u.id, persona_id: pid });
         }
-        if (rng() < 0.15) emit({ type: 'deck_return', user_id: u.id, persona_id: pid });
-        if (!u.premium && rng() < 0.004 + (turn >= 10 ? 0.02 : 0)) {
+        if (pc() < 0.15) emit({ type: 'deck_return', user_id: u.id, persona_id: pid });
+        if (!u.premium && pc() < 0.004 + (turn >= 10 ? 0.02 : 0)) {
           u.premium = true;
           if (!NO_PREMIUM) {
             emit({ type: 'premium_view', user_id: u.id, persona_id: pid });
@@ -326,18 +388,20 @@ async function run() {
           }
         }
       }
-      if (rng() < 0.05) {
+      const sc = PAIRED ? R('sess', u.id, day) : rng;
+      if (sc() < 0.05) {
         emit({ type: 'deck_reset', user_id: u.id });
         u.resetPending = true;
       }
       emit({ type: 'session_end', user_id: u.id });
       // 3) Do they come back tomorrow?
       const deepToday = u.matches.length > 0 ? 0.6 : -0.4;
-      u.active = rng() < sig(u.returnBase + deepToday);
+      u.active = sc() < sig(u.returnBase + deepToday);
     }
     // Two ticks per day.
     for (const h of [13, 21]) {
       now = T0 + day * DAY + h * 3_600_000;
+      if (PAIRED) ctx.rng = R('tick', day, h);
       const r = await tick(ctx, { writeReport: false });
       lastReport = r;
       if (r.gate.open && gateOpenedDay === null) gateOpenedDay = day;
@@ -380,6 +444,20 @@ async function run() {
   console.log(`    promoted edits that truly help: ${truePromotions}/${promoted.length}; harmful edit promoted: ${harmfulPromoted}/${harmfulTried} tried`);
   for (const e of promoted) console.log(`      #${e.id} ${e.persona_id} [${e.section}] ${e.pattern_sig} (${e.source})`);
   console.log(`(b) hidden-worst seeds: ${worstSeeds.join(', ')}; faded: ${faded.join(', ') || 'none'}; retired: ${retired.join(', ') || 'none'}`);
+  // Fade precision: each faded persona's hidden population like rate and its rank on the roster
+  // (1 = least liked), against the roster's bottom quartile.
+  {
+    const roster = ctx.personas.all().filter((p) => p.meta.status !== 'draft').map((p) => p.meta.id);
+    const pop = new Map(roster.map((id) => {
+      const t = truthFor(ctx, rng, truthCache, '__probe__', id);
+      return [id, users.reduce((a, u) => a + likeProb(u, ctx, id, t.quality), 0) / users.length] as const;
+    }));
+    const ranked = [...pop].sort((a, b) => a[1] - b[1]).map(([id]) => id);
+    const q1 = new Set(ranked.slice(0, Math.ceil(ranked.length / 4)));
+    const fadedSet = [...new Set(faded)].filter((id): id is string => !!id);
+    const hits = fadedSet.filter((id) => q1.has(id)).length;
+    console.log(`    fade precision: ${hits}/${fadedSet.length} faded in the true bottom quartile of ${ranked.length}; ${fadedSet.map((id) => `${id} ${((pop.get(id) ?? 0) * 100).toFixed(1)}% (rank ${ranked.indexOf(id) + 1})`).join(', ') || '-'}; true bottom 3: ${ranked.slice(0, 3).map((id) => `${id} ${((pop.get(id) ?? 0) * 100).toFixed(1)}%`).join(', ')}`);
+  }
   console.log(`(c) gate first open on day ${gateOpenedDay === null ? '-' : gateOpenedDay + 1}; first spawn on day ${firstSpawnDay === null ? '-' : firstSpawnDay + 1}; spawns while gate closed: ${spawnBeforeGate.length}`);
   for (const s of spawns) {
     const p = ctx.personas.get(s.persona_id!);

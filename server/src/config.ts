@@ -122,6 +122,10 @@ export interface Config {
     dppTheta: number;
     /** The DPP chooses among the top dppPool x (deck size) candidates by score only (X: top 150 of its pool). */
     dppPool: number;
+    /** 'score': the DPP's picks shown in score order, as X does (its whole slate is consumed);
+     *  'pick': in the order the DPP chose them, so the diversity reaches the 3 cards the app shows
+     *  of each page. */
+    dppOrder: 'score' | 'pick';
     /** A passed persona may come back once the unseen roster runs short, this long after the pass. */
     recycleAfterMs: number;
     /** Dynamic-prior Thompson sampling for new personas (arXiv 2602.00943): P(new beats incumbent) = eps. */
@@ -259,6 +263,7 @@ export function loadConfig(overrides: DeepPartial<Config> = {}): Config {
       tsScale: 0.3,
       dppTheta: 0.65,
       dppPool: 3,
+      dppOrder: 'score',
       recycleAfterMs: 3 * 86_400_000,
       newEps: 0.1,
       newPriorStrength: 30,

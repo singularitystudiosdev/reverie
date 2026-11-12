@@ -129,11 +129,27 @@ function likeP(u: U, pid: string): number {
 
 const ms: number[] = [];
 const slots: Record<string, number> = {};
+// Diversity of what the user actually sees: mean pairwise cosine of the DPP's theme vectors over
+// the cards shown from each page (lower = more varied).
+const windowSims: number[] = [];
+function windowSim(ids: string[]): void {
+  if (ids.length < 2) return;
+  const vs = getFeedModel(ctx).vectors;
+  const cos = (a: number[], b: number[]) => {
+    let d = 0, na = 0, nb = 0;
+    for (let i = 0; i < a.length; i++) { d += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+    return na && nb ? d / Math.sqrt(na * nb) : 0;
+  };
+  let s = 0, n = 0;
+  for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) { s += cos(vs.get(ids[i]) ?? [], vs.get(ids[j]) ?? []); n++; }
+  windowSims.push(s / n);
+}
 const randomByPersona = new Map<string, number>();
 function page(u: U, n: number) {
   const t0 = performance.now();
   const cards = PAGE ? buildFeed(ctx, u.id, { limit: 10, visible: PAGE }).cards.slice(0, Math.min(PAGE, n)) : buildFeed(ctx, u.id, { limit: n }).cards;
   ms.push(performance.now() - t0);
+  windowSim(cards.slice(0, PAGE || 3).map((c) => c.personaId));
   return cards;
 }
 function session(u: U, rec?: { p: number[][]; s: number; wrongGender: number[]; bad: number[] }) {
@@ -236,6 +252,7 @@ const out = {
   popularityBySession: popBy.map((x) => +x.toFixed(4)),
   msPerDeck: +mean(ms).toFixed(2),
   page: PAGE,
+  windowSim: +mean(windowSims).toFixed(4),
   slotShare: Object.fromEntries(Object.entries(slots).map(([k, v]) => [k, +(v / Object.values(slots).reduce((a, b) => a + b, 0)).toFixed(4)])),
   personasWith30Random: [...randomByPersona.values()].filter((v) => v >= 30).length,
   ...est,

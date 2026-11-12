@@ -382,8 +382,44 @@ value, so ranker settings compare in minutes.
 | `GET /admin/stats[/:id]`, `/admin/experiments`, `/admin/gate`, `/admin/archive`, `/admin/lifecycle`, `/admin/safety`, `/admin/art-queue`, `/admin/report`, `/admin/personas/:id/md`, `/admin/personas/:id/versions` | inspection |
 | `POST /admin/tick`, `POST /admin/art/run`, `POST /admin/personas/:id/art` | actions |
 
-Admin routes require `Authorization: Bearer $REVERIE_ADMIN_TOKEN` when the
-variable is set. `REVERIE_CORS_ORIGINS` (comma list, default `*`).
+Admin routes require `Authorization: Bearer $REVERIE_ADMIN_TOKEN` and are
+closed when it is unset (`REVERIE_ADMIN_OPEN=1` opens them for local dev).
+`/v1/events` takes at most 300 events per user per minute. Shared statistics
+(persona rates, co-likes, the persona-to-persona term, the gate and the fade)
+read only cards the ranker served, one vote per user and persona; a swipe
+with no card open for it counts only toward that user's own deck, a repeat
+within 10 minutes is dropped, and a match needs a like.
+`REVERIE_CORS_ORIGINS` (comma list, default `*`).
+
+## Gaps against the state of the art (audit 2026-11-12)
+
+Measured in `SIMULATION.md`. Status as of this branch.
+
+| # | Gap | What the leaders do | Status |
+|---|---|---|---|
+| 1 | Explore slots at page positions the app never shows | - | fixed: slots follow the user's card stream |
+| 2 | Propensities logged for the whole page, not the 3 cards seen | [X home-mixer](https://github.com/xai-org/x-algorithm) logs per served slot | fixed (`visible`) |
+| 3 | No persona-level collaborative filtering | [TinVec](https://slideshare.net/slideshow/dr-steve-liu-chief-scientist-tinder-at-mlconf-sf-2017/81871516); [Koren 2008](https://www.cs.cornell.edu/courses/cs6241/2020sp/readings/Koren-2008-Factorization.pdf); [EASE](https://arxiv.org/abs/1905.03375) | fixed: residual persona-to-persona term; EASE not yet benched |
+| 4 | Uniform exploration with no stopping rule | [KuaiRand](https://arxiv.org/abs/2208.08696) one random slot at a small fixed rate; [X](https://github.com/xai-org/x-algorithm/blob/main/home-mixer/params/param.rs) none | fixed: stops once a persona's sample is in |
+| 5 | Exploration not aimed at what the user has not met | [YouTube, Values of user exploration (RecSys 2021)](https://dl.acm.org/doi/fullHtml/10.1145/3460231.3474236): least-shown topics, not uniform | open |
+| 6 | Factors multiplied at weight 1 (3x over-spread) | weighted predicted actions: [X weights](https://github.com/xai-org/x-algorithm/blob/main/xai-value-model/weights.rs), [Twitter heavy ranker](https://github.com/twitter/the-algorithm-ml/blob/main/projects/home/recap/README.md) | built behind `feed.calibrate`, off |
+| 7 | Dwell and skip speed unused | [Hinge: a fast skip reads as not your type](https://hinge.co/how-we-connect-daters); [Yi et al. 2014](https://www.hongliangjie.com/publications/recsys2014.pdf) | logged (`dwell_ms`), not read |
+| 8 | Profile opens and video plays unused | [Instagram profile taps](https://about.instagram.com/blog/announcements/instagram-ranking-explained) | open |
+| 9 | No user leniency term | [Koren baseline predictors](https://www.cs.cornell.edu/courses/cs6241/2020sp/readings/Koren-2008-Factorization.pdf); [X debias](https://github.com/xai-org/x-algorithm); [Tinder's old Elo](https://fastcompany.com/3054871/whats-your-tinder-score-inside-the-apps-internal-ranking-system) | open (an audience O/E adjustment lost) |
+| 10 | Persona rates not weighted by propensity (model reads raw likes) | IPS/SNIPS, [Open Bandit Pipeline](https://arxiv.org/abs/2008.07146) | open; rollups' fade score is IPW |
+| 11 | No explicit gender/age preference | [Tinder Discovery Settings](https://www.help.tinder.com/hc/en-gb/articles/115003340963-Discovery-Settings); [Hinge Preferences](https://help.hinge.co/hc/en-us/articles/360011063294-How-do-I-change-my-Preferences) | waiting on a product decision |
+| 12 | No onboarding interest picker or stated importance | [TikTok 2020](https://newsroom.tiktok.com/en-us/how-tiktok-recommends-videos-for-you); [OkCupid 0/1/10/50/250 weights](https://blogs.ams.org/mathgradblog/2016/06/08/okcupid-math-online-dating/) | open (product) |
+| 13 | No daily picks surface | [Hinge Most Compatible](https://techcrunch.com/2018/07/11/hinge-employs-new-algorithm-to-find-your-most-compatible-match-for-you); [Bumble Discover](https://support.bumble.com/hc/en-us/articles/28423668110621) | open (product) |
+| 14 | New users not shielded from untested personas | [X NewUserMinEngagementFilter](https://github.com/xai-org/x-algorithm) (exists, off by default) | partly: first decks keep no undersampled slot |
+| 15 | No position or session-fatigue model | [Pronk & Denissen 2020](https://dspace.library.uu.nl/items/054d1dc0-5473-43ab-9de8-83bc5bf64351): acceptance falls 27% first to last option | open |
+| 16 | Diversity spent on cards past the visible window; kernel saw art style | [X DPP](https://github.com/xai-org/x-algorithm/blob/main/vm-ranker/dpp.rs) re-sorts by score because its slate is consumed | kernel fixed; `feed.dppOrder: 'pick'` available |
+| 17 | No image or text embeddings for personas | [Tinder photo ranking](https://lifeattinder.com/blog/how-tinder-r-uses-ai-to-rank-profile-photos); X embedding kernel | open |
+| 18 | No time decay | [Discounted Thompson sampling](https://arxiv.org/abs/2305.10718) | open |
+| 19 | Objective stops at like plus deep chat | [Hinge two-tower p(like)p(match)](https://dl.acm.org/doi/10.1145/3774935.3807906); [TikTok's leaked retention objective](https://gizmodo.com/leaked-tiktok-doc-reveals-its-obvious-secret-to-an-addi-1848166901) | open |
+| 20 | Fade read on clipped IPW, no doubly robust estimate | [Doubly robust (Dudik 2011)](https://arxiv.org/abs/1103.4601) | open |
+| 21 | Client-chosen user ids could flood the shared stats; admin open without a token | - | fixed: served cards only, one vote per user and persona, rate limit, admin fail-closed |
+| 22 | Recycling by a fixed 3-day rule | [Tinder: model-ranked recycling](https://lifeattinder.com/blog/how-to-keep-recommendations-fresh) | in place (ranked by the model after 3 days) |
+| - | Elo leagues, Gale-Shapley, reciprocity, like caps | [Tinder retired Elo](https://tinderpressroom.com/powering-tinder-r-the-method-behind-our-matching) | not applicable: personas always accept |
 
 ## Prior art
 

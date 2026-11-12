@@ -14,7 +14,7 @@ import type { Ctx } from '../src/context.ts';
 import { assignArm, effectivePersona, promote, type ExperimentRow } from '../src/experiments/engine.ts';
 import { startExperiments } from '../src/experiments/start.ts';
 import { lordLevel } from '../src/stats/fdr.ts';
-import { buildFeed } from '../src/feed/ranker.ts';
+import { buildFeed, combineScore } from '../src/feed/ranker.ts';
 import { getFeedModel } from '../src/feed/model.ts';
 import { planExplore, spawnGeneration } from '../src/lifecycle/evolve.ts';
 import { descriptorSpace, growVocabulary, MIN_UNTRIED, occupiedOrTried, untried } from '../src/lifecycle/niches.ts';
@@ -47,13 +47,21 @@ function scratch(over: DeepPartial<Config> = {}): { ctx: Ctx; dir: string; clock
   return { ctx, dir, clock };
 }
 
+/** A card the ranker served to this user (so its impression and swipe count in shared stats), then shown. */
+function served(ctx: Ctx, user: string, persona: string, ts: number, slot = 'exploit'): void {
+  ctx.db
+    .prepare('INSERT INTO feed_serves (request_id, position, ts, user_id, persona_id, slot, p_shown) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(`req-${user}-${persona}-${ts}`, 0, ts, user, persona, slot, 0.5);
+  ingest(ctx, { type: 'impression', user_id: user, persona_id: persona, ts });
+}
+
 test('ingest folds swipes, matches, messages and premium into per-persona stats', () => {
   const { ctx, clock } = scratch();
   const e = (type: Parameters<typeof ingest>[1]['type'], user: string, persona?: string, props?: Record<string, unknown>) =>
     ingest(ctx, { type, user_id: user, persona_id: persona, props, ts: clock.t });
   for (let i = 0; i < 10; i++) {
     const u = `u${i}`;
-    e('impression', u, 'kiyo');
+    served(ctx, u, 'kiyo', clock.t);
     e('swipe', u, 'kiyo', { dir: i < 6 ? 'like' : 'pass' });
     if (i < 6) {
       e('match', u, 'kiyo');
@@ -86,8 +94,11 @@ test('ingest folds swipes, matches, messages and premium into per-persona stats'
 
 test('a re-like after a pass is a re-swipe', () => {
   const { ctx, clock } = scratch();
+  served(ctx, 'r', 'luna', clock.t);
   ingest(ctx, { type: 'swipe', user_id: 'r', persona_id: 'luna', props: { dir: 'pass' }, ts: clock.t });
-  ingest(ctx, { type: 'swipe', user_id: 'r', persona_id: 'luna', props: { dir: 'like' }, ts: clock.t });
+  // The deck reset serves her again.
+  served(ctx, 'r', 'luna', clock.t + 1);
+  ingest(ctx, { type: 'swipe', user_id: 'r', persona_id: 'luna', props: { dir: 'like' }, ts: clock.t + 1 });
   const s = computeAllStats(ctx, false).find((x) => x.personaId === 'luna')!;
   assert.equal(s.reswipeRate.x, 1);
 });
@@ -314,6 +325,7 @@ test('a persona with little data starts from what its features predict across th
   for (const [group, rate] of [[women.slice(0, 20), 0.4], [men.slice(0, 10), 0.05]] as const) {
     for (const p of group) {
       for (let i = 0; i < 60; i++) {
+        served(ctx, `fp${u}`, p.meta.id, clock.t);
         ingest(ctx, { type: 'swipe', user_id: `fp${u++}`, persona_id: p.meta.id, props: { dir: i < 60 * rate ? 'like' : 'pass' }, ts: clock.t });
       }
     }
@@ -446,4 +458,71 @@ test('with enough swipes the P(like) factors get fitted weights, and a factor th
   assert.ok(w, 'fitted');
   assert.ok(w![1] > 0.6, `affinity weight ${w![1].toFixed(2)}`);
   assert.ok(Math.abs(w![2]) < 0.3, `quality weight ${w![2].toFixed(2)}`);
+});
+
+test('with fitted weights the shared chat term keeps its say: its ratio between two personas is compressed by the exponent', () => {
+  // Same P(like); one persona's chat term is 4x the other's.
+  const plain = combineScore(0.2, 4, 1, false, 0.5) / combineScore(0.2, 1, 1, false, 0.5);
+  const fitted = combineScore(0.2, 4, 1, true, 0.5) / combineScore(0.2, 1, 1, true, 0.5);
+  assert.equal(plain, 4);
+  assert.equal(fitted, 2);
+  assert.equal(combineScore(0.2, -1, 1, true, 0.5), 0, 'a net-negative persona scores 0, not NaN');
+});
+
+test("the logged prediction caps persona quality the way the score does", () => {
+  const { ctx, clock } = scratch();
+  // A persona liked 30 of 30 times against a roster mostly passed: its rate over its tags' mean is
+  // far above the 3x cap.
+  let t = clock.t;
+  for (const p of ctx.personas.servable().slice(0, 60)) {
+    if (p.meta.id === 'kiyo') continue;
+    for (let i = 0; i < 12; i++) {
+      served(ctx, `bg${i}`, p.meta.id, ++t);
+      ingest(ctx, { type: 'swipe', user_id: `bg${i}`, persona_id: p.meta.id, props: { dir: i < 1 ? 'like' : 'pass' }, ts: t });
+    }
+  }
+  for (let i = 0; i < 30; i++) {
+    served(ctx, `q${i}`, 'kiyo', clock.t + i);
+    ingest(ctx, { type: 'swipe', user_id: `q${i}`, persona_id: 'kiyo', props: { dir: 'like' }, ts: clock.t + i });
+  }
+  const card = buildFeed(ctx, 'fresh', { limit: 50, dryRun: true }).cards.find((c) => c.personaId === 'kiyo');
+  assert.ok(card, 'kiyo served');
+  assert.ok(card!.why.pBase <= card!.why.affinity * 3 * card!.why.traits + 1e-9, `pBase ${card!.why.pBase} vs cap ${card!.why.affinity * 3 * card!.why.traits}`);
+});
+
+test('shared stats count only served cards, one vote per user and persona; a replayed swipe and a match without a like are dropped', () => {
+  const { ctx, clock } = scratch();
+  // A forged burst: 50 likes for 'raven' from one account with no serve behind them.
+  for (let i = 0; i < 50; i++) ingest(ctx, { type: 'swipe', user_id: 'bot', persona_id: 'raven', props: { dir: 'like' }, ts: clock.t + i });
+  // One real user, served once, liked once, then the same swipe event replayed 5 times.
+  served(ctx, 'real', 'raven', clock.t);
+  for (let i = 0; i < 6; i++) ingest(ctx, { type: 'swipe', user_id: 'real', persona_id: 'raven', props: { dir: 'like' }, ts: clock.t + 1 + i });
+  const m = getFeedModel(ctx, 0);
+  assert.equal(m.persona.get('raven')!.impressions, 1, 'only the served card counts');
+  assert.equal((ctx.db.prepare("SELECT COUNT(*) AS n FROM impressions WHERE user_id = 'real'").get() as { n: number }).n, 1, 'replays add no rows');
+  const s = computeAllStats(ctx, false).find((x) => x.personaId === 'raven')!;
+  assert.equal(s.impressions, 1);
+  // A match nobody liked is refused; one after a like lands.
+  ingest(ctx, { type: 'match', user_id: 'stranger', persona_id: 'luna', ts: clock.t });
+  ingest(ctx, { type: 'match', user_id: 'real', persona_id: 'raven', ts: clock.t });
+  assert.equal((ctx.db.prepare('SELECT COUNT(*) AS n FROM matches').get() as { n: number }).n, 1);
+});
+
+test('the events route caps each user per minute and admin routes are closed without a token', async () => {
+  const { ctx } = scratch();
+  const { createServer, EVENTS_PER_USER_MINUTE } = await import('../src/app.ts');
+  delete process.env.REVERIE_ADMIN_TOKEN;
+  delete process.env.REVERIE_ADMIN_OPEN;
+  const server = createServer(ctx);
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', () => r()));
+  const port = (server.address() as { port: number }).port;
+  try {
+    const events = Array.from({ length: 500 }, () => ({ type: 'session_start', user_id: 'flood' }));
+    const r1 = (await (await fetch(`http://127.0.0.1:${port}/v1/events`, { method: 'POST', body: JSON.stringify({ events }) })).json()) as { accepted: number };
+    assert.equal(r1.accepted, EVENTS_PER_USER_MINUTE);
+    const admin = await fetch(`http://127.0.0.1:${port}/admin/stats`);
+    assert.equal(admin.status, 401);
+  } finally {
+    server.close();
+  }
 });

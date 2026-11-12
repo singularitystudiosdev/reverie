@@ -117,6 +117,13 @@ export function ingest(ctx: Ctx, e: IncomingEvent): void {
       // swipes to calibrate, and the simulator has no dwell to learn it from.
       const dwell = open && ts >= open.ts && ts - open.ts < 10 * 60_000 ? ts - open.ts : null;
       if (open) db.prepare('UPDATE impressions SET outcome = ?, dwell_ms = ? WHERE id = ?').run(dir, dwell, open.id);
+      else if (
+        // A swipe with no card open for it: a replayed or duplicated event when this user already
+        // decided on this persona in the last 10 minutes (one decided row per card shown), else an
+        // 'unranked' row that informs this user's own deck but none of the shared statistics.
+        db.prepare('SELECT 1 FROM impressions WHERE user_id = ? AND persona_id = ? AND outcome IS NOT NULL AND ts > ? LIMIT 1').get(e.user_id, pid, ts - 10 * 60_000)
+      )
+        break;
       else
         db.prepare('INSERT INTO impressions (ts, user_id, persona_id, slot, p_shown, outcome) VALUES (?, ?, ?, ?, ?, ?)').run(
           ts,
@@ -140,13 +147,15 @@ export function ingest(ctx: Ctx, e: IncomingEvent): void {
             '{}',
           );
         }
-        updateColike(ctx, e.user_id, pid);
+        if (open) updateColike(ctx, e.user_id, pid);
       }
       bumpAffinity(ctx, e.user_id, pid, dir === 'like' ? 1 : 0, dir === 'like' ? 0 : 1);
       break;
     }
     case 'match':
-      db.prepare('INSERT OR IGNORE INTO matches (user_id, persona_id, ts) VALUES (?, ?, ?)').run(e.user_id, pid, ts);
+      // Only a persona this user liked can match (personas always accept a like).
+      if (db.prepare("SELECT 1 FROM impressions WHERE user_id = ? AND persona_id = ? AND outcome = 'like' LIMIT 1").get(e.user_id, pid))
+        db.prepare('INSERT OR IGNORE INTO matches (user_id, persona_id, ts) VALUES (?, ?, ?)').run(e.user_id, pid, ts);
       break;
     case 'chat_open':
       ensureConversation(ctx, e.user_id, pid, ts);
@@ -280,12 +289,22 @@ export function bumpAffinity(ctx: Ctx, userId: string, personaId: string, da: nu
   for (const c of tags) stmt.run(userId, c, da * w, db_ * w);
 }
 
-/** Category co-like counts: every category of this like, paired with the categories the user liked before. */
+/**
+ * Category co-like counts: every category of this like, paired with the categories the user liked
+ * before. Counted once per (user, persona) and against the user's latest 30 other likes, so no one
+ * account's history dominates the matrix.
+ */
 function updateColike(ctx: Ctx, userId: string, personaId: string): void {
   const p = ctx.personas.get(personaId);
   if (!p) return;
+  const likedBefore = ctx.db
+    .prepare("SELECT COUNT(*) AS n FROM impressions WHERE user_id = ? AND persona_id = ? AND outcome = 'like'")
+    .get(userId, personaId) as { n: number };
+  if (likedBefore.n > 1) return;
   const prior = ctx.db
-    .prepare("SELECT DISTINCT persona_id FROM impressions WHERE user_id = ? AND outcome = 'like' AND persona_id != ?")
+    .prepare(
+      "SELECT persona_id FROM impressions WHERE user_id = ? AND outcome = 'like' AND persona_id != ? AND slot != 'unranked' GROUP BY persona_id ORDER BY MAX(ts) DESC LIMIT 30",
+    )
     .all(userId, personaId) as { persona_id: string }[];
   const before = new Set<string>();
   for (const r of prior) {

@@ -62,9 +62,18 @@ export function getFeedModel(ctx: Ctx, ttlMs = 60_000): FeedModel {
 export function buildFeedModel(ctx: Ctx): FeedModel {
   const { db, cfg } = ctx;
   const personas = ctx.personas.all().filter((p) => p.meta.status !== 'draft');
+  // Shared statistics read only cards the ranker served (an 'unranked' row is a swipe no serve
+  // backs: a lost impression, a replay or a forged event) and give each user one vote per persona
+  // (liked at least once, else passed), so a burst of events from one account moves a persona's
+  // rate by one swipe at most.
   const imp = new Map<string, { n: number; likes: number }>();
   for (const r of db
-    .prepare("SELECT persona_id, COUNT(*) AS n, SUM(CASE WHEN outcome = 'like' THEN 1 ELSE 0 END) AS likes FROM impressions WHERE outcome IS NOT NULL GROUP BY persona_id")
+    .prepare(
+      `SELECT persona_id, COUNT(*) AS n, SUM(liked) AS likes FROM (
+         SELECT persona_id, MAX(CASE WHEN outcome = 'like' THEN 1 ELSE 0 END) AS liked
+         FROM impressions WHERE outcome IS NOT NULL AND slot != 'unranked' GROUP BY user_id, persona_id
+       ) GROUP BY persona_id`,
+    )
     .all() as { persona_id: string; n: number; likes: number }[])
     imp.set(r.persona_id, { n: r.n, likes: r.likes });
 
@@ -165,8 +174,12 @@ export function buildFeedModel(ctx: Ctx): FeedModel {
   const gateImpressions = cfg.feed.undersampledTarget || Math.max(l.gateMinImpressions, twoProportionN(likeBase, l.gateMde, l.gateAlpha, l.gatePower));
 
   const categories = [...new Set(personas.flatMap((p) => feedTags(p)))].sort();
+  // The kernel leaves out every art-style value (anime, realistic, cartoon...), which 142 of the 154
+  // starters also carry as a theme tag: art style is a trait the user is scored on, not variety.
+  const styles = new Set(personas.map((p) => p.meta.descriptors.aesthetic));
+  const kernelCategories = categories.filter((c) => !styles.has(c));
   const vectors = new Map<string, number[]>();
-  for (const p of personas) vectors.set(p.meta.id, featureVector(p, categories));
+  for (const p of personas) vectors.set(p.meta.id, featureVector(p, kernelCategories));
 
   const conversations = new Map<string, number>();
   for (const [id, d] of deep) conversations.set(id, d.convs);
@@ -193,10 +206,11 @@ export function buildFeedModel(ctx: Ctx): FeedModel {
 }
 
 /**
- * Multi-hot over theme categories: the DPP similarity space. Gender, age and art style are left
- * out on purpose (and the descriptor hashes with them): the trait factor scores those per user,
- * and a diversity kernel over them pushed a user's ruled-out genders and ages back into the deck
- * as "variety". X's vm-ranker runs its DPP over learned post embeddings, not hand tags.
+ * Multi-hot over theme categories (the caller passes them without art-style values): the DPP
+ * similarity space. Gender, age and art style are left out on purpose: the trait factor scores
+ * those per user, and a diversity kernel over them pushed a user's ruled-out genders and ages back
+ * into the deck as "variety". Form (human, dragon, ghost...) stays: it is a theme. X's vm-ranker
+ * runs its DPP over learned post embeddings, not hand tags.
  */
 function featureVector(p: Persona, categories: string[]): number[] {
   const tags = new Set(p.meta.categories);
@@ -309,7 +323,7 @@ function buildCf(ctx: Ctx): Map<string, Map<string, { o: number; e: number }>> {
   let liked: string[] = [];
   let decided: { id: string; like: number; p: number }[] = [];
   for (const r of ctx.db
-    .prepare('SELECT user_id, persona_id, outcome, p_pred FROM impressions WHERE outcome IS NOT NULL ORDER BY user_id')
+    .prepare("SELECT user_id, persona_id, outcome, p_pred FROM impressions WHERE outcome IS NOT NULL AND slot != 'unranked' ORDER BY user_id")
     .all() as { user_id: string; persona_id: string; outcome: string; p_pred: number | null }[]) {
     if (r.user_id !== user) {
       flush(liked, decided);

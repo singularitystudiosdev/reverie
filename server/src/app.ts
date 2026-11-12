@@ -1,7 +1,8 @@
 /**
  * HTTP API on node:http (no framework). Public routes are what the Reverie
  * client calls; /admin routes expose the telemetry, experiments, gate,
- * archive and lifecycle, guarded by REVERIE_ADMIN_TOKEN when it is set.
+ * archive and lifecycle, guarded by REVERIE_ADMIN_TOKEN (closed when it is unset, unless
+ * REVERIE_ADMIN_OPEN=1 for local dev).
  *
  *   GET  /health
  *   GET  /v1/personas                     servable persona cards
@@ -107,15 +108,24 @@ route('GET', /^\/v1\/feed$/, (ctx, _r, url) => {
   };
 });
 
+/** Events accepted per user per minute: well above a person swiping and chatting, far below a script. */
+export const EVENTS_PER_USER_MINUTE = 300;
+const eventBudget = new Map<string, { start: number; n: number }>();
+
 route('POST', /^\/v1\/events$/, (ctx, _r, _u, _p, body) => {
   const events = (body as { events?: unknown[] })?.events;
   if (!Array.isArray(events)) throw new HttpError(400, 'events[] required');
   let accepted = 0;
+  const now = ctx.now();
   for (const e of events.slice(0, 500)) {
     if (!validateEvent(e)) continue;
+    const b = eventBudget.get(e.user_id);
+    if (!b || now - b.start >= 60_000) eventBudget.set(e.user_id, { start: now, n: 1 });
+    else if (++b.n > EVENTS_PER_USER_MINUTE) continue;
     ingest(ctx, e);
     accepted++;
   }
+  if (eventBudget.size > 50_000) for (const [k, v] of eventBudget) if (now - v.start >= 60_000) eventBudget.delete(k);
   return { accepted, rejected: Math.min(events.length, 500) - accepted };
 });
 
@@ -249,6 +259,8 @@ async function readBody(req: http.IncomingMessage): Promise<unknown> {
 
 export function createServer(ctx: Ctx): http.Server {
   const adminToken = process.env.REVERIE_ADMIN_TOKEN;
+  // Admin routes fail closed: with no token set they answer only when REVERIE_ADMIN_OPEN=1 (local dev).
+  const adminOpen = process.env.REVERIE_ADMIN_OPEN === '1';
   const origins = (process.env.REVERIE_CORS_ORIGINS ?? '*').split(',').map((s) => s.trim());
   return http.createServer(async (req, res) => {
     cors(res, req.headers.origin, origins);
@@ -261,7 +273,8 @@ export function createServer(ctx: Ctx): http.Server {
       const match = routes.find(([m, re]) => m === req.method && re.test(url.pathname));
       if (!match) throw new HttpError(404, 'not found');
       const [, re, handler, admin] = match;
-      if (admin && adminToken && req.headers.authorization !== `Bearer ${adminToken}`) throw new HttpError(401, 'admin token required');
+      if (admin && (adminToken ? req.headers.authorization !== `Bearer ${adminToken}` : !adminOpen))
+        throw new HttpError(401, adminToken ? 'admin token required' : 'admin routes are closed: set REVERIE_ADMIN_TOKEN (or REVERIE_ADMIN_OPEN=1 for local dev)');
       const params = (re.exec(url.pathname) ?? []).slice(1);
       const body = req.method === 'POST' ? await readBody(req) : null;
       const out = await handler(ctx, req, url, params, body);
