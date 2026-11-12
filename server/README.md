@@ -10,6 +10,7 @@ npm install            # in server/
 npm start              # http://localhost:8787, ticks every 15 min
 npm test               # node --test test/
 npm run simulate       # closed-loop simulation with synthetic users (see below)
+npm run bench:feed     # the ranker alone against hidden-taste users, scored by true like probability
 npm run tick           # one loop tick against data/reverie.db, prints the report
 ```
 
@@ -274,25 +275,48 @@ Conversation after a user's goodbye never counts toward any metric.
 ## Feed (`src/feed/`)
 
 The X For You pipeline shape: hydrate the user (per-category Beta posteriors,
-likes, passes, matches), take candidates, filter, score with one Thompson draw,
-rerank for diversity, insert exploration slots, log. Score = P(like) x
-(w_like + w_deep P(deep chat) - w_neg P(report or block)) x fade multiplier,
-with w_deep = 1 / (mean deep-chat rate) so the chat a card leads to weighs as
-much as the swipe. P(like) combines the user's category affinity (likes, every
-message sent and deep chats zoom in; passes and reports zoom out), shrunk toward the global category rate and
-boosted by categories co-liked with the user's likes, with the persona's
-quality relative to its category, times a trait factor: the user's own like
-rate for the persona's gender, age band and art style (anime, realistic...)
-relative to their overall like rate. Themes are soft and shared across a
-persona's 5 to 7 tags, but people swipe on who, how old and how drawn far more
-decisively, so those three count every swipe in full (nearby age bands share
-evidence) and multiply P(like). After 8 swipes the explore slots also skip
-cards whose expected trait factor is under 0.5. New personas draw from a dynamic prior.
-DPP rerank over category and descriptor vectors. Every 5th card is an
-exploration slot (half furthest from the gate, half uniform random). Each card
-logs its selection propensity for the IPW rollups: the share of 32 fresh
-replays of the whole policy (Thompson draws, DPP rerank, explore slots) that
-put it in the deck.
+likes, passes, matches), take candidates, filter, score with one tempered
+Thompson draw, rerank for diversity, insert exploration slots, log. Score =
+P(like) x (w_like + w_deep P(deep chat) - w_neg P(report or block)) x fade
+multiplier, with w_deep = 1 / (mean deep-chat rate) so the chat a card leads to
+weighs as much as the swipe. P(like) combines the user's category affinity
+(likes, every message sent and deep chats zoom in; passes and reports zoom out;
+each swipe counts in full on every tag of the persona), shrunk toward the global
+category rate and boosted by categories co-liked with the user's likes, with
+the persona's quality relative to its category, times a trait factor: the
+user's own like rate for the persona's gender, age band and art style (anime,
+realistic...) relative to their overall like rate (nearby age bands share
+evidence). After 8 swipes the explore slots also skip cards whose expected trait
+factor is under 0.5.
+
+- **Tempered draws.** Every Beta draw (category affinity, persona quality,
+  P(deep chat), P(report)) is pulled toward its mean by `feed.tsScale` (0.3):
+  plain Thompson draws at weight 5 on a persona's Beta(1, 4) deep-chat prior
+  reordered whole decks at random while data was thin.
+- **Persona quality prior.** Each persona's like rate is shrunk toward what its
+  features (theme tags, gender, age band, art style) predict across the roster:
+  a ridge logistic regression on every persona's likes, strength by the method
+  of moments. Personas the loop spawns into an established roster still start
+  from the pessimistic dynamic prior until they have 100 impressions.
+- **Diversity as X runs it.** A DPP (`vm-ranker/dpp.rs`) over the top
+  `feed.dppPool` x k candidates by score only, theta `feed.dppTheta` (0.65, X's
+  default), the chosen cards then shown in score order. The kernel is theme
+  categories only: gender, age and style in it made the wrong gender look like
+  "variety".
+- **Exploration.** Every 5th card is an exploration slot: half uniformly random
+  (the unbiased sample the fade check reads), half the user's best-scoring
+  persona among the least-shown quarter (traffic for the gate).
+- **Recycling.** When the unseen roster cannot fill the deck, personas passed
+  more than `feed.recycleAfterMs` (3 days) ago compete again, ranked by the
+  model (Tinder's "dynamic recycling").
+- **Propensities.** Each card logs its selection propensity for the IPW
+  rollups: the share of 32 fresh replays of the whole policy (draws, DPP, explore
+  slots) that put it in the deck. An impression from an earlier page keeps the
+  propensity of the request that served it.
+
+The app re-ranks after every 3 swipes and sends its queued events before it
+asks for the next page, so the server ranks with the swipes the user just made;
+passed and blocked ids go in `exclude`.
 
 ## Simulation
 
@@ -306,6 +330,12 @@ estimate (raw, IPW, random-slot) comes to the hidden truth. Flags:
 `--shipped` uses the server's default thresholds instead of the relaxed ones,
 `--launch-only` keeps just the 14 launch personas. Results:
 [SIMULATION.md](SIMULATION.md).
+
+`npm run bench:feed -- --seed 7 [--latent 1] [--warm 1000] [--test 300] [--cfg '{"feed":{...}}']`
+runs the feed alone (no lifecycle, no chats) against the same hidden user model
+and scores every card served by its true like probability, next to each user's
+oracle and a static deck in true-popularity order; `--cfg` overrides any config
+value, so ranker settings compare in minutes.
 
 ## API
 
@@ -325,7 +355,7 @@ variable is set. `REVERIE_CORS_ORIGINS` (comma list, default `*`).
 
 | Source | Taken |
 |---|---|
-| [xai-org/x-algorithm](https://github.com/xai-org/x-algorithm) (Apache-2.0) | pipeline stages; score = sum of weighted predicted actions; new-author boost (here the dynamic prior); DPP rerank kernel (`vm-ranker/dpp.rs`), which is the deck's only diversity step (X's author-diversity decay is not used) |
+| [xai-org/x-algorithm](https://github.com/xai-org/x-algorithm) (Apache-2.0) | pipeline stages; score = sum of weighted predicted actions; new-author boost (here the dynamic prior); DPP rerank (`vm-ranker/dpp.rs`, `params.rs`: theta 0.65, a top-of-list pool, the kept cards re-sorted by score), the deck's only diversity step (X's author-diversity decay is not used) |
 | [twitter/the-algorithm-ml heavy ranker](https://github.com/twitter/the-algorithm-ml/blob/main/projects/home/recap/README.md) | weights set so each term contributes about equally (our 1/sigma weights) |
 | [Tinder TinVec, MLconf SF 2017](https://www.slideshare.net/slideshow/dr-steve-liu-chief-scientist-tinder-at-mlconf-sf-2017/81871516) | co-swipe similarity, here as category co-like counts |
 | [Tinder: the method behind our matching (2019)](https://www.tinderpressroom.com/powering-tinder-r-the-method-behind-our-matching) | no Elo; a dynamic engagement-driven system |
@@ -333,6 +363,9 @@ variable is set. `REVERIE_CORS_ORIGINS` (comma list, default `*`).
 | [GrowthBook bandits](https://docs.growthbook.io/bandits/overview) | the idea of a traffic floor, here the uniformly random explore slots (each active persona gets about 1/(2 x 5 x N) of all cards, not a fixed 1%); delayed-conversion caution |
 | [Dynamic Prior Thompson Sampling](https://arxiv.org/abs/2602.00943) | the new-persona prior |
 | [Thompson sampling tutorial](https://arxiv.org/abs/1707.02038); [LinUCB](https://arxiv.org/abs/1003.0146) | exploration in the feed |
+| [Chapelle & Li, An Empirical Evaluation of Thompson Sampling](https://papers.nips.cc/paper/2011/hash/e53a0a2978c28872a4505bdb51db06dc-Abstract.html); [Bastani et al., Mostly Exploration-Free Algorithms](https://arxiv.org/abs/1704.09011) | tempered draws (a shrunk posterior; little forced exploration when users vary) |
+| [Tinder: keep recommendations fresh](https://lifeattinder.com/blog/how-to-keep-recommendations-fresh) | recycling old passes when the unseen supply runs out, ranked by the model |
+| [Personalized re-ranking for diversity (Huawei, arXiv 2004.06390)](https://arxiv.org/abs/2004.06390) | a diversity kernel must match what users perceive as variety (here: themes, not gender or age) |
 | [MAP-Elites](https://arxiv.org/abs/1504.04909); [PromptBreeder](https://arxiv.org/abs/2309.16797); [EvoPrompt](https://arxiv.org/abs/2309.08532) | niche archive; LLM as mutation operator; edit reuse |
 | [Emotional Manipulation by AI Companions](https://arxiv.org/abs/2508.19258) | the manipulation lint, post-goodbye exclusion |
 | [Feedback loop and bias amplification](https://dl.acm.org/doi/10.1145/3340531.3412152) | propensity logging and IPW |

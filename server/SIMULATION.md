@@ -92,6 +92,84 @@ users prefer women and three quarters of the roster are women, so the trait
 model matters most for the minority the old feed served worst. In this world
 the static deck (the 14 launch women first) is a strong baseline on deep chats.
 
+## Feed audit: tempered draws, X's DPP, full-weight taste, a roster prior (2026-11-12, later)
+
+A new static-world bench (`npm run bench:feed`, `src/sim/feedbench.ts`) runs the
+ranker alone against the simulator's hidden user model: 1,000 warm-up users swipe
+two decks of 6 under the feed's own policy, then 300 fresh users swipe 5 decks of
+6, and every card served is scored by its TRUE like probability (no coin flips in
+the metric, SE about 0.0016). Two yardsticks: each user's oracle, and one static
+deck in the order of the population's true mean like rate. `--latent 1` adds a
+"look" taste no tag carries.
+
+The old ranker lost to that static popularity deck: 0.187 against 0.220 mean true
+like probability per card, 0.179 against 0.273 on a new user's first deck. Four
+causes, each measured:
+
+- **Thompson noise.** Every Beta draw was a full draw, including P(deep chat)
+  from a Beta(1, 4) prior (sd 0.16) at weight 1 / (mean deep rate), about 5, and
+  one draw per tag of every candidate. Draws are now pulled toward their means by
+  `feed.tsScale` = 0.3 (0 is the mean, 1 plain Thompson sampling).
+- **Diluted taste.** A swipe added 1/#tags to each of a persona's 6 to 8 tags.
+  It now counts in full on every tag.
+- **The DPP.** It ran over the whole roster at theta 0.5 on tags that included
+  gender, age and style, in pick order. It now runs as X's vm-ranker does: the top
+  3 x k by score, theta 0.65, the kept cards in score order, themes only.
+- **Flat persona prior.** Every persona's like rate started at Beta(1, 2), and any
+  persona under 100 impressions (most of the roster at launch) at the pessimistic
+  new-persona prior. It now starts where a ridge regression on persona features
+  puts it (strength by the method of moments); the pessimistic prior is kept for
+  personas the loop spawns.
+
+Also: the undersampled explore slot takes the user's best among the least-shown
+quarter (it was one global argmin every user got until the next model rebuild),
+long-ago passes come back when the unseen roster runs out, and the app re-ranks
+every 3 swipes after sending its queued events (it used to rank without the last
+3 s of swipes, and only when the page ran out).
+
+Feed bench, mean true like probability per card (first deck in brackets):
+
+| | seed 7 | seed 11 | latent look, seed 7 | launch scale (150 warm-up users), seed 7 / 11 |
+|---|---|---|---|---|
+| old ranker | 0.187 (0.179) | 0.184 (0.176) | 0.203 (0.187) | 0.185 (0.177) / - |
+| new ranker | **0.205** (0.219) | **0.206** (0.214) | **0.230** (0.240) | **0.213** (0.229) / **0.206** (0.210) |
+| in-place fixes without the roster prior | 0.205 (0.218) | - | 0.231 (0.245) | 0.207 (0.219) / 0.196 (0.201) |
+| static popularity deck (true means) | 0.220 (0.273) | 0.224 (0.260) | 0.245 | 0.233 / 0.225 |
+| oracle | 0.295 | 0.301 | 0.404 | 0.304 / 0.304 |
+
+The roster prior adds nothing measurable after the 1,000-user warm-up and 0.6 to
+1.0 points at launch scale (about 12 impressions per persona), which is where the
+app is. The new ranker also shows
+fewer cards outside the user's preferred gender (16.4% against 18.7% at seed 7,
+13.6% against 16.2% at seed 11).
+
+Closed loop, 25 days, 220 users a day, all 154 personas, app events (`--no-premium`):
+
+| Seed | feed like rate, old -> new | feed vs static deck, old -> new | deep chats per user, old -> new |
+|---|---|---|---|
+| 7 | 19.1% -> **21.5%** | +2.2 -> +4.5 points | 0.39 -> 0.38 |
+| 11 | 19.1% -> **21.0%** | +1.9 -> +3.1 points | 0.38 -> 0.42 |
+
+Fading in these short runs is noisy either way: the old ranker faded `sylvara` (a
+strong persona) at seed 7 and `isolde` at 11, the new one `nerissa` at 7 and
+`mirelle` and `isolde` at 11; neither faded `raven` within 25 days.
+
+A known cost: a feed that personalises harder shows each persona more to its
+fans, so the raw like rate overstates it more (mean bias 2.7 points against 1.3 to
+1.7) and the IPW rate, clipped at 20, removes only part of it (1.6 against 0.5 to
+1.1 points). The fade decisions read the IPW rate; a doubly robust estimator would
+close the gap.
+
+Tried and dropped (bench, seed 7): plain Thompson sampling on one coherent
+taste draw per deck (0.166 to 0.180: whole decks flip with the draw); a
+hierarchical Bayesian logistic Thompson ranker (per-user taste weights over
+persona features, Laplace posterior, EASE item-item collaborative term,
+empirical-Bayes prior) at 0.198 (tsScale 0.3) and 0.204 (posterior mode), behind
+the in-place fixes in both worlds (latent look: 0.220 against 0.231). Its prior's
+variances, estimated by EM from Laplace posteriors, collapsed to the floor (the
+penalized-quasi-likelihood bias on binary data); tuning them on held-out swipes
+fixed that but not the gap.
+
 ## Settings
 
 The 45-day runs use relaxed thresholds so a run finishes in minutes (gate: a

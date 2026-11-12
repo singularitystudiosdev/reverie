@@ -87,14 +87,12 @@ export function ingest(ctx: Ctx, e: IncomingEvent): void {
 
   switch (e.type) {
     case 'impression': {
-      const serve = db
-        .prepare(
-          `SELECT slot, p_shown FROM feed_serves WHERE user_id = ? AND persona_id = ?
-           ${typeof props.request_id === 'string' ? 'AND request_id = ?' : ''} ORDER BY ts DESC LIMIT 1`,
-        )
-        .get(...([e.user_id, pid, ...(typeof props.request_id === 'string' ? [props.request_id] : [])] as string[])) as
-        | { slot: string; p_shown: number }
-        | undefined;
+      // The request the client names first; the deck re-ranks every few swipes, so a card it shows
+      // may have come from an earlier page: then the latest request that served it to this user.
+      const latest = db.prepare('SELECT slot, p_shown FROM feed_serves WHERE user_id = ? AND persona_id = ? ORDER BY ts DESC LIMIT 1');
+      const serve = ((typeof props.request_id === 'string'
+        ? db.prepare('SELECT slot, p_shown FROM feed_serves WHERE user_id = ? AND persona_id = ? AND request_id = ? LIMIT 1').get(e.user_id, pid, props.request_id)
+        : undefined) ?? latest.get(e.user_id, pid)) as { slot: string; p_shown: number } | undefined;
       db.prepare('INSERT INTO impressions (ts, user_id, persona_id, slot, p_shown) VALUES (?, ?, ?, ?, ?)').run(
         ts,
         e.user_id,
@@ -256,12 +254,16 @@ export function recordMessage(
   return { crisis, farewell, userTurns };
 }
 
-/** Per-user category posteriors: likes and deep chats raise a category, passes and reports lower it. */
+/**
+ * Per-user category posteriors: likes and deep chats raise a category, passes and reports lower
+ * it. Every tag of the persona gets the whole observation, not 1/#tags of it: split, a like moved
+ * each of a persona's 6-8 tags by an eighth of a swipe and taste took dozens of swipes to show.
+ */
 export function bumpAffinity(ctx: Ctx, userId: string, personaId: string, da: number, db_: number): void {
   const p = ctx.personas.get(personaId);
   if (!p || !p.meta.categories.length) return;
   const tags = feedTags(p);
-  const w = 1 / tags.length;
+  const w = 1;
   const stmt = ctx.db.prepare(
     `INSERT INTO user_affinity (user_id, category, a, b) VALUES (?, ?, ?, ?)
      ON CONFLICT(user_id, category) DO UPDATE SET a = a + excluded.a, b = b + excluded.b`,

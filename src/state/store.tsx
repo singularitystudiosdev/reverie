@@ -456,6 +456,9 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | null>(null);
 
+/** Re-rank the deck after this many swipes (the feed learns from each one; a page of 10 would wait 7). */
+const REFRESH_AFTER = 3;
+
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
@@ -482,11 +485,20 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
 
   // Backend (optional): the session, and the ranked deck from the feed.
   const feedLoading = useRef(false);
+  // Swipes since the deck was last ranked: the feed re-ranks after a few, so what the user just
+  // told it reaches the next cards instead of waiting for the page to run out.
+  const decidedSinceFetch = useRef(0);
   const refreshFeed = useCallback((includePassed = false) => {
     if (!apiEnabled || feedLoading.current) return;
     feedLoading.current = true;
+    decidedSinceFetch.current = 0;
     const s = stateRef.current;
-    const exclude = [...s.matchIds, ...s.pendingMatches.map((p) => p.characterId)];
+    const exclude = [
+      ...s.matchIds,
+      ...s.pendingMatches.map((p) => p.characterId),
+      ...s.blockedIds,
+      ...(includePassed ? [] : s.passedIds),
+    ];
     void fetchFeed({ limit: 10, includePassed, exclude })
       .then((r) => {
         if (!r) return;
@@ -501,11 +513,11 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
     startSession();
     refreshFeed();
   }, [refreshFeed]);
-  // Top up the ranked deck before it runs out.
+  // Top up the ranked deck before it runs out, and re-rank every REFRESH_AFTER swipes.
   useEffect(() => {
     if (!apiEnabled || !state.feedOrder) return;
     const gone = new Set([...state.matchIds, ...state.passedIds, ...state.pendingMatches.map((p) => p.characterId)]);
-    if (state.feedOrder.filter((id) => !gone.has(id)).length < 3) refreshFeed();
+    if (state.feedOrder.filter((id) => !gone.has(id)).length < 3 || decidedSinceFetch.current >= REFRESH_AFTER) refreshFeed();
   }, [state.feedOrder, state.matchIds, state.passedIds, state.pendingMatches, refreshFeed]);
 
   // Chat open time, for chat_close durations.
@@ -687,6 +699,7 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
     const matchedBefore = hasLikedRef.current || current.hasMatchedBefore;
     hasLikedRef.current = true;
     const instant = rollInstant(matchedBefore);
+    decidedSinceFetch.current++;
     track('swipe', id, { dir: 'like', request_id: current.feedRequestId });
     if (instant) {
       track('match', id, { delayed: false });
@@ -718,6 +731,7 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
       },
       like,
       pass: (id) => {
+        decidedSinceFetch.current++;
         track('swipe', id, { dir: 'pass', request_id: stateRef.current.feedRequestId });
         dispatch({ type: 'pass', id });
       },

@@ -106,13 +106,23 @@ export interface Config {
 
   feed: {
     deckSize: number;
-    /** Every k-th card is an exploration slot (random or furthest from the gate). The random half
-     *  is every active persona's traffic floor: each gets about 1/(2 k N) of all cards. */
+    /** Every k-th card is an exploration slot (random, or the user's best among the least-shown
+     *  quarter). The random half is every active persona's traffic floor: each gets about
+     *  1/(2 k N) of all cards. */
     exploreEvery: number;
     /** Per-user category posterior is shrunk toward the global category rate with this pseudo-count. */
     userShrink: number;
-    /** DPP quality/diversity knob (X vm-ranker dpp.rs: alpha = theta / (2(1 - theta))). */
+    /** Thompson draw spread: each Beta draw is pulled toward its mean by this factor (1 = plain
+     *  Thompson sampling, 0 = posterior means, no randomness). Chapelle & Li (NeurIPS 2011) found a
+     *  shrunk posterior did better on display-ad data; 0.3 from the feed bench (SIMULATION.md),
+     *  kept above 0 so exploit cards keep a selection propensity strictly between 0 and 1. */
+    tsScale: number;
+    /** DPP quality/diversity knob (X vm-ranker dpp.rs: alpha = theta / (2(1 - theta)); X ships 0.65). */
     dppTheta: number;
+    /** The DPP chooses among the top dppPool x (deck size) candidates by score only (X: top 150 of its pool). */
+    dppPool: number;
+    /** A passed persona may come back once the unseen roster runs short, this long after the pass. */
+    recycleAfterMs: number;
     /** Dynamic-prior Thompson sampling for new personas (arXiv 2602.00943): P(new beats incumbent) = eps. */
     newEps: number;
     newPriorStrength: number;
@@ -215,7 +225,10 @@ export function loadConfig(overrides: DeepPartial<Config> = {}): Config {
       deckSize: 10,
       exploreEvery: 5,
       userShrink: 4,
-      dppTheta: 0.5,
+      tsScale: 0.3,
+      dppTheta: 0.65,
+      dppPool: 3,
+      recycleAfterMs: 3 * 86_400_000,
       newEps: 0.1,
       newPriorStrength: 30,
       propensityDraws: 32,

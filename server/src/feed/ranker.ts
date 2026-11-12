@@ -9,7 +9,11 @@
  *   candidates every servable persona (active, or fading at its multiplier).
  *   filters   already liked or matched; passed (unless the user reset the
  *             deck); explicitly excluded ids.
- *   score     one Thompson draw per candidate. Score = P(like) x (w_like +
+ *   score     one tempered Thompson draw per candidate: every Beta draw is pulled
+ *             toward its mean by cfg.feed.tsScale (Chapelle & Li, NeurIPS 2011: a
+ *             shrunk posterior beat plain Thompson sampling on ad data; Bastani et
+ *             al., arXiv 1704.09011: with varied users, little exploration is
+ *             needed). Score = P(like) x (w_like +
  *             w_deep P(deep chat) - w_neg P(report/block)), the chained form of
  *             X's sum of weighted predicted actions, weights self-calibrated
  *             so a deep chat weighs as much as a like on average. P(like) combines the
@@ -21,16 +25,26 @@
  *             for the persona's gender, age band and art style (every swipe
  *             counts in full, nearby age bands share evidence) relative to
  *             their overall like rate. New personas draw from a dynamic prior.
- *   diversity DPP rerank over category/descriptor vectors (X vm-ranker).
- *   explore   every k-th card is an exploration slot: half go to the persona
- *             furthest from the significance gate, half uniformly at random
- *             (the unbiased sample the fade check reads).
+ *   diversity DPP as X's vm-ranker runs it (vm-ranker/dpp.rs, params.rs): over
+ *             the top cfg.feed.dppPool x k candidates by score only, theta
+ *             cfg.feed.dppTheta (X ships 0.65), the chosen cards then shown in
+ *             score order; the kernel is theme categories only (model.ts).
+ *   explore   every k-th card is an exploration slot: half go to the user's
+ *             best-scoring persona among the least-shown quarter (traffic for
+ *             the significance gate, spent where this user is likeliest to like
+ *             it), half uniformly at random (the unbiased sample the fade check
+ *             reads).
+ *   recycle   when the unseen roster cannot fill the deck, personas passed more
+ *             than cfg.feed.recycleAfterMs ago compete again (Tinder's "dynamic
+ *             recycling"); their passes already lower their score.
  *   log       every card's slot and selection propensity (Monte Carlo replays
  *             the Thompson draws), for inverse-propensity-weighted metrics.
  *
  * In the proxy simulation (600 users, correlated tastes) a 10-card deck got
  * 3.19 likes per user from a static order, 3.36 from per-user Thompson
  * category affinity alone, and 3.56 with the co-like boost (oracle 5.19).
+ * The feed bench and the closed-loop runs behind the tempered draws, the
+ * X-faithful DPP and the full-weight evidence are in SIMULATION.md.
  */
 import type { Ctx } from '../context.ts';
 import { makeId } from '../util.ts';
@@ -72,6 +86,8 @@ interface UserState {
   affinity: Map<string, { a: number; b: number }>;
   liked: Set<string>;
   passed: Set<string>;
+  /** When each passed persona was last passed (recycling). */
+  passedAt: Map<string, number>;
   likedCategories: string[];
   traits: TraitModel;
 }
@@ -155,11 +171,15 @@ function hydrate(ctx: Ctx, userId: string): UserState {
     affinity.set(r.category, { a: r.a, b: r.b });
   const liked = new Set<string>();
   const passed = new Set<string>();
+  const passedAt = new Map<string, number>();
   for (const r of ctx.db
-    .prepare('SELECT persona_id, outcome FROM impressions WHERE user_id = ? AND outcome IS NOT NULL ORDER BY ts')
-    .all(userId) as { persona_id: string; outcome: string }[]) {
+    .prepare('SELECT persona_id, outcome, ts FROM impressions WHERE user_id = ? AND outcome IS NOT NULL ORDER BY ts')
+    .all(userId) as { persona_id: string; outcome: string; ts: number }[]) {
     if (r.outcome === 'like') liked.add(r.persona_id);
-    else passed.add(r.persona_id);
+    else {
+      passed.add(r.persona_id);
+      passedAt.set(r.persona_id, r.ts);
+    }
   }
   for (const r of ctx.db.prepare('SELECT persona_id FROM matches WHERE user_id = ?').all(userId) as { persona_id: string }[]) liked.add(r.persona_id);
   for (const id of liked) passed.delete(id);
@@ -167,11 +187,22 @@ function hydrate(ctx: Ctx, userId: string): UserState {
     const p = ctx.personas.get(id);
     return p ? feedTags(p) : [];
   });
-  return { affinity, liked, passed, likedCategories, traits: buildTraits(ctx, liked, passed) };
+  return { affinity, liked, passed, passedAt, likedCategories, traits: buildTraits(ctx, liked, passed) };
 }
 
-/** One Thompson draw of a candidate's score for this user. */
-function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink: number, fade: number): FeedCard['why'] & { score: number } {
+/**
+ * A Beta draw pulled toward its mean by `scale` (1: plain Thompson sampling, 0: the posterior
+ * mean). Untempered, a persona with no chats yet draws P(deep chat) from its Beta(1, 4) prior
+ * (sd 0.16) at weight 1 / (mean deep rate), about 5, and the per-tag affinity draws carry the
+ * same noise: together they reordered whole decks at random while data was thin.
+ */
+function tempered(rng: Rng, a: number, b: number, scale: number): number {
+  const mean = a / (a + b);
+  return scale > 0 ? mean + scale * (rng.beta(a, b) - mean) : mean;
+}
+
+/** One tempered Thompson draw of a candidate's score for this user. */
+function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink: number, fade: number, scale: number): FeedCard['why'] & { score: number } {
   const post = model.persona.get(p.meta.id)!;
   // Co-like boost: how much more often this persona's categories are liked by people who liked what this user liked.
   const nCats = Math.max(model.categories.length, 1);
@@ -189,18 +220,18 @@ function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink:
       m = Math.min(0.95, m * (0.6 + 0.4 * Math.min(lift, 4)));
     }
     const ua = u.affinity.get(c) ?? { a: 0, b: 0 };
-    affSum += rng.beta(ua.a + shrink * m + 1e-3, ua.b + shrink * (1 - m) + 1e-3);
+    affSum += tempered(rng, ua.a + shrink * m + 1e-3, ua.b + shrink * (1 - m) + 1e-3, scale);
     catMeanSum += g.a / (g.a + g.b);
   }
   const k = Math.max(tags.length, 1);
   const affinity = affSum / k;
   const catMean = Math.max(catMeanSum / k, 1e-3);
-  const qualityDraw = rng.beta(post.like.a, post.like.b);
+  const qualityDraw = tempered(rng, post.like.a, post.like.b, scale);
   const quality = Math.min(qualityDraw / catMean, 3);
   const traits = traitFactor(u.traits, p);
   const pLike = Math.min(affinity * quality * traits, 0.99);
-  const pDeep = rng.beta(post.deep.a, post.deep.b);
-  const pNeg = rng.beta(post.negative.a, post.negative.b);
+  const pDeep = tempered(rng, post.deep.a, post.deep.b, scale);
+  const pNeg = tempered(rng, post.negative.a, post.negative.b, scale);
   const w = weights(model);
   const score = pLike * (w.like + w.deep * pDeep - w.neg * pNeg) * fade;
   return { score, pLike, pDeep, pNeg, affinity, quality, traits, isNew: post.isNew, fade };
@@ -212,15 +243,25 @@ export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { re
   const model = getFeedModel(ctx);
   const u = hydrate(ctx, userId);
   const exclude = new Set(req.exclude ?? []);
-  const candidates = ctx.personas
+  const eligible = ctx.personas
     .servable()
     .filter((p) => model.persona.has(p.meta.id))
-    .filter((p) => !u.liked.has(p.meta.id) && !exclude.has(p.meta.id) && (req.includePassed || !u.passed.has(p.meta.id)));
+    .filter((p) => !u.liked.has(p.meta.id) && !exclude.has(p.meta.id));
+  let candidates = eligible.filter((p) => req.includePassed || !u.passed.has(p.meta.id));
+  // Recycling (Tinder, "Solving how to keep recommendations fresh": recent passes stay out, older
+  // ones return and the ranker decides): when the unseen roster cannot fill the deck, personas
+  // passed more than cfg.feed.recycleAfterMs ago come back as candidates. Their passes are in the
+  // user's affinity and trait model, so they compete on what the model now predicts instead of
+  // all returning at once on a deck reset.
+  if (!req.includePassed && candidates.length < limit) {
+    const before = ctx.now() - cfg.recycleAfterMs;
+    candidates = [...candidates, ...eligible.filter((p) => u.passed.has(p.meta.id) && (u.passedAt.get(p.meta.id) ?? 0) < before)];
+  }
   const requestId = makeId('feed');
   if (!candidates.length) return { requestId, cards: [] };
 
   const fades = new Map(candidates.map((p) => [p.meta.id, fadeMultiplier(ctx, p.meta.id)]));
-  const draws = candidates.map((p) => drawScore(model, p, u, ctx.rng, cfg.userShrink, fades.get(p.meta.id)!));
+  const draws = candidates.map((p) => drawScore(model, p, u, ctx.rng, cfg.userShrink, fades.get(p.meta.id)!, cfg.tsScale));
 
   // Selection: DPP over the scored pool, then every k-th card becomes an exploration slot.
   const vectors = candidates.map((p) => model.vectors.get(p.meta.id) ?? [1]);
@@ -230,8 +271,20 @@ export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { re
   // expected trait factor is under 0.5 (a gender, age or art style they keep passing on) is not
   // spent on an explore slot. The slots still sample everything else uniformly.
   const explorable = candidates.map((p) => u.traits.swipes < 8 || traitFactor(u.traits, p) >= 0.5);
+  const shown = candidates.map((p) => model.impressions.get(p.meta.id) ?? 0);
   const select = (scores: number[]): { idx: number; slot: FeedCard['slot'] }[] => {
-    const order = dppSelect(scores, vectors, k, cfg.dppTheta, sim);
+    // X vm-ranker: the DPP chooses among the top of the scored list only (DppMaxSelectedRank), and
+    // the cards it keeps are shown in score order, not in the order it picked them.
+    const byScore = candidates.map((_, i) => i).sort((a, b) => scores[b] - scores[a]);
+    const pool = byScore.slice(0, Math.max(k, Math.ceil(cfg.dppPool * k)));
+    const order = dppSelect(
+      pool.map((i) => scores[i]),
+      pool.map((i) => vectors[i]),
+      k,
+      cfg.dppTheta,
+      (a, b) => sim(pool[a], pool[b]),
+    ).map((j) => pool[j]);
+    order.sort((a, b) => scores[b] - scores[a]);
     const picked: { idx: number; slot: FeedCard['slot'] }[] = order.map((idx) => ({ idx, slot: 'exploit' as const }));
     const used = new Set(order);
     for (let pos = cfg.exploreEvery - 1; pos < picked.length; pos += cfg.exploreEvery) {
@@ -242,10 +295,12 @@ export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { re
       let idx: number;
       let slot: FeedCard['slot'];
       if (ctx.rng() < 0.5) {
-        // Furthest from the gate: fewest impressions relative to the roster.
-        idx = pool.reduce((best, i) =>
-          (model.impressions.get(candidates[i].meta.id) ?? 0) < (model.impressions.get(candidates[best].meta.id) ?? 0) ? i : best,
-        );
+        // Toward the gate: the least-shown quarter of what is left, and of those the persona this
+        // user is likeliest to like (not the one global argmin every user got until the model's
+        // next rebuild, which is also the persona the ranker has learned nobody wants).
+        const cut = pool.map((i) => shown[i]).sort((a, b) => a - b)[Math.floor((pool.length - 1) / 4)];
+        const low = pool.filter((i) => shown[i] <= cut);
+        idx = low.reduce((best, i) => (scores[i] > scores[best] ? i : best), low[0]);
         slot = 'undersampled';
       } else {
         idx = pool[ctx.rng.int(pool.length)];
@@ -265,7 +320,7 @@ export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { re
   const M = cfg.propensityDraws;
   const freq = new Array(candidates.length).fill(0);
   for (let m = 0; m < M; m++) {
-    const scores = candidates.map((p) => drawScore(model, p, u, ctx.rng, cfg.userShrink, fades.get(p.meta.id)!).score);
+    const scores = candidates.map((p) => drawScore(model, p, u, ctx.rng, cfg.userShrink, fades.get(p.meta.id)!, cfg.tsScale).score);
     for (const { idx } of select(scores)) freq[idx]++;
   }
 

@@ -1,12 +1,13 @@
 /**
  * The feed's global state, rebuilt from the tables at most every `ttlMs` (and
  * on every scheduler tick): per-persona Beta posteriors for like, deep chat and
- * negative outcomes; per-category like posteriors; the category co-like
- * matrix; per-category incumbents for the new-persona dynamic prior; each
- * persona's feature vector for the DPP kernel.
+ * negative outcomes (each like posterior starts from what the persona's features
+ * predict across the roster); per-category like posteriors; the category
+ * co-like matrix; per-category incumbents for the new-persona dynamic prior;
+ * each persona's theme vector for the DPP kernel.
  */
 import type { Ctx } from '../context.ts';
-import { DESCRIPTOR_KEYS, feedTags, type Persona } from '../personas/schema.ts';
+import { feedTags, type Persona } from '../personas/schema.ts';
 import { dynamicPrior, type BetaParams } from '../stats/dynamicPrior.ts';
 
 export interface PersonaPosterior {
@@ -100,12 +101,21 @@ export function buildFeedModel(ctx: Ctx): FeedModel {
   }
   const globalIncumbent = [...incumbent.values()].sort((x, y) => y.a / (y.a + y.b) - x.a / (x.a + x.b))[0] ?? { a: 30, b: 70 };
 
+  // Each persona's like rate is shrunk toward what its features predict across the roster
+  // (empirical Bayes), not toward one flat Beta(1, 2): a persona with a few dozen impressions
+  // starts where personas like it stand, so a new user's first deck is ordered by the best
+  // estimate of each persona's appeal rather than by the noise in a handful of swipes.
+  const featurePrior = personaFeaturePrior(personas, imp);
   const persona = new Map<string, PersonaPosterior>();
   for (const p of personas) {
     const s = imp.get(p.meta.id) ?? { n: 0, likes: 0 };
     const isNew = s.n < NEW_PERSONA_IMPRESSIONS;
-    let prior: BetaParams = { a: 1, b: 2 };
-    if (isNew) {
+    const fp = featurePrior.get(p.meta.id)!;
+    let prior: BetaParams = { a: fp.mean * fp.strength, b: (1 - fp.mean) * fp.strength };
+    // A persona the loop adds to an established roster starts pessimistic (dynamic-prior Thompson
+    // sampling) so newcomers cannot flood decks before data arrives; the launch roster (branch
+    // seed) are all newcomers together and need no such brake.
+    if (isNew && p.meta.branch !== 'seed') {
       const inc = incumbent.get(p.meta.categories[1] ?? p.meta.categories[0]) ?? globalIncumbent;
       prior = dynamicPrior(inc, cfg.feed.newEps, Math.min(cfg.feed.newPriorStrength, (inc.a + inc.b) * 0.1 + 2));
     }
@@ -153,16 +163,123 @@ export function buildFeedModel(ctx: Ctx): FeedModel {
   };
 }
 
-/** Multi-hot over categories plus one-hot descriptor values: the DPP similarity space. */
+/**
+ * Multi-hot over theme categories: the DPP similarity space. Gender, age and art style are left
+ * out on purpose (and the descriptor hashes with them): the trait factor scores those per user,
+ * and a diversity kernel over them pushed a user's ruled-out genders and ages back into the deck
+ * as "variety". X's vm-ranker runs its DPP over learned post embeddings, not hand tags.
+ */
 function featureVector(p: Persona, categories: string[]): number[] {
-  const tags = feedTags(p);
-  const v: number[] = categories.map((c) => (tags.includes(c) ? 1 : 0));
-  for (const k of DESCRIPTOR_KEYS) {
-    // Hash each descriptor value into 8 buckets per axis so the vector length is fixed.
-    const val = p.meta.descriptors[k];
-    let h = 0;
-    for (let i = 0; i < val.length; i++) h = (h * 31 + val.charCodeAt(i)) >>> 0;
-    for (let b = 0; b < 8; b++) v.push(h % 8 === b ? 0.5 : 0);
+  const tags = new Set(p.meta.categories);
+  return categories.map((c) => (tags.has(c) ? 1 : 0));
+}
+
+/**
+ * The roster-level prior for every persona's like rate: a ridge logistic regression of each
+ * persona's likes on its features (theme tags, gender, age band, art style; binomial counts,
+ * Newton's method), with a prior strength from the method of moments (how far true rates
+ * scatter around the regression beyond binomial noise). The cold-start move content-based
+ * recommenders make for new items, at roster scale. Before there is data: 20% at strength 20.
+ */
+function personaFeaturePrior(personas: Persona[], imp: Map<string, { n: number; likes: number }>): Map<string, { mean: number; strength: number }> {
+  const index = new Map<string, number>();
+  const rowsOf = new Map<string, number[]>();
+  for (const p of personas) {
+    const keys = [...new Set(p.meta.categories)].map((c) => `tag:${c}`);
+    keys.push(`gender:${p.meta.gender}`, `age:${p.meta.descriptors.age_group}`, `style:${p.meta.descriptors.aesthetic}`);
+    rowsOf.set(
+      p.meta.id,
+      keys.map((k) => {
+        if (!index.has(k)) index.set(k, index.size + 1);
+        return index.get(k)!;
+      }),
+    );
   }
-  return v;
+  const d = index.size + 1; // 0 is the intercept
+  const base = Math.log(0.2 / 0.8);
+  const w = new Float64Array(d);
+  w[0] = base;
+  const data = personas
+    .map((p) => ({ x: rowsOf.get(p.meta.id)!, s: imp.get(p.meta.id) }))
+    .filter((r): r is { x: number[]; s: { n: number; likes: number } } => !!r.s && r.s.n > 0);
+  // Ridge: N(0, 1) on every feature weight, a vague N(logit 0.2, 10^2) on the intercept.
+  const prec = (j: number) => (j === 0 ? 0.01 : 1);
+  const mu = (j: number) => (j === 0 ? base : 0);
+  for (let iter = 0; iter < 25 && data.length; iter++) {
+    const g = new Float64Array(d);
+    const h = new Float64Array(d * d);
+    for (let j = 0; j < d; j++) {
+      g[j] = -prec(j) * (w[j] - mu(j));
+      h[j * d + j] = prec(j);
+    }
+    for (const r of data) {
+      const idx = [0, ...r.x];
+      let z = 0;
+      for (const j of idx) z += w[j];
+      const p = 1 / (1 + Math.exp(-z));
+      const resid = r.s.likes - r.s.n * p;
+      const curv = r.s.n * p * (1 - p);
+      for (const a of idx) {
+        g[a] += resid;
+        for (const b of idx) h[a * d + b] += curv;
+      }
+    }
+    const step = solveSpd(h, d, g);
+    if (!step) break;
+    let max = 0;
+    for (let j = 0; j < d; j++) max = Math.max(max, Math.abs(step[j]));
+    const damp = max > 4 ? 4 / max : 1;
+    for (let j = 0; j < d; j++) w[j] += damp * step[j];
+    if (max * damp < 1e-6) break;
+  }
+  const means = new Map<string, number>();
+  for (const p of personas) {
+    let z = w[0];
+    for (const j of rowsOf.get(p.meta.id)!) z += w[j];
+    means.set(p.meta.id, 1 / (1 + Math.exp(-z)));
+  }
+  // Method of moments over personas with a real sample: excess scatter of their rates around the regression.
+  let excess = 0;
+  let spread = 0;
+  let k = 0;
+  for (const p of personas) {
+    const s = imp.get(p.meta.id);
+    if (!s || s.n < 30) continue;
+    const m = means.get(p.meta.id)!;
+    excess += (s.likes / s.n - m) ** 2 - (m * (1 - m)) / s.n;
+    spread += m * (1 - m);
+    k++;
+  }
+  const strength = k >= 10 ? Math.min(Math.max(spread / Math.max(excess, 1e-6) - 1, 5), 300) : 20;
+  return new Map([...means].map(([id, mean]) => [id, { mean, strength }]));
+}
+
+/** Solve A x = b for a symmetric positive-definite A (row-major), or null. */
+function solveSpd(a: Float64Array, n: number, b: Float64Array): Float64Array | null {
+  const l = Float64Array.from(a);
+  for (let j = 0; j < n; j++) {
+    let s = l[j * n + j];
+    for (let k = 0; k < j; k++) s -= l[j * n + k] * l[j * n + k];
+    if (s <= 1e-12) return null;
+    const dj = Math.sqrt(s);
+    l[j * n + j] = dj;
+    for (let i = j + 1; i < n; i++) {
+      let t = l[i * n + j];
+      for (let k = 0; k < j; k++) t -= l[i * n + k] * l[j * n + k];
+      l[i * n + j] = t / dj;
+    }
+  }
+  const y = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    let s = b[i];
+    for (let k = 0; k < i; k++) s -= l[i * n + k] * y[k];
+    y[i] = s / l[i * n + i];
+  }
+  const x = new Float64Array(n);
+  for (let i = n - 1; i >= 0; i--) {
+    let s = y[i];
+    for (let k = i + 1; k < n; k++) s -= l[k * n + i] * x[k];
+    x[i] = s / l[i * n + i];
+  }
+  return x;
 }

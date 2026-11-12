@@ -15,6 +15,7 @@ import { assignArm, effectivePersona, promote, type ExperimentRow } from '../src
 import { startExperiments } from '../src/experiments/start.ts';
 import { lordLevel } from '../src/stats/fdr.ts';
 import { buildFeed } from '../src/feed/ranker.ts';
+import { getFeedModel } from '../src/feed/model.ts';
 import { planExplore, spawnGeneration } from '../src/lifecycle/evolve.ts';
 import { descriptorSpace, growVocabulary, MIN_UNTRIED, occupiedOrTried, untried } from '../src/lifecycle/niches.ts';
 import { computeGate } from '../src/lifecycle/gate.ts';
@@ -298,4 +299,71 @@ test('someone who likes only young women stops getting men and seniors, explore 
   }
   assert.ok(male / cards < 0.05, `men ${(100 * male / cards).toFixed(1)}% of cards`);
   assert.ok(senior / cards < 0.03, `seniors ${(100 * senior / cards).toFixed(1)}% of cards`);
+});
+
+test('a persona with little data starts from what its features predict across the roster, not a flat prior', () => {
+  const { ctx, clock } = scratch();
+  const all = ctx.personas.servable();
+  const women = all.filter((p) => p.meta.gender === 'female');
+  const men = all.filter((p) => p.meta.gender === 'male');
+  // 60 impressions on each of 20 women (40% liked) and 10 men (5% liked).
+  let u = 0;
+  for (const [group, rate] of [[women.slice(0, 20), 0.4], [men.slice(0, 10), 0.05]] as const) {
+    for (const p of group) {
+      for (let i = 0; i < 60; i++) {
+        ingest(ctx, { type: 'swipe', user_id: `fp${u++}`, persona_id: p.meta.id, props: { dir: i < 60 * rate ? 'like' : 'pass' }, ts: clock.t });
+      }
+    }
+  }
+  const model = getFeedModel(ctx);
+  const mean = (id: string) => {
+    const l = model.persona.get(id)!.like;
+    return l.a / (l.a + l.b);
+  };
+  // Unseen personas: an unseen woman is predicted well above an unseen man.
+  const w = mean(women[25].meta.id);
+  const m = mean(men[15].meta.id);
+  assert.ok(w > 2 * m, `unseen woman ${w.toFixed(3)} vs unseen man ${m.toFixed(3)}`);
+});
+
+test('tempered draws: at scale 0 the deck is the posterior-mean order, at 1 it varies', () => {
+  const { ctx } = scratch({ feed: { tsScale: 0, exploreEvery: 1000 } });
+  const a = buildFeed(ctx, 't0', { limit: 10, dryRun: true }).cards.map((c) => c.personaId);
+  const b = buildFeed(ctx, 't0', { limit: 10, dryRun: true }).cards.map((c) => c.personaId);
+  assert.deepEqual(a, b, 'no randomness at scale 0');
+  const hot = scratch({ feed: { tsScale: 1, exploreEvery: 1000 } }).ctx;
+  const decks = new Set(Array.from({ length: 5 }, () => buildFeed(hot, 't1', { limit: 10, dryRun: true }).cards.map((c) => c.personaId).join(',')));
+  assert.ok(decks.size > 1, 'plain Thompson sampling varies the deck');
+});
+
+test('exploit cards come in score order, as X re-sorts its DPP picks', () => {
+  const { ctx } = scratch();
+  for (let i = 0; i < 20; i++) {
+    const exploit = buildFeed(ctx, `o${i}`, { limit: 10, dryRun: true }).cards.filter((c) => c.slot === 'exploit');
+    for (let j = 1; j < exploit.length; j++) assert.ok(exploit[j - 1].score >= exploit[j].score, `deck ${i}: card ${j} out of order`);
+  }
+});
+
+test('long-ago passes come back when the unseen roster runs out; recent ones do not', () => {
+  const { ctx, clock } = scratch();
+  const ids = ctx.personas.servable().map((p) => p.meta.id);
+  const early = ids.slice(0, 20);
+  for (const id of early) ingest(ctx, { type: 'swipe', user_id: 'r', persona_id: id, props: { dir: 'pass' }, ts: clock.t });
+  clock.t += ctx.cfg.feed.recycleAfterMs + 60_000;
+  for (const id of ids.slice(20)) ingest(ctx, { type: 'swipe', user_id: 'r', persona_id: id, props: { dir: 'pass' }, ts: clock.t });
+  const cards = buildFeed(ctx, 'r', { limit: 10, dryRun: true }).cards;
+  assert.equal(cards.length, 10, 'the deck is not empty');
+  assert.ok(cards.every((c) => early.includes(c.personaId)), 'only passes older than the cooldown return');
+});
+
+test('an impression from an earlier page keeps the propensity its own request logged', () => {
+  const { ctx, clock } = scratch();
+  const first = buildFeed(ctx, 'q', { limit: 10 });
+  clock.t += 1000;
+  const second = buildFeed(ctx, 'q', { limit: 10, exclude: first.cards.map((c) => c.personaId) });
+  const card = first.cards[0];
+  ingest(ctx, { type: 'impression', user_id: 'q', persona_id: card.personaId, props: { request_id: second.requestId }, ts: clock.t });
+  const row = ctx.db.prepare('SELECT slot, p_shown FROM impressions WHERE user_id = ? AND persona_id = ?').get('q', card.personaId) as { slot: string; p_shown: number };
+  assert.equal(row.slot, card.slot);
+  assert.ok(Math.abs(row.p_shown - card.pShown) < 1e-12, `logged ${row.p_shown} vs served ${card.pShown}`);
 });

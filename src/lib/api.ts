@@ -68,12 +68,21 @@ let flushTimer: number | null = null;
 export function track(type: EventType, personaId?: string, props?: Record<string, unknown>): void {
   if (!apiEnabled) return;
   queue.push({ type, user_id: userId, session_id: sessionId, ts: Date.now(), persona_id: personaId, props });
-  if (queue.length >= 20) flush();
-  else if (flushTimer === null) flushTimer = window.setTimeout(flush, 3000);
+  if (queue.length >= 20) void flush();
+  else if (flushTimer === null) flushTimer = window.setTimeout(() => void flush(), 3000);
 }
 
-export function flush(beacon = false): void {
-  if (!apiEnabled || queue.length === 0) return;
+/** Every event batch still on its way to the server. */
+let inFlight: Promise<void> = Promise.resolve();
+
+/**
+ * Send the queued events. Resolves once the server has every batch sent so far (or the sends
+ * failed): the feed awaits this so it ranks with the swipes the user just made, not the ones
+ * 3 s ago.
+ */
+export function flush(beacon = false): Promise<void> {
+  if (!apiEnabled) return Promise.resolve();
+  if (queue.length === 0) return inFlight;
   if (flushTimer !== null) {
     window.clearTimeout(flushTimer);
     flushTimer = null;
@@ -81,10 +90,13 @@ export function flush(beacon = false): void {
   const body = JSON.stringify({ events: queue.splice(0, queue.length) });
   const url = `${API_URL}/v1/events`;
   // sendBeacon survives page unload; its text/plain body is still JSON the server parses.
-  if (beacon && navigator.sendBeacon?.(url, body)) return;
-  void fetch(url, { method: 'POST', body, headers: { 'Content-Type': 'application/json' }, keepalive: true }).catch(() => {
-    /* telemetry is best effort */
-  });
+  if (beacon && navigator.sendBeacon?.(url, body)) return Promise.resolve();
+  const sent = fetch(url, { method: 'POST', body, headers: { 'Content-Type': 'application/json' }, keepalive: true }).then(
+    () => undefined,
+    () => undefined /* telemetry is best effort */
+  );
+  inFlight = Promise.all([inFlight, sent]).then(() => undefined);
+  return inFlight;
 }
 
 let sessionStarted = false;
@@ -102,7 +114,7 @@ export function startSession(): void {
   };
   window.addEventListener('pagehide', end);
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') flush(true);
+    if (document.visibilityState === 'hidden') void flush(true);
   });
 }
 
@@ -143,6 +155,8 @@ async function getJson<T>(path: string, init?: RequestInit, timeoutMs = 8000): P
 }
 
 export async function fetchFeed(opts: { limit?: number; includePassed?: boolean; exclude?: string[] } = {}): Promise<FeedResult | null> {
+  // The swipes still in the queue are the freshest taste signal there is: deliver them first.
+  await flush();
   const q = new URLSearchParams({ user_id: userId, limit: String(opts.limit ?? 10) });
   if (opts.includePassed) q.set('include_passed', '1');
   if (opts.exclude?.length) q.set('exclude', opts.exclude.join(','));
