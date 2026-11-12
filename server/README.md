@@ -313,7 +313,17 @@ factor is under 0.5.
   A brand-new user's first deck keeps the random slots (first decks are a large
   share of all decks, and the fade check needs that unbiased sample) but gives
   the undersampled ones back to exploit cards; X shields new accounts the same
-  way.
+  way. Exploration stops where its sample is in: a random slot draws only among
+  personas under `feed.randomTarget` (40) random-slot swipes, an undersampled
+  slot only among personas short of the gate's impression count, and a slot
+  with nobody left to explore is an exploit card (the explore cards were the
+  whole gap to a true-popularity deck in the bench).
+- **Fitted factor weights.** Affinity, persona quality, trait factor and the
+  persona-to-persona term are not simply multiplied: each serve logs their
+  logs (at posterior means), and the model rebuild fits a logistic regression
+  of every decided card on them (ridge toward weight 1 each, the plain product;
+  `feed.calibrate`, from 500 swipes). The plain product spread predictions
+  about 3x too wide in logit space; the fit turns down the noisier factors.
 - **Persona-to-persona term.** P(like) is multiplied by how much more the
   user's fellow fans liked the candidate than the ranker predicted for them:
   among users who liked persona i, the likes of j over the ranker's logged mean

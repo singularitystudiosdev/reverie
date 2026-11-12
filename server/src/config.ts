@@ -139,6 +139,20 @@ export interface Config {
     cfWeight: number;
     /** Pseudo-likes pulling each persona-pair O/E lift toward 1. */
     cfShrink: number;
+    /** Exploration stops where its sample is in: a random slot draws only among personas with
+     *  fewer random-slot swipes than this (the fade check needs 30; the rest is headroom), an
+     *  undersampled slot only among personas short of `undersampledTarget` impressions (0: the
+     *  gate's own power-calculated count). The draw never depends on the user, so the random
+     *  sample stays unbiased. The explore cards cost about 0.1 like probability each against an
+     *  exploit card (SIMULATION.md); once every persona has its samples the deck stops paying it. */
+    randomTarget: number;
+    undersampledTarget: number;
+    /** Combine the P(like) factors with weights fitted to the swipes (a logistic regression on
+     *  the logs of the factors logged with each serve, ridge toward the plain product) instead of
+     *  multiplying them at weight 1 each, which made predictions about 3x too spread in logit
+     *  space. Feed bench under the app's paging: +0.005 / +0.0025 / +0.0065 (seed 7, seed 11,
+     *  latent look), first decks +0.004 to +0.010. Falls back to the product below 500 swipes. */
+    calibrate: boolean;
   };
 
   /**
@@ -246,6 +260,9 @@ export function loadConfig(overrides: DeepPartial<Config> = {}): Config {
       visible: 3,
       cfWeight: 0.5,
       cfShrink: 3,
+      randomTarget: 40,
+      undersampledTarget: 0,
+      calibrate: true,
     },
     art: {
       enabled: env('REVERIE_AUTO_ART') === '1',

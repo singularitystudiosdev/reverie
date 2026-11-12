@@ -9,6 +9,7 @@
 import type { Ctx } from '../context.ts';
 import { feedTags, type Persona } from '../personas/schema.ts';
 import { dynamicPrior, type BetaParams } from '../stats/dynamicPrior.ts';
+import { twoProportionN } from '../stats/inference.ts';
 
 export interface PersonaPosterior {
   like: BetaParams;
@@ -29,6 +30,12 @@ export interface FeedModel {
   cf: Map<string, Map<string, { o: number; e: number }>>;
   vectors: Map<string, number[]>;
   impressions: Map<string, number>;
+  /** Fitted weights [intercept, affinity, quality, traits, cf] on the factors' logs, or null. */
+  calib: number[] | null;
+  /** Decided random-slot impressions per persona (the fade check's unbiased sample). */
+  randomN: Map<string, number>;
+  /** Impressions a persona needs before the undersampled slot stops spending traffic on it. */
+  gateImpressions: number;
   conversations: Map<string, number>;
   categories: string[];
   /** Mean deep-chat and negative rates across the roster (the feed's self-calibrated weights read these). */
@@ -144,6 +151,18 @@ export function buildFeedModel(ctx: Ctx): FeedModel {
 
   const cf = cfg.feed.cfWeight > 0 ? buildCf(ctx) : new Map<string, Map<string, { o: number; e: number }>>();
 
+  const randomN = new Map<string, number>();
+  for (const r of db
+    .prepare("SELECT persona_id, COUNT(*) AS n FROM impressions WHERE slot = 'random' AND outcome IS NOT NULL GROUP BY persona_id")
+    .all() as { persona_id: string; n: number }[])
+    randomN.set(r.persona_id, r.n);
+  // The gate's own impression target (lifecycle/gate.ts): a 2-proportion power calculation at the
+  // active roster's mean like rate.
+  const l = cfg.lifecycle;
+  const rates = personas.filter((p) => p.meta.status === 'active' && (imp.get(p.meta.id)?.n ?? 0) > 0).map((p) => imp.get(p.meta.id)!.likes / imp.get(p.meta.id)!.n);
+  const likeBase = rates.length ? rates.reduce((a, b) => a + b, 0) / rates.length : 0.3;
+  const gateImpressions = cfg.feed.undersampledTarget || Math.max(l.gateMinImpressions, twoProportionN(likeBase, l.gateMde, l.gateAlpha, l.gatePower));
+
   const categories = [...new Set(personas.flatMap((p) => feedTags(p)))].sort();
   const vectors = new Map<string, number[]>();
   for (const p of personas) vectors.set(p.meta.id, featureVector(p, categories));
@@ -164,6 +183,9 @@ export function buildFeedModel(ctx: Ctx): FeedModel {
     cf,
     vectors,
     impressions: new Map([...imp].map(([k, v]) => [k, v.n])),
+    randomN,
+    gateImpressions,
+    calib: cfg.feed.calibrate ? fitCalibration(ctx) : null,
     conversations,
     categories,
   };
@@ -300,6 +322,47 @@ function buildCf(ctx: Ctx): Map<string, Map<string, { o: number; e: number }>> {
   }
   flush(liked, decided);
   return cf;
+}
+
+/**
+ * Weights for the P(like) factors: a logistic regression of every decided card on the logs of
+ * the factors the ranker logged when it served it (posterior means), ridge 1 on each weight
+ * around 1 (the plain product) and a vague prior on the intercept. Null below 500 such cards.
+ */
+function fitCalibration(ctx: Ctx): number[] | null {
+  const rows = (ctx.db.prepare('SELECT outcome, factors FROM impressions WHERE outcome IS NOT NULL AND factors IS NOT NULL').all() as { outcome: string; factors: string }[])
+    .map((r) => ({ y: r.outcome === 'like' ? 1 : 0, x: [1, ...(JSON.parse(r.factors) as number[])] }))
+    .filter((r) => r.x.length === 5 && r.x.every(Number.isFinite));
+  if (rows.length < 500) return null;
+  const d = 5;
+  const w = [Math.log(0.2 / 0.8), 1, 1, 1, 1];
+  const mu = [Math.log(0.2 / 0.8), 1, 1, 1, 1];
+  const prec = [0.01, 1, 1, 1, 1];
+  for (let iter = 0; iter < 25; iter++) {
+    const g = new Float64Array(d);
+    const h = new Float64Array(d * d);
+    for (let j = 0; j < d; j++) {
+      g[j] = -prec[j] * (w[j] - mu[j]);
+      h[j * d + j] = prec[j];
+    }
+    for (const r of rows) {
+      let z = 0;
+      for (let j = 0; j < d; j++) z += w[j] * r.x[j];
+      const p = 1 / (1 + Math.exp(-z));
+      for (let a = 0; a < d; a++) {
+        g[a] += (r.y - p) * r.x[a];
+        for (let b = 0; b < d; b++) h[a * d + b] += p * (1 - p) * r.x[a] * r.x[b];
+      }
+    }
+    const step = solveSpd(h, d, g);
+    if (!step) break;
+    let max = 0;
+    for (let j = 0; j < d; j++) max = Math.max(max, Math.abs(step[j]));
+    const damp = max > 2 ? 2 / max : 1;
+    for (let j = 0; j < d; j++) w[j] += damp * step[j];
+    if (max * damp < 1e-6) break;
+  }
+  return w;
 }
 
 /** Solve A x = b for a symmetric positive-definite A (row-major), or null. */

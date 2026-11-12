@@ -29,6 +29,9 @@
  *             the top cfg.feed.dppPool x k candidates by score only, theta
  *             cfg.feed.dppTheta (X ships 0.65), the chosen cards then shown in
  *             score order; the kernel is theme categories only (model.ts).
+ *             The factors are combined with weights a logistic regression fits
+ *             to the logged swipes (cfg.feed.calibrate; the plain product was
+ *             about 3x too spread in logit space).
  *             A persona-to-persona term multiplies P(like): how much more the
  *             users who liked what this user liked liked the candidate than the
  *             ranker predicted (O/E on its logged predictions; item-based CF on
@@ -38,7 +41,8 @@
  *             the user's best-scoring persona among the least-shown quarter
  *             (traffic for the significance gate, spent where this user is
  *             likeliest to like it), half uniformly at random (the unbiased
- *             sample the fade check reads).
+ *             sample the fade check reads); each only among personas whose
+ *             sample is still short, so the deck stops paying for it.
  *   recycle   when the unseen roster cannot fill the deck, personas passed more
  *             than cfg.feed.recycleAfterMs ago compete again (Tinder's "dynamic
  *             recycling"); their passes already lower their score.
@@ -67,7 +71,7 @@ export interface FeedCard {
   slot: 'exploit' | 'random' | 'undersampled';
   pShown: number;
   score: number;
-  why: { pLike: number; pDeep: number; pNeg: number; affinity: number; quality: number; traits: number; cf: number; pBase: number; isNew: boolean; fade: number };
+  why: { pLike: number; pDeep: number; pNeg: number; affinity: number; quality: number; traits: number; cf: number; pBase: number; factors: number[]; isNew: boolean; fade: number };
 }
 
 export interface FeedRequest {
@@ -266,16 +270,25 @@ function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink:
   const qualityDraw = tempered(rng, post.like.a, post.like.b, scale);
   const quality = Math.min(qualityDraw / catMean, 3);
   const traits = traitFactor(u.traits, p);
-  const pLike = Math.min(affinity * quality * traits * cf, 0.99);
+  // The factors at their posterior means, logged with the serve (the calibration fits on them).
+  const qualityMean = Math.min(post.like.a / (post.like.a + post.like.b) / catMean, 3);
+  const factors = [Math.log(Math.max(affMeanSum / k, 1e-4)), Math.log(Math.max(qualityMean, 1e-4)), Math.log(traits), Math.log(cf)];
+  const cw = model.calib;
+  const sig = (z: number) => 1 / (1 + Math.exp(-z));
+  const pLike = cw
+    ? sig(cw[0] + cw[1] * Math.log(Math.max(affinity, 1e-4)) + cw[2] * Math.log(Math.max(quality, 1e-4)) + cw[3] * factors[2] + cw[4] * factors[3])
+    : Math.min(affinity * quality * traits * cf, 0.99);
   // The mean prediction without the collaborative term (no draw), logged with the serve: the
   // expected side of the persona-to-persona O/E ratios, so that term learns only what the rest of
   // the model misses.
-  const pBase = Math.min(((affMeanSum / k) / catMean) * traits * (post.like.a / (post.like.a + post.like.b)), 0.99);
+  const pBase = cw
+    ? sig(cw[0] + cw[1] * factors[0] + cw[2] * factors[1] + cw[3] * factors[2])
+    : Math.min(((affMeanSum / k) / catMean) * traits * (post.like.a / (post.like.a + post.like.b)), 0.99);
   const pDeep = post.deep.a / (post.deep.a + post.deep.b);
   const pNeg = post.negative.a / (post.negative.a + post.negative.b);
   const w = weights(model);
   const score = pLike * (w.like + w.deep * pDeep - w.neg * pNeg) * fade;
-  return { score, pLike, pDeep, pNeg, affinity, quality, traits, cf, pBase, isNew: post.isNew, fade };
+  return { score, pLike, pDeep, pNeg, affinity, quality, traits, cf, pBase, factors, isNew: post.isNew, fade };
 }
 
 export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { requestId: string; cards: FeedCard[] } {
@@ -315,6 +328,7 @@ export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { re
   // spent on an explore slot. The slots still sample everything else uniformly.
   const explorable = candidates.map((p) => u.traits.swipes < 8 || traitFactor(u.traits, p) >= 0.5);
   const shown = candidates.map((p) => model.impressions.get(p.meta.id) ?? 0);
+  const randomN = candidates.map((p) => model.randomN.get(p.meta.id) ?? 0);
   const select = (scores: number[]): { idx: number; slot: FeedCard['slot'] }[] => {
     // X vm-ranker: the DPP chooses among the top of the scored list only (DppMaxSelectedRank), and
     // the cards it keeps are shown in score order, not in the order it picked them.
@@ -343,15 +357,26 @@ export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { re
     // on never arrived. Every exploreEvery-th card the user decides on is an explore card; this page
     // places the next one where that card falls.
     const first = (cfg.exploreEvery - 1 - (u.decided % cfg.exploreEvery)) % cfg.exploreEvery;
+    //
+    // Each slot explores only where a sample is still missing (cfg.feed.randomTarget,
+    // undersampledTarget): a persona with its fade sample in takes no more random slots, one with
+    // the gate's impressions no more undersampled ones. A slot with nobody left to explore for its
+    // purpose takes the other purpose, and with nobody left for either stays an exploit card.
     for (let pos = first; pos < picked.length; pos += cfg.exploreEvery) {
       const open = candidates.map((_, i) => i).filter((i) => !used.has(i));
       const preferred = open.filter((i) => explorable[i]);
-      const pool = preferred.length ? preferred : open;
-      if (!pool.length) break;
+      const all = preferred.length ? preferred : open;
+      if (!all.length) break;
+      const forRandom = all.filter((i) => randomN[i] < cfg.randomTarget);
+      const forGate = all.filter((i) => shown[i] < model.gateImpressions);
       let idx: number;
       let slot: FeedCard['slot'];
-      const toGate = ctx.rng() < 0.5;
+      let toGate = ctx.rng() < 0.5;
       if (toGate && u.traits.swipes === 0) continue;
+      if (toGate && !forGate.length) toGate = false;
+      else if (!toGate && !forRandom.length) toGate = forGate.length > 0 && u.traits.swipes > 0;
+      const pool = toGate ? forGate : forRandom;
+      if (!pool.length) continue;
       if (toGate) {
         // Toward the gate: the least-shown quarter of what is left, and of those the persona this
         // user is likeliest to like (not the one global argmin every user got until the model's
@@ -400,10 +425,10 @@ export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { re
 
   if (!req.dryRun) {
     const ins = ctx.db.prepare(
-      'INSERT INTO feed_serves (request_id, position, ts, user_id, persona_id, slot, p_shown, score, p_pred) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO feed_serves (request_id, position, ts, user_id, persona_id, slot, p_shown, score, p_pred, factors) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     );
     const now = ctx.now();
-    for (const c of cards) ins.run(requestId, c.position, now, userId, c.personaId, c.slot, c.pShown, c.score, c.why.pBase);
+    for (const c of cards) ins.run(requestId, c.position, now, userId, c.personaId, c.slot, c.pShown, c.score, c.why.pBase, JSON.stringify(c.why.factors.map((x) => +x.toFixed(4))));
   }
   return { requestId, cards };
 }

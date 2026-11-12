@@ -249,13 +249,41 @@ for an exploit card. Halving them wins 0.007 to 0.010 but then no persona reache
 sample in the bench's 42,000 cards. The rate is the lifecycle's to trade: every halving
 doubles the traffic before a dud can be faded.
 
+**Exploration stops where its sample is in** (`feed.randomTarget` 40, `undersampledTarget` 0 =
+the gate's own count). A paired split of the gap on one trained model (seed 7) put all of it
+on exploration: the explore cards cost 0.019, exploit cards alone beat the true-popularity deck
+by 0.006, and the cards' true like probabilities are 0.233 exploit, 0.117 random, 0.133
+undersampled. A score-tilted explore draw recovers only 0.001 to 0.003, so the slots stay
+uniform but spend nothing on a persona whose sample is in: a random slot draws only among
+personas under 40 random-slot swipes (the fade check needs 30), an undersampled slot only among
+personas short of the gate's impressions. The draw still never depends on the user. While
+samples fill, the deck is as before (bench seed 7 / 11 / latent: 0.2092 / 0.2064 / 0.2388, the
+same within noise) and the random sample spreads wider (39 to 56 personas at 30+). Once they
+are in, the bench's saturated proxy (targets 6 and 60) shows the steady state:
+
+| | seed 7 | seed 11 | latent look, seed 7 | latent look, seed 11 | explore |
+|---|---|---|---|---|---|
+| samples filling (current, as above) | 0.2110 | 0.2064 | 0.2422 | 0.2337 | 18.6% |
+| samples in | **0.2172** | **0.2121** | **0.2470** | **0.2432** | 11 to 12% |
+| static popularity deck (true means) | 0.2242 | 0.2180 | 0.2508 | 0.2461 | |
+
 Closed loop, 25 days, 220 users a day, all 154 personas, `--no-premium`, seed 7 (whole decks
-of 6, so the paging bug does not show here): like rate 23.1% -> 23.2%, deep chats per user
+of 6, so the paging bug does not show here), before the exploration cap: like rate 23.1% -> 23.2%, deep chats per user
 0.43 -> 0.42; the hidden dud `isolde` is now faded and retired (before: nothing faded), with
 27 personas at their random-slot sample against 21. A/B tests: 2 against 0 promotions, both
 runs with 31 to 32 of 33 tests still running at day 25 (chat traffic differs between runs).
 
-Tried and dropped: judging each persona against the audience the feed chose for it (observed
+With the cap (seed 7 / 11): like rate 23.1% / 22.6% against 23.1% / 23.0% for the old
+ranker, deep chats per user 0.46 / 0.48 against 0.43 / 0.48, random-slot samples on 32 / 31
+personas against 21 / 20. The static holdout alone moves between 16.4% and 18.0% across these
+runs (the ranker's draws shift every later random number), so the closed loop cannot separate
+differences under about a point; fading in 25 days stays noisy (old: nothing / `ibuki`,
+`isolde`; capped: nothing / `ravenna`, `eleanor-ashby`).
+
+Tried and dropped: no Thompson spread and no DPP until a new user has a few swipes (their draws
+are only noise on population estimates): first decks +0.008 / +0.006 / -0.004, the whole bench
+within noise either way. Persona-to-persona lifts over passes as well as likes: -0.002 (pass
+lifts are mostly noise). And judging each persona against the audience the feed chose for it (observed
 likes over the sum of the multiplicative user lifts logged at serve time, an O/E standardised
 rate). It lost everywhere (0.2038 / 0.2029 / 0.2313; first decks 0.217 against 0.245): a
 multiplicative lift overshoots where probabilities saturate, so the expected side is wrong for

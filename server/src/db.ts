@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS feed_serves (
   p_shown     REAL NOT NULL,
   score       REAL,
   p_pred      REAL,               -- the ranker's mean P(like) before the persona-to-persona term, at serve time
+  factors     TEXT,               -- JSON [log affinity, log quality, log traits, log cf] at their means
   PRIMARY KEY (request_id, position)
 );
 CREATE INDEX IF NOT EXISTS feed_serves_user_persona ON feed_serves(user_id, persona_id);
@@ -64,6 +65,7 @@ CREATE TABLE IF NOT EXISTS impressions (
   p_shown     REAL NOT NULL,
   outcome     TEXT,               -- like | pass | null while undecided
   p_pred      REAL,               -- copied from the serve row (null: not served by the ranker)
+  factors     TEXT,
   dwell_ms    INTEGER             -- impression to swipe: how long the card was looked at
 );
 CREATE INDEX IF NOT EXISTS impressions_persona ON impressions(persona_id);
@@ -247,7 +249,10 @@ export function openDb(file: string): DB {
   // Columns added after a database was first created.
   const cols = (table: string) => new Set((db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name));
   if (!cols('experiments').has('alpha')) db.exec('ALTER TABLE experiments ADD COLUMN alpha REAL');
-  for (const t of ['feed_serves', 'impressions']) if (!cols(t).has('p_pred')) db.exec(`ALTER TABLE ${t} ADD COLUMN p_pred REAL`);
+  for (const t of ['feed_serves', 'impressions']) {
+    if (!cols(t).has('p_pred')) db.exec(`ALTER TABLE ${t} ADD COLUMN p_pred REAL`);
+    if (!cols(t).has('factors')) db.exec(`ALTER TABLE ${t} ADD COLUMN factors TEXT`);
+  }
   if (!cols('impressions').has('dwell_ms')) db.exec('ALTER TABLE impressions ADD COLUMN dwell_ms INTEGER');
   return db;
 }

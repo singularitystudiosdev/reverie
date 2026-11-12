@@ -417,3 +417,33 @@ test('people who liked one persona and liked another more than the ranker predic
   assert.ok(fan && fan.why.cf > 2, `cf for a vesper fan: ${fan?.why.cf}`);
   assert.equal(card('stranger')?.why.cf ?? 1, 1, 'no likes, no collaborative term');
 });
+
+test('an explore slot only spends traffic on personas still short of their sample', () => {
+  const { ctx, clock } = scratch({ feed: { randomTarget: 1, undersampledTarget: 1 } });
+  // Every servable persona already has one random-slot swipe and one impression except 'ada'.
+  const insert = ctx.db.prepare('INSERT INTO impressions (ts, user_id, persona_id, slot, p_shown, outcome) VALUES (?, ?, ?, ?, ?, ?)');
+  for (const p of ctx.personas.servable()) if (p.meta.id !== 'ada') insert.run(1, 'seed', p.meta.id, 'random', 0.1, 'pass');
+  for (let i = 0; i < 4; i++) ingest(ctx, { type: 'swipe', user_id: 'needy', persona_id: ['kiyo', 'luna', 'vesper', 'maya'][i], props: { dir: 'pass' }, ts: clock.t + i });
+  const explored = new Set<string>();
+  for (let i = 0; i < 40; i++)
+    for (const c of buildFeed(ctx, 'needy', { limit: 10, dryRun: true }).cards) if (c.slot !== 'exploit') explored.add(c.personaId);
+  assert.deepEqual([...explored], ['ada'], `explored ${[...explored]}`);
+});
+
+test('with enough swipes the P(like) factors get fitted weights, and a factor that predicts nothing is turned down', () => {
+  const { ctx } = scratch();
+  const insert = ctx.db.prepare('INSERT INTO impressions (ts, user_id, persona_id, slot, p_shown, outcome, factors) VALUES (?, ?, ?, ?, ?, ?, ?)');
+  // Likes follow the affinity factor; the quality factor is noise.
+  let seed = 1;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 3000; i++) {
+    const la = Math.log(0.05 + 0.6 * rnd());
+    const lq = Math.log(0.3 + 2 * rnd());
+    const like = rnd() < 0.2 * Math.exp(la) / 0.35 ? 'like' : 'pass';
+    insert.run(i, `u${i % 300}`, 'ada', 'exploit', 0.5, like, JSON.stringify([la, lq, 0, 0]));
+  }
+  const w = getFeedModel(ctx, 0).calib;
+  assert.ok(w, 'fitted');
+  assert.ok(w![1] > 0.6, `affinity weight ${w![1].toFixed(2)}`);
+  assert.ok(Math.abs(w![2]) < 0.3, `quality weight ${w![2].toFixed(2)}`);
+});

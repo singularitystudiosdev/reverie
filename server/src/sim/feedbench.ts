@@ -8,7 +8,7 @@
  * Yardsticks: each user's oracle (their own best personas, in order) and a static deck in the
  * order of the population's true mean like rate. No lifecycle, no chats.
  *
- *   node src/sim/feedbench.ts [--seed 7] [--latent 0] [--warm 1000] [--test 300] [--sessions 5] [--deck 6] [--page 0] [--cfg '{"feed":{"tsScale":0}}']
+ *   node src/sim/feedbench.ts [--seed 7] [--rseed 8] [--latent 0] [--warm 1000] [--test 300] [--sessions 5] [--deck 6] [--page 0] [--cfg '{"feed":{"tsScale":0}}']
  *
  * --page 3 plays the app's own paging (src/state/store.tsx): ask for 10 cards, swipe the first 3,
  * ask again, until the session's --deck cards are swiped. --page 0 swipes one page of --deck.
@@ -75,7 +75,9 @@ const ctx = createContext(
   offlineLlm,
   () => now,
 );
-ctx.rng = makeRng(SEED + 1);
+// --rseed: the ranker's own random stream, apart from the world's: repeat a setting under a few
+// of them to see how far a run moves on the ranker's draws alone.
+ctx.rng = makeRng(arg('rseed', SEED + 1));
 ctx.db.exec('PRAGMA synchronous = OFF');
 
 // The hidden world, drawn from its own stream so every ranker variant sees the same world and users.
