@@ -578,6 +578,32 @@ test('early on, before 3 personas have their random-slot sample, a low score alo
   assert.deepEqual(faded, ['raven']);
 });
 
+test('a rarely shown dud fades on its served like rate, without waiting for the pool, unless its random slots or chats contradict it', () => {
+  const { ctx } = scratch();
+  const stats = computeAllStats(ctx, false);
+  const gate = computeGate(ctx, stats);
+  // Nobody has the pool's impression count; the roster's random slots like at 20%.
+  for (const st of stats) {
+    st.impressions = 60;
+    st.likeRate = { x: 12, n: 60, rate: 0.2 };
+    st.passes = 48;
+    st.likeRateRandom = { x: 2, n: 10, rate: 0.2 };
+  }
+  const set = (id: string, likes: number, decided: number, random = { x: 2, n: 10 }) => {
+    const st = stats.find((x) => x.personaId === id)!;
+    st.likeRate = { x: likes, n: decided, rate: likes / decided };
+    st.passes = decided - likes;
+    st.likeRateRandom = { ...random, rate: random.x / random.n };
+  };
+  set('raven', 0, 50, { x: 0, n: 12 }); // a dud: 0 likes in 50 served cards
+  set('isolde', 0, 30, { x: 0, n: 8 }); // as bad, but short of 40 cards
+  set('nova', 0, 50, { x: 6, n: 12 }); // its random slots say otherwise
+  set('luna', 4, 50); // 8%: the upper bound (0.19) is not under the 20% reference
+  const faded: string[] = [];
+  for (let i = 0; i < ctx.cfg.lifecycle.fadeStreak; i++) faded.push(...fadeTick(ctx, stats, gate).faded);
+  assert.deepEqual(faded, ['raven']);
+});
+
 test('EASE as the persona-to-persona term lifts what the fans of a liked persona also liked', () => {
   const { ctx, clock } = scratch({ feed: { cfMethod: 'ease', cfWeight: 1, tsScale: 0 } });
   const insert = ctx.db.prepare('INSERT INTO impressions (ts, user_id, persona_id, slot, p_shown, outcome) VALUES (?, ?, ?, ?, ?, ?)');

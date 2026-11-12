@@ -95,6 +95,11 @@ export interface Config {
     /** Fade: the upper confidence bound must sit below this quantile of the roster's scores
      *  (0.25: confidently in the bottom quartile) for `fadeStreak` consecutive ticks. */
     fadeQuantile: number;
+    /** The like-rate fade path (lifecycle/fade.ts): a persona with this many decided served cards
+     *  whose like rate's upper bound sits under the random-slot reference fades without waiting for
+     *  the pool's impression count (which a rarely shown dud never reaches). 0 turns it off. 40:
+     *  where a true dud's bound clears the reference (about 0.115) in the paired closed loop. */
+    fadeMinCards: number;
     fadeStreak: number;
     fadeDecay: number;
     fadeRetireBelow: number;
@@ -272,6 +277,7 @@ export function loadConfig(overrides: DeepPartial<Config> = {}): Config {
       exploreCount: 2,
       exploitCount: 2,
       fadeQuantile: 0.25,
+      fadeMinCards: 40,
       fadeStreak: 3,
       fadeDecay: 0.5,
       fadeRetireBelow: 0.05,

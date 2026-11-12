@@ -458,6 +458,43 @@ it, so `feed.personaEffects` stays off and is the first arm for the live ranker 
 In every run nothing fades and the gate stays shut at launch traffic: the lifecycle waits on 30
 uniform-random swipes per persona that 220 users a day do not supply in 25 days (README row 36).
 
+## Why nothing fades at launch traffic, and a like-rate path (2026-11-12, later)
+
+Reading the finished paired closed-loop databases (seed 7 and 11, 25 days, 220 users a day): the
+fade pool's 300 impressions bind for every true dud, not the random-slot check. Duds are served
+0.7 to 3.6 cards a day (the feed and its "user's best of the least shown" explore slot both avoid
+them), so they would reach the pool in 60 to 400 days; random slots total about 100 a day (0.65
+per persona), only 3 to 6 personas reach 30 by day 25, and they stop at 40 (`randomTarget`),
+where seed 7's `henry` (1 like in 40, Wilson upper 0.129 against a reference of 0.115) could never
+pass. Even in the pool, a dud's score upper bound would need over 1,600 impressions to clear the
+bar.
+
+Audience-adjusted estimates on all served cards were tried first and fade no dud: likes over the
+ranker's logged predictions (the prediction already carries the persona's low quality: `henry`
+expected 0.4 likes in 55 cards) and the persona intercepts (the user-side factors absorb part of
+the persona's effect; `raven` ranked 19th to 28th). What works is the plain like rate over every
+card a persona was served and decided on, whose bias runs the safe way (the feed shows a persona
+to likely fans): fade when its upper bound sits under the random-slot reference for the streak,
+with 40+ cards, unless its own 10+ random slots or 30+ chats contradict it.
+
+Paired closed loop, seeds 7 / 11 / 3 (true rank of each faded persona by hidden population like
+rate, 1 = least liked of 154):
+
+| | faded | in the true bottom quartile | like rate per impression | deep chats per user |
+|---|---|---|---|---|
+| before (pool only) | nothing at seeds 7, 11 | - | 22.9% / 24.0% / - | 0.43 / 0.46 / - |
+| bound z 1.96 | 5 / 5 / 8 | 15 of 18 (misses: ranks 58, 41, 69) | 22.6% / 23.9% / 22.8% | 0.44 / 0.45 / 0.43 |
+| **bound z 2.326 (shipped)** | 6 / 1 / 2 | **8 of 9** (miss: rank 41) | **23.0% / 24.0% / 22.8%** | 0.41 / 0.45 / 0.43 |
+| bound z 2.576 | 4 / 0 / 0 | 4 of 4 | 22.9% / 24.0% / 22.8% | 0.41 / 0.46 / 0.43 |
+
+At z 2.326 seed 7 faded its true worst two (`nick-claus` rank 1, `henry` rank 2) and four more in
+the bottom fifth; seed 11 faded `azazel` (rank 22) but not its worst, `henry` (0 likes in 37
+random slots, short of the cards the bound needs); seed 3 faded `lucas-bell` (rank 4) and
+`velvet-riot` (rank 41, 9.8%: just past the quartile). No planted-strong persona faded at any
+setting. Deep chats per user dip at seed 7 (0.41 against 0.43) at both strict settings; within
+this loop's noise, but worth watching. The gate (spawning) still waits on every persona's
+sample and never opens in 25 days.
+
 ## Settings
 
 The 45-day runs use relaxed thresholds so a run finishes in minutes (gate: a

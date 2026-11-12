@@ -271,6 +271,13 @@ Conversation after a user's goodbye never counts toward any metric.
   impressions, always: the check fails closed), starts fading: its feed
   weight halves each tick, it retires under 5%. At most one action per tick,
   never under 8 active, restored if it recovers. Matched users keep the chat.
+  A persona the feed rarely shows never reaches that impression count, so it
+  is also judged on its served cards (`lifecycle.fadeMinCards`, 40): once the
+  one-sided 99% upper bound of its like rate over the cards it was served and decided on
+  sits under the random-slot reference for the streak, it fades, unless its own
+  random slots (10+) or its chats (30+ conversations with a deep-chat rate
+  confidently above the roster's) say otherwise. The served rate overstates a
+  persona (the feed shows it to likely fans), so this errs toward keeping it.
 
 ## Feed (`src/feed/`)
 
@@ -464,7 +471,7 @@ arms.
 | 33 | Persona quality is a raw like rate over the cards a personalised feed chose (exposure bias, row 10) | [feedback loops amplify popularity bias](https://arxiv.org/abs/2007.13019) | built, off: `feed.personaEffects` (random intercepts against the audience; a unit test shows it removes an audience gap the raw rate keeps): -0.009 in the bench, +0.4 / +0.3 points of like rate in the paired closed loop (seeds 7 / 11); the first live arm |
 | 34 | One fitted weight per factor for a user's 1st card and 50th | varying-coefficient / history-length features | tried, dropped: evidence-scaled weights tied or lost on 5 of 5 bench cells |
 | 35 | Affinity and trait factors overlap (gender and art style are in both); the fit splits them (affinity 0.42, traits 0.21) and pinning traits at 1 drives affinity negative | one learned model over raw features, no hand-built overlapping factors ([X](https://github.com/xai-org/x-algorithm): "eliminated hand-engineered features") | documented; a learned per-user model lost here before (SIMULATION.md) |
-| 36 | The persona lifecycle stalls at launch traffic: nothing fades and the gate never opens in 25 days at 220 users a day | X gives cold-start authors Thompson-sampled slots by default ([author_cold_start.rs](https://github.com/xai-org/x-algorithm/blob/main/home-mixer/scorers/author_cold_start.rs)) | open: judge personas on all served cards through a debiased estimate (row 33's intercepts, or doubly robust, row 20) instead of waiting for 30 uniform-random swipes each |
+| 36 | The persona lifecycle stalls at launch traffic: nothing fades and the gate never opens in 25 days at 220 users a day. What blocks it: a dud gets 0.7 to 3.6 cards a day, so it never reaches the fade pool's 300 impressions (60 to 400 days), its score would need 1,600+ to clear the bar, and random slots stop at 40, where 1 like in 40 can never pass the 30-swipe check | X gives cold-start authors Thompson-sampled slots by default ([author_cold_start.rs](https://github.com/xai-org/x-algorithm/blob/main/home-mixer/scorers/author_cold_start.rs)) | **fixed for fading**: a like-rate path judges a persona on its 40+ served cards (one-sided 99% bound under the random-slot reference; the served rate overstates, so it errs toward keeping); 9 fades in 3 closed-loop seeds, 8 in the true bottom quartile, the true worst persona at 2 of 3 seeds, like rate unchanged. Audience-adjusted estimates (O/E on logged predictions, persona intercepts) were tried for this and faded no dud. The gate (spawning) still waits on every persona's sample: open |
 | 37 | Each 3-card page's DPP ignores the page just shown | [Chen et al.: sliding-window DPP, +1.33% titles watched in an A/B](https://arxiv.org/abs/1709.05135) | open (the simulator has no satiation; a live arm) |
 | 38 | Propensities from 32 Monte Carlo replays (floor 1/64) | X logs the exact Plackett-Luce slot probability of its exploration ([page_rl_exploration_scorer.rs](https://github.com/xai-org/x-algorithm/blob/main/home-mixer/scorers/page_rl_exploration_scorer.rs), off by default) | open, minor |
 | 39 | The model rebuilds every 60 s on the request path, scanning every impression (rates, persona-to-persona table) in synchronous SQLite | [Monolith: online training on a stream](https://arxiv.org/abs/2209.07663); incremental counters | open: fine at launch, seconds per rebuild near a million impressions |
