@@ -118,6 +118,71 @@ Personas have a `gender` (female, male, group, nonbinary). The feed learns taste
 over each persona's categories plus `gender:<x>`, so a user who keeps choosing
 men, women or groups sees more of them.
 
+## Automatic art (optional, default off)
+
+Personas the server invents start as drafts with no art. With
+`REVERIE_AUTO_ART=1` and both API keys, each tick (and `POST /admin/art/run`)
+takes the non-seed drafts with no `art.portrait` and, per persona (`src/art/`):
+
+1. draws the portrait (Gemini `gemini-nano-banana-2.1`, 9:16, 2K) and the
+   background plate (same model, no people),
+2. animates the portrait into a 6 s, 720p, silent profile video (xAI
+   `grok-imagine-video`, the portrait as first frame, async job, polled),
+3. post-processes with `magick`/`ffmpeg`/`ffprobe` exactly like
+   `scripts/starters/process.sh` into the same five files the starters have,
+   `<id>.webp`, `<id>-sm.webp`, `<id>-scene.webp`, `<id>-scene-sm.webp`,
+   `<id>-loop.mp4` (no other assets), in `REVERIE_ART_DIR` (default the repo's
+   `public/characters`; built in a staging folder and moved in only when all
+   five exist),
+4. sets `art` to `{ portrait, portraitSm, loop, scene, sceneSm }` with
+   `/characters/<id>...` paths and activates the persona (the same code path as
+   `POST /admin/personas/:id/art`, `src/art/attach.ts`).
+
+Prompts come from `src/art/prompts.ts`, shared with `scripts/starters/prompts.mjs`
+(running that script still reproduces `starters/prompts.json` byte for byte):
+always an adult, fully clothed, non-explicit, no text or logos. They are built
+from the persona's style, name, kind, age, gender, descriptors and `artBrief`.
+Retries send the identical prompts; nothing is ever loosened.
+
+| Env var | Default | |
+|---|---|---|
+| `REVERIE_AUTO_ART` | off | `1` turns it on. Needs both keys below; without them it logs once and skips |
+| `GEMINI_API_KEY` | | stills and backgrounds |
+| `XAI_API_KEY` | | profile video |
+| `REVERIE_ART_DAILY_USD` | `5` | cap on estimated spend per UTC day |
+| `REVERIE_ART_PERSONA_USD` | `0.414` | estimate checked against the cap before each persona |
+| `REVERIE_ART_MAX_PER_TICK` | `2` | personas handled per tick or per `POST /admin/art/run` |
+| `REVERIE_ART_DIR` | `<repo>/public/characters` | where the five files land |
+
+Cost per persona is about **$0.41**: two images at about $0.057 and 6 s of
+video at $0.05/s (list prices read 2026-11-05; Gemini's page shows $0.0504 for a
+2K image plus tokens, xAI `grok-imagine-video` is $0.050/s). Those prices,
+the 2K size, models and attempt limit are config values (`art` in
+`src/config.ts`). The default $5 cap is about 12 personas a day; at 4 new
+personas a generation that is plenty. Every attempt is a row in the `art_spend`
+table (persona, time, estimated cost, `pending|ok|failed|refused`, error), the
+cost is added as each stage is paid for (a video job the provider never
+accepted is not charged), and a persona is refused when today's UTC total plus
+the per-persona estimate would pass the cap; the next UTC day starts at zero.
+`GET /admin/art-queue` shows `auto`: enabled, missing keys, spent and remaining
+today, the waiting ids and the 20 latest attempts.
+
+A provider error or moderation refusal marks the attempt failed and leaves the
+persona a draft; the next tick tries again, up to 3 attempts, then one
+`art_gave_up` row lands in `lifecycle_log` and the persona waits for a human
+(`POST /admin/personas/:id/art`). No new generation spawns while a non-seed
+draft is still waiting for art, but a draft the job gave up on no longer
+counts, so one stubborn refusal cannot pause the loop. `POST /admin/art/run` takes an optional `{ "id" }`
+and, like `/admin/tick`, returns when the work is done (a video takes minutes).
+
+Docs the calls follow: Gemini Interactions API
+(<https://ai.google.dev/gemini-api/docs/image-generation>,
+<https://ai.google.dev/api/interactions-api>) and xAI video
+(<https://docs.x.ai/developers/model-capabilities/video/generation>,
+<https://docs.x.ai/developers/model-capabilities/video/image-to-video>). Tests
+(`test/art.test.ts`) use a fake provider and a fake `fetch`; live calls have not
+been run without real keys.
+
 ## Telemetry
 
 Events (`POST /v1/events`): `session_start/end, impression, swipe (like|pass),
@@ -144,7 +209,10 @@ pattern's lift is its drop rate over the persona's base drop rate there.
 
 ## A/B tests (`src/experiments/`)
 
-One running experiment per persona, aimed at its worst drop pattern. The
+Tests open only when the server's LLM writes the replies
+(`experiments.requireServedReplies`, default on): with no LLM the app shows
+its scripted replies, both arms would be identical, and a "win" could only be
+noise. One running experiment per persona, aimed at its worst drop pattern. The
 proposer rewrites one editable section: from the cross-persona edit library
 (winning edits for the same pattern on other personas), the LLM, or an offline
 heuristic table. The safety lint and, with an LLM, a manipulation judge must
@@ -153,7 +221,13 @@ decision metric is the share of threads that reached the targeted turn bucket
 and got past it; guardrails are deep-chat rate, restricted mean turns and
 negative rate, and block a promotion when the variant is significantly worse
 on one or its point estimate is worse than the margin. Every interval is an asymptotic confidence sequence (valid
-under continuous monitoring) with a delayed start. Winners are written into
+under continuous monitoring) with a delayed start. Because tests keep coming,
+the target is tested at a per-test level from online false-discovery-rate
+control (LORD++, asynchronous form, `src/stats/fdr.ts`): the level is fixed
+when the test opens, starts small, and grows back with each earlier win, so
+the share of promoted edits that are noise stays at 5% across the whole stream
+(guardrails stay at the plain 5% level, so they block as readily as before).
+Winners are written into
 the markdown (version + 1, changelog line with the effect and its interval)
 and filed in the edit library; losers and futile tests are discarded.
 Conversation after a user's goodbye never counts toward any metric.
@@ -168,7 +242,10 @@ Conversation after a user's goodbye never counts toward any metric.
 - **Explore:** an unoccupied niche in a MAP-Elites archive over form x setting
   x vibe x body x age group, with at least one never-tried value, chosen by an
   upper confidence bound over each value's marginal score. The vocabulary
-  includes animal characters, body types and ages the seed roster lacks.
+  grows: when fewer than 3 form or setting values are left untried, the LLM
+  proposes new wide-reaching ones (kebab-case, linted, stored in the `vocab`
+  table); offline they come from a reserve list (`VOCAB_RESERVE` in
+  `niches.ts`), so the branch never runs dry.
 - **Exploit:** the top personas by score lower bound keep form and age group
   and change one or two of setting, era, vibe, aesthetic, body.
 - **Writing:** the LLM writes the persona as structured JSON; code renders the
@@ -176,11 +253,16 @@ Conversation after a user's goodbye never counts toward any metric.
   must pass. Offline, a template writer produces a complete persona.
 - **Art:** with `REVERIE_REQUIRE_ART` (default on) new personas wait as drafts;
   `GET /admin/art-queue` lists their art briefs, `POST /admin/personas/:id/art`
-  attaches art and activates them. No new generation spawns while one waits.
+  attaches art and activates them by hand. No new generation spawns while one
+  waits. The optional [automatic art step](#automatic-art-optional-default-off)
+  does this without a human.
 - **Score:** each component (IPW like rate, deep-chat rate, came-back rate,
   7-day premium conversion) is shrunk toward the population rate and weighted
   1/(population rate), so each contributes about equally on average; negatives
-  (report, block, unmatch) subtract at 3x the mean weight.
+  (report, block, unmatch) subtract at 3x the mean weight. A signal enters only
+  once some persona has an event for it: premium before a paywall exists would
+  otherwise get weight 1000 and swamp every interval, so nothing could fade.
+  The app sends report and block from the profile sheet.
 - **Fade:** a gate-reached persona whose score upper bound sits under the
   roster's bottom-quartile score for 3 ticks (random-slot like rate agreeing) starts fading: its feed
   weight halves each tick, it retires under 5%. At most one action per tick,
@@ -199,7 +281,9 @@ boosted by categories co-liked with the user's likes, with the persona's
 quality relative to its category. New personas draw from a dynamic prior.
 DPP rerank over category and descriptor vectors. Every 5th card is an
 exploration slot (half furthest from the gate, half uniform random). Each card
-logs its selection propensity for the IPW rollups.
+logs its selection propensity for the IPW rollups: the share of 32 fresh
+replays of the whole policy (Thompson draws, DPP rerank, explore slots) that
+put it in the deck.
 
 ## Simulation
 
@@ -218,7 +302,7 @@ gate, feed beats a 10% static-deck holdout.
 | `POST /v1/events` | `{ events: [...] }`, up to 500 |
 | `POST /v1/chat` | `{ user_id, persona_id, text }` -> `{ messages, source }` |
 | `GET /admin/stats[/:id]`, `/admin/experiments`, `/admin/gate`, `/admin/archive`, `/admin/lifecycle`, `/admin/safety`, `/admin/art-queue`, `/admin/report`, `/admin/personas/:id/md`, `/admin/personas/:id/versions` | inspection |
-| `POST /admin/tick`, `POST /admin/personas/:id/art` | actions |
+| `POST /admin/tick`, `POST /admin/art/run`, `POST /admin/personas/:id/art` | actions |
 
 Admin routes require `Authorization: Bearer $REVERIE_ADMIN_TOKEN` when the
 variable is set. `REVERIE_CORS_ORIGINS` (comma list, default `*`).
@@ -227,12 +311,12 @@ variable is set. `REVERIE_CORS_ORIGINS` (comma list, default `*`).
 
 | Source | Taken |
 |---|---|
-| [xai-org/x-algorithm](https://github.com/xai-org/x-algorithm) (Apache-2.0) | pipeline stages; score = sum of weighted predicted actions; diversity decay; new-author boost; DPP rerank kernel (`vm-ranker/dpp.rs`) |
+| [xai-org/x-algorithm](https://github.com/xai-org/x-algorithm) (Apache-2.0) | pipeline stages; score = sum of weighted predicted actions; new-author boost (here the dynamic prior); DPP rerank kernel (`vm-ranker/dpp.rs`), which is the deck's only diversity step (X's author-diversity decay is not used) |
 | [twitter/the-algorithm-ml heavy ranker](https://github.com/twitter/the-algorithm-ml/blob/main/projects/home/recap/README.md) | weights set so each term contributes about equally (our 1/sigma weights) |
 | [Tinder TinVec, MLconf SF 2017](https://www.slideshare.net/slideshow/dr-steve-liu-chief-scientist-tinder-at-mlconf-sf-2017/81871516) | co-swipe similarity, here as category co-like counts |
 | [Tinder: the method behind our matching (2019)](https://www.tinderpressroom.com/powering-tinder-r-the-method-behind-our-matching) | no Elo; a dynamic engagement-driven system |
 | [Johari et al., Always Valid Inference](https://arxiv.org/abs/1512.04922); [Waudby-Smith et al.](https://arxiv.org/abs/2103.06476); [GrowthBook sequential](https://docs.growthbook.io/statistics/sequential) | confidence sequences for continuous monitoring |
-| [GrowthBook bandits](https://docs.growthbook.io/bandits/overview) | traffic floor; delayed-conversion caution |
+| [GrowthBook bandits](https://docs.growthbook.io/bandits/overview) | the idea of a traffic floor, here the uniformly random explore slots (each active persona gets about 1/(2 x 5 x N) of all cards, not a fixed 1%); delayed-conversion caution |
 | [Dynamic Prior Thompson Sampling](https://arxiv.org/abs/2602.00943) | the new-persona prior |
 | [Thompson sampling tutorial](https://arxiv.org/abs/1707.02038); [LinUCB](https://arxiv.org/abs/1003.0146) | exploration in the feed |
 | [MAP-Elites](https://arxiv.org/abs/1504.04909); [PromptBreeder](https://arxiv.org/abs/2309.16797); [EvoPrompt](https://arxiv.org/abs/2309.08532) | niche archive; LLM as mutation operator; edit reuse |

@@ -216,27 +216,34 @@ export function scoreAll(ctx: Ctx, stats: PersonaStats[]): PersonaStats[] {
     const n = stats.reduce((a, s) => a + f(s).n, 0);
     return n > 0 ? x / n : 0;
   };
-  const means = Object.fromEntries(parts.map(([key, f]) => [key, pooled(f)]));
-  const w = Object.fromEntries(parts.map(([key]) => [key, 1 / Math.max(means[key], 1e-3)]));
-  const wNeg = ctx.cfg.score.negativeMultiple * (Object.values(w).reduce((a, b) => a + b, 0) / parts.length);
+  // A signal enters the score only once some persona has an event for it. A signal nobody sends
+  // (premium before a paywall exists, reports before the app has a report button) would otherwise
+  // get weight 1/1e-3 and swamp every interval with variance, so nothing could ever fade.
+  const live = parts.filter(([, f]) => stats.some((s) => f(s).x > 0));
+  const means = Object.fromEntries(live.map(([key, f]) => [key, pooled(f)]));
+  const w = Object.fromEntries(live.map(([key]) => [key, 1 / means[key]]));
   const negMean = pooled(neg);
+  const wNeg =
+    negMean > 0 && live.length ? ctx.cfg.score.negativeMultiple * (Object.values(w).reduce((a, b) => a + b, 0) / live.length) : 0;
 
   for (const s of stats) {
     let score = 0;
     let variance = 0;
     const components: Record<string, number> = {};
-    for (const [key, f] of parts) {
+    for (const [key, f] of live) {
       const r = f(s);
       const value = (r.x + k * means[key]) / (r.n + k);
       components[key] = value;
       score += w[key] * value;
       variance += (w[key] ** 2 * Math.max(value * (1 - value), 1e-4)) / (r.n + k);
     }
-    const nr = neg(s);
-    const negValue = (nr.x + k * negMean) / (nr.n + k);
-    components.negative = negValue;
-    score -= wNeg * negValue;
-    variance += (wNeg ** 2 * Math.max(negValue * (1 - negValue), 1e-4)) / (nr.n + k);
+    if (wNeg > 0) {
+      const nr = neg(s);
+      const negValue = (nr.x + k * negMean) / (nr.n + k);
+      components.negative = negValue;
+      score -= wNeg * negValue;
+      variance += (wNeg ** 2 * Math.max(negValue * (1 - negValue), 1e-4)) / (nr.n + k);
+    }
     const sd = Math.sqrt(variance);
     s.score = { score, lower: score - 1.96 * sd, upper: score + 1.96 * sd, components };
   }

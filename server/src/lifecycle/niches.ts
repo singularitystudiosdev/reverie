@@ -12,6 +12,7 @@
  */
 import type { Ctx } from '../context.ts';
 import { json } from '../db.ts';
+import { lintText } from '../personas/safety.ts';
 import type { Descriptors, Persona } from '../personas/schema.ts';
 import type { PersonaStats } from '../telemetry/rollups.ts';
 
@@ -19,6 +20,8 @@ export const DESCRIPTOR_SPACE: Record<keyof Descriptors, string[]> = {
   form: [
     'human', 'elf-fae', 'undead', 'spirit', 'mermaid-siren', 'elemental-mage', 'witch', 'android', 'animal-anthro',
     'kitsune-yokai', 'djinn', 'angel', 'demon', 'dragon-kin', 'werewolf', 'ghost', 'alien', 'cat-person', 'centaur', 'goddess',
+    // Forms the starter roster added.
+    'robot', 'dragon', 'minotaur', 'yeti', 'dinosaur', 'toy', 'candy-creature', 'plant-spirit', 'sea-creature', 'cryptid', 'npc',
   ],
   setting: [
     'enchanted-forest', 'gothic-castle', 'shrine-village', 'ocean-depths', 'volcanic-ruins', 'ice-palace', 'cyber-city', 'star-tower',
@@ -35,6 +38,83 @@ export const DESCRIPTOR_SPACE: Record<keyof Descriptors, string[]> = {
   body: ['slender', 'athletic', 'curvy', 'very-curvy', 'petite', 'tall', 'plus-size', 'muscular', 'furry'],
   age_group: ['young-adult', 'adult', 'mature-adult', 'senior-adult', 'ageless-adult'],
 };
+
+/**
+ * The vocabulary grows. The explore branch needs an untried form, setting, body or age value, and
+ * a roster this broad uses up the fixed lists, so when fewer than `MIN_UNTRIED` form or setting
+ * values are left untried the LLM proposes new wide-reaching ones (validated and linted), stored in
+ * the `vocab` table. Without an LLM it draws from this reserve, so the loop never runs dry.
+ */
+export const VOCAB_RESERVE: Record<'form' | 'setting', string[]> = {
+  form: [
+    'harpy', 'gargoyle', 'golem', 'phoenix', 'sphinx', 'lamia', 'satyr', 'banshee', 'slime', 'cyborg', 'mushroom-folk', 'kraken',
+    'snow-spirit', 'bear-person', 'fox-person', 'bunny-person', 'storm-spirit', 'clockwork-automaton', 'living-statue', 'shadow-being',
+  ],
+  setting: [
+    'casino', 'cruise-ship', 'hot-spring', 'carnival', 'observatory', 'greenhouse', 'lighthouse', 'night-market', 'sleeper-train',
+    'arcade', 'opera-house', 'mountain-monastery', 'underground-club', 'treehouse-village', 'haunted-manor', 'tattoo-parlor',
+    'yacht', 'ranch', 'fashion-runway', 'recording-studio', 'surf-camp', 'desert-oasis', 'floating-market', 'film-set',
+  ],
+};
+export const MIN_UNTRIED = 3;
+const VOCAB_VALUE = /^[a-z][a-z0-9]*(-[a-z0-9]+){0,3}$/;
+
+/** The descriptor space: the fixed lists plus every value the vocabulary has grown. */
+export function descriptorSpace(ctx: Ctx): Record<keyof Descriptors, string[]> {
+  const space = Object.fromEntries(Object.entries(DESCRIPTOR_SPACE).map(([k, v]) => [k, [...v]])) as Record<keyof Descriptors, string[]>;
+  for (const r of ctx.db.prepare('SELECT axis, value FROM vocab ORDER BY id').all() as { axis: keyof Descriptors; value: string }[]) {
+    if (space[r.axis] && !space[r.axis].includes(r.value)) space[r.axis].push(r.value);
+  }
+  return space;
+}
+
+/** Values of an axis no persona (active, fading or retired) has carried. */
+export function untried(ctx: Ctx, axis: keyof Descriptors, space = descriptorSpace(ctx)): string[] {
+  const used = new Set(ctx.personas.all().map((p) => p.meta.descriptors[axis]));
+  return space[axis].filter((v) => !used.has(v));
+}
+
+/** Top up the form and setting vocabulary when it is nearly used up. Returns the values added. */
+export async function growVocabulary(ctx: Ctx, count = 6): Promise<{ axis: string; value: string; source: string }[]> {
+  const added: { axis: string; value: string; source: string }[] = [];
+  for (const axis of ['form', 'setting'] as const) {
+    const space = descriptorSpace(ctx);
+    if (untried(ctx, axis, space).length >= MIN_UNTRIED) continue;
+    const have = new Set(space[axis]);
+    const ok = (v: string, note = '') => VOCAB_VALUE.test(v) && v.length <= 30 && !have.has(v) && lintText(`${v} ${note}`).length === 0;
+    const fresh: { value: string; source: string }[] = [];
+    if (ctx.llm.enabled) {
+      const what = axis === 'form'
+        ? 'new KINDS OF CHARACTER (species, creature, being or archetype) for adult companion personas'
+        : 'new SETTINGS (a place or world a character lives in)';
+      const r = await ctx.llm.json<{ values: { value: string; why: string }[] }>(
+        'You extend the category vocabulary of an AI-companion app whose personas are all adults. Reply with JSON only.',
+        `Propose ${count} ${what} that are wide-reaching and unlike these existing ones: ${space[axis].join(', ')}. ` +
+          'Each value is lowercase kebab-case, 1-4 words, no brand or franchise names, nothing involving minors, nothing explicit.',
+        {
+          type: 'object',
+          properties: { values: { type: 'array', items: { type: 'object', properties: { value: { type: 'string' }, why: { type: 'string' } }, required: ['value', 'why'], additionalProperties: false } } },
+          required: ['values'],
+          additionalProperties: false,
+        },
+      );
+      for (const v of r?.values ?? []) if (ok(v.value, v.why) && !fresh.some((f) => f.value === v.value)) fresh.push({ value: v.value, source: 'llm' });
+    }
+    for (const v of VOCAB_RESERVE[axis]) {
+      if (fresh.length >= count) break;
+      if (ok(v) && !fresh.some((f) => f.value === v)) fresh.push({ value: v, source: 'reserve' });
+    }
+    const ins = ctx.db.prepare('INSERT INTO vocab (axis, value, source, ts) VALUES (?, ?, ?, ?)');
+    for (const f of fresh.slice(0, count)) {
+      ins.run(axis, f.value, f.source, ctx.now());
+      added.push({ axis, ...f });
+    }
+    if (added.length) {
+      ctx.db.prepare('INSERT INTO lifecycle_log (ts, kind, detail) VALUES (?, ?, ?)').run(ctx.now(), 'vocab_grow', JSON.stringify(added.filter((a) => a.axis === axis)));
+    }
+  }
+  return added;
+}
 
 /** Axes that define a niche. Aesthetic and era are varied freely inside a niche. */
 export const NICHE_AXES: (keyof Descriptors)[] = ['form', 'setting', 'vibe', 'body', 'age_group'];

@@ -9,11 +9,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { createContext } from '../src/app.ts';
-import { SERVER_ROOT } from '../src/config.ts';
+import { SERVER_ROOT, type Config, type DeepPartial } from '../src/config.ts';
 import type { Ctx } from '../src/context.ts';
 import { assignArm, effectivePersona, promote, type ExperimentRow } from '../src/experiments/engine.ts';
+import { startExperiments } from '../src/experiments/start.ts';
+import { lordLevel } from '../src/stats/fdr.ts';
 import { buildFeed } from '../src/feed/ranker.ts';
-import { spawnGeneration } from '../src/lifecycle/evolve.ts';
+import { planExplore, spawnGeneration } from '../src/lifecycle/evolve.ts';
+import { descriptorSpace, growVocabulary, MIN_UNTRIED, occupiedOrTried, untried } from '../src/lifecycle/niches.ts';
 import { computeGate } from '../src/lifecycle/gate.ts';
 import { offlineLlm } from '../src/llm/claude.ts';
 import { getSection, parsePersona } from '../src/personas/markdown.ts';
@@ -21,13 +24,24 @@ import { ingest } from '../src/telemetry/ingest.ts';
 import { computeAllStats } from '../src/telemetry/rollups.ts';
 import { chatTurn } from '../src/chat.ts';
 
-function scratch(): { ctx: Ctx; dir: string; clock: { t: number } } {
+function scratch(over: DeepPartial<Config> = {}): { ctx: Ctx; dir: string; clock: { t: number } } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'reverie-test-'));
   const personasDir = path.join(dir, 'personas');
   fs.mkdirSync(personasDir);
   for (const f of fs.readdirSync(path.join(SERVER_ROOT, 'personas'))) if (f.endsWith('.md')) fs.copyFileSync(path.join(SERVER_ROOT, 'personas', f), path.join(personasDir, f));
   const clock = { t: Date.UTC(2026, 10, 12) };
-  const ctx = createContext({ dbPath: path.join(dir, 't.db'), personasDir, lifecycle: { requireArt: false } }, offlineLlm, () => clock.t);
+  const ctx = createContext(
+    // The test plays replies itself, so it opts out of the served-replies requirement for A/B tests.
+    {
+      dbPath: path.join(dir, 't.db'),
+      personasDir,
+      ...over,
+      lifecycle: { requireArt: false, ...over.lifecycle },
+      experiments: { requireServedReplies: false, ...over.experiments },
+    },
+    offlineLlm,
+    () => clock.t,
+  );
   return { ctx, dir, clock };
 }
 
@@ -147,4 +161,94 @@ test('crisis language gets the fixed safety reply and a logged referral', async 
   assert.equal(r.source, 'crisis');
   assert.match(r.messages[0], /988/);
   assert.equal((ctx.db.prepare("SELECT COUNT(*) AS n FROM safety_events WHERE kind = 'crisis_referral'").get() as { n: number }).n, 1);
+});
+
+/** Sixty threads with Nova: replies without a question lose the user at turn 2, replies with one keep them. */
+function seedDropPattern(ctx: Ctx, clock: { t: number }): void {
+  for (let i = 0; i < 60; i++) {
+    const u = `d${i}`;
+    const at = () => (clock.t += 60_000);
+    ingest(ctx, { type: 'chat_open', user_id: u, persona_id: 'nova', ts: at() });
+    ingest(ctx, { type: 'message', user_id: u, persona_id: 'nova', props: { from: 'persona', text: 'Hey there.' }, ts: at() });
+    ingest(ctx, { type: 'message', user_id: u, persona_id: 'nova', props: { from: 'user', text: 'hi' }, ts: at() });
+    ingest(ctx, { type: 'message', user_id: u, persona_id: 'nova', props: { from: 'persona', text: i % 2 ? 'Nice. What about you?' : 'Nice.' }, ts: at() });
+    if (i % 2) ingest(ctx, { type: 'message', user_id: u, persona_id: 'nova', props: { from: 'user', text: 'me too' }, ts: at() });
+  }
+  clock.t += 3 * 86_400_000;
+}
+
+test('A/B tests open only when the server writes the replies, each at its online-FDR level', async () => {
+  const small = { experiments: { minConversationsForProposal: 10 }, telemetry: { patternMinSupport: 10 } };
+  const off = scratch({ ...small, experiments: { ...small.experiments, requireServedReplies: true } });
+  seedDropPattern(off.ctx, off.clock);
+  assert.deepEqual(await startExperiments(off.ctx), [], 'no LLM, no test: both arms would get the same scripted replies');
+
+  const on = scratch(small);
+  seedDropPattern(on.ctx, on.clock);
+  const opened = await startExperiments(on.ctx);
+  assert.equal(opened.length, 1);
+  const row = on.ctx.db.prepare('SELECT persona_id, alpha FROM experiments WHERE id = ?').get(opened[0]) as { persona_id: string; alpha: number };
+  assert.equal(row.persona_id, 'nova');
+  assert.ok(Math.abs(row.alpha - lordLevel(1, [], 0.05)) < 1e-12, `first test level ${row.alpha}`);
+});
+
+test("a card's logged propensity matches how often the whole deck policy actually shows it", () => {
+  const { ctx, clock } = scratch();
+  ingest(ctx, { type: 'swipe', user_id: 'p', persona_id: 'raven', props: { dir: 'like' }, ts: clock.t });
+  const N = 150;
+  const shown = new Map<string, number>();
+  const logged = new Map<string, number>();
+  for (let i = 0; i < N; i++) {
+    for (const c of buildFeed(ctx, 'p', { limit: 10, dryRun: true }).cards) {
+      shown.set(c.personaId, (shown.get(c.personaId) ?? 0) + 1);
+      logged.set(c.personaId, (logged.get(c.personaId) ?? 0) + c.pShown);
+    }
+  }
+  // Mean logged propensity over the requests that showed a card, weighted back to all requests:
+  // E[shown] = P(shown); E[pShown | shown] * P(shown) should be close to P(shown)^2 for an exact estimate,
+  // so compare P(shown) with E[pShown | shown] on the cards shown often enough to measure.
+  const errs: number[] = [];
+  for (const [id, n] of shown) {
+    if (n < 15) continue;
+    errs.push(Math.abs(n / N - logged.get(id)! / n));
+  }
+  assert.ok(errs.length >= 5, `${errs.length} frequently shown cards`);
+  const mean = errs.reduce((a, b) => a + b, 0) / errs.length;
+  // Sampling noise alone is about 0.02 at 150 decks; the old top-k estimate was off by the DPP's and the explore slots' share.
+  assert.ok(mean < 0.05, `mean |empirical - logged| propensity ${mean.toFixed(3)} over ${errs.length} cards`);
+});
+
+test('a signal nobody sends (premium, reports) stays out of the score instead of swamping its interval', () => {
+  const { ctx, clock } = scratch();
+  for (let i = 0; i < 300; i++) {
+    const pid = i % 3 === 0 ? 'raven' : 'nova';
+    ingest(ctx, { type: 'impression', user_id: `s${i}`, persona_id: pid, ts: clock.t });
+    ingest(ctx, { type: 'swipe', user_id: `s${i}`, persona_id: pid, props: { dir: i % 2 ? 'like' : 'pass' }, ts: clock.t });
+  }
+  const stats = computeAllStats(ctx, false);
+  const nova = stats.find((s) => s.personaId === 'nova')!;
+  assert.ok(!('premium' in nova.score!.components), 'no premium term without premium events');
+  assert.ok(!('negative' in nova.score!.components), 'no negative term without reports or blocks');
+  assert.ok(nova.score!.upper - nova.score!.lower < 3, `interval width ${(nova.score!.upper - nova.score!.lower).toFixed(2)}`);
+});
+
+test('the explore branch keeps finding untried niches at the full roster: the vocabulary grows when it runs low', async () => {
+  const { ctx } = scratch();
+  const stats = computeAllStats(ctx, false);
+  // The 154-persona roster has used up nearly every fixed form and setting value.
+  assert.ok(untried(ctx, 'form').length < MIN_UNTRIED, `untried forms before: ${untried(ctx, 'form').join(', ')}`);
+  const added = await growVocabulary(ctx);
+  assert.ok(added.some((a) => a.axis === 'form'), 'forms added');
+  assert.ok(added.every((a) => a.source === 'reserve'), 'offline: from the reserve');
+  assert.ok(untried(ctx, 'form').length >= MIN_UNTRIED);
+  assert.deepEqual(await growVocabulary(ctx), [], 'no growth while enough values are untried');
+  const plans = planExplore(ctx, stats, 4, occupiedOrTried(ctx));
+  assert.equal(plans.length, 4, 'four explore plans');
+  const space = descriptorSpace(ctx);
+  for (const plan of plans) {
+    for (const [axis, value] of Object.entries(plan.descriptors)) assert.ok(space[axis as keyof typeof space].includes(value), `${axis}=${value} in the space`);
+  }
+  // Spawning writes them as valid persona files.
+  const created = await spawnGeneration(ctx, stats, new Set(stats.map((s) => s.personaId)));
+  assert.ok(created.filter((p) => p.meta.branch === 'explore').length >= 1);
 });

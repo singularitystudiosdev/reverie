@@ -35,6 +35,7 @@ export interface AppState {
   matchIds: string[];        // resolved matches, most recent activity first; empty = chat is locked
   lastChatId: string | null; // the last chat opened: what the Chats tab returns to
   passedIds: string[];
+  blockedIds: string[];       // reported or blocked: the match ended and she never returns, not even after a deck reset
   conversations: Record<string, Conversation>;
   typing: Record<string, boolean>;
   drawerOpen: boolean;
@@ -63,6 +64,7 @@ export interface AppActions {
   send(id: string, text: string): void; // append 'me' message, typing on, await getReply, append, typing off, unread++ if not open, move to top
   setFilter(f: StyleFilter): void;
   shown(id: string): void;              // the card on top of the deck was seen (telemetry impression + keeps it on top)
+  endMatch(id: string, reason: 'report' | 'block'): void; // report or block: telemetry event, the chat ends, she is hidden for good
 }
 
 /* ---------------------------------------------------------------- persistence */
@@ -71,7 +73,7 @@ const STORAGE_KEY = 'reverie:v3';
 
 type Saved = Pick<
   AppState,
-  'matchIds' | 'passedIds' | 'conversations' | 'lastChatId' | 'pendingMatches' | 'hasMatchedBefore' | 'sentClipIds'
+  'matchIds' | 'passedIds' | 'blockedIds' | 'conversations' | 'lastChatId' | 'pendingMatches' | 'hasMatchedBefore' | 'sentClipIds'
 >;
 
 /** A new user: nobody matched, no likes, nothing said, chat locked. */
@@ -79,6 +81,7 @@ function fresh(): Saved {
   return {
     matchIds: [],
     passedIds: [],
+    blockedIds: [],
     conversations: {},
     lastChatId: null,
     pendingMatches: [],
@@ -224,7 +227,8 @@ type Action =
   | { type: 'resumingDone' }
   | { type: 'setFilter'; filter: StyleFilter }
   | { type: 'feed'; order: string[]; requestId: string }
-  | { type: 'shown'; id: string };
+  | { type: 'shown'; id: string }
+  | { type: 'endMatch'; id: string };
 
 function toFront(ids: string[], id: string): string[] {
   return [id, ...ids.filter((x) => x !== id)];
@@ -344,6 +348,29 @@ function reducer(state: AppState, action: Action): AppState {
 
     case 'resetDeck':
       return { ...state, passedIds: [] };
+
+    case 'endMatch': {
+      const id = action.id;
+      const matchIds = state.matchIds.filter((x) => x !== id);
+      const { [id]: _ended, ...conversations } = state.conversations;
+      const { [id]: _typing, ...typing } = state.typing;
+      const inChat = state.openChatId === id;
+      return {
+        ...state,
+        matchIds,
+        conversations,
+        typing,
+        blockedIds: state.blockedIds.includes(id) ? state.blockedIds : [...state.blockedIds, id],
+        pendingMatches: state.pendingMatches.filter((p) => p.characterId !== id),
+        matchNotices: state.matchNotices.filter((x) => x !== id),
+        resumingIds: state.resumingIds.filter((x) => x !== id),
+        lastChatId: state.lastChatId === id ? matchIds[0] ?? null : state.lastChatId,
+        openChatId: inChat ? null : state.openChatId,
+        tab: inChat ? 'explore' : state.tab,
+        drawerOpen: inChat ? false : state.drawerOpen,
+        profileId: null,
+      };
+    }
 
     case 'sent': {
       const convo = state.conversations[action.id] ?? {
@@ -694,6 +721,10 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
         dispatch({ type: 'pass', id });
       },
       dismissNotice: (id) => dispatch({ type: 'dismissNotice', id }),
+      endMatch: (id, reason) => {
+        track(reason, id);
+        dispatch({ type: 'endMatch', id });
+      },
       resetDeck: () => {
         track('deck_reset');
         dispatch({ type: 'resetDeck' });
@@ -731,11 +762,11 @@ const rosterRank = new Map<string, number>(characters.map((c, i) => [c.id, deckO
  */
 export function useDeck(): Character[] {
   const { state } = useApp();
-  const { matchIds, passedIds, pendingMatches, feedOrder, shownTopId } = state;
+  const { matchIds, passedIds, blockedIds, pendingMatches, feedOrder, shownTopId } = state;
   return useMemo(() => {
     const pendingIds = pendingMatches.map((p) => p.characterId);
     const out = characters.filter(
-      (c) => !matchIds.includes(c.id) && !passedIds.includes(c.id) && !pendingIds.includes(c.id)
+      (c) => !matchIds.includes(c.id) && !passedIds.includes(c.id) && !blockedIds.includes(c.id) && !pendingIds.includes(c.id)
     );
     // The backend's ranked order first (when it answered), then the local order for anyone it did not rank.
     const feedRank = new Map((feedOrder ?? []).map((id, i) => [id, i]));
@@ -743,7 +774,7 @@ export function useDeck(): Character[] {
     const rank = (id: string) =>
       id === shownTopId ? -1 : feedRank.get(id) ?? offset + (deckRank.get(id) ?? rosterRank.get(id) ?? 0);
     return out.sort((a, b) => rank(a.id) - rank(b.id));
-  }, [matchIds, passedIds, pendingMatches, feedOrder, shownTopId]);
+  }, [matchIds, passedIds, blockedIds, pendingMatches, feedOrder, shownTopId]);
 }
 
 /** True once the first match has RESOLVED: the Chats tab works. */

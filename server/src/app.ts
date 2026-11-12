@@ -14,10 +14,13 @@
  *   GET  /admin/archive | /admin/lifecycle | /admin/safety | /admin/art-queue | /admin/report
  *   GET  /admin/personas/:id/md | /admin/personas/:id/versions
  *   POST /admin/tick
+ *   POST /admin/art/run            { id? }   run the automatic art job now (opt-in, capped; see src/art/job.ts)
  *   POST /admin/personas/:id/art   { art: { portrait, ... }, activate?: boolean }
  */
 import http from 'node:http';
 import { chatTurn } from './chat.ts';
+import { artStatus, draftsNeedingArt, runArtJob } from './art/job.ts';
+import { attachArt } from './art/attach.ts';
 import { loadConfig, type DeepPartial, type Config } from './config.ts';
 import type { Ctx } from './context.ts';
 import { json, openDb } from './db.ts';
@@ -174,7 +177,10 @@ route('GET', /^\/admin\/safety$/, (ctx) => ({ counts: ctx.db.prepare('SELECT kin
 route(
   'GET',
   /^\/admin\/art-queue$/,
-  (ctx) => ({ drafts: ctx.personas.all().filter((p) => p.meta.status === 'draft').map((p) => ({ id: p.meta.id, name: p.meta.name, brief: artBrief(p) })) }),
+  (ctx) => ({
+    drafts: ctx.personas.all().filter((p) => p.meta.status === 'draft').map((p) => ({ id: p.meta.id, name: p.meta.name, brief: artBrief(p) })),
+    auto: { ...artStatus(ctx), waiting: draftsNeedingArt(ctx).map((p) => p.meta.id) },
+  }),
   true,
 );
 route(
@@ -201,10 +207,7 @@ route(
     if (!p) throw new HttpError(404, 'no such persona');
     const b = body as { art?: Record<string, string>; activate?: boolean };
     if (!b?.art?.portrait) throw new HttpError(400, 'art.portrait required');
-    const art = { ...p.meta.art, ...b.art };
-    const status = b.activate !== false && p.meta.status === 'draft' ? 'active' : p.meta.status;
-    const saved = ctx.personas.save({ ...p, meta: { ...p.meta, art, status } }, 'art attached');
-    return personaCard(saved);
+    return personaCard(attachArt(ctx, p, b.art, b.activate !== false));
   },
   true,
 );
@@ -212,8 +215,9 @@ route('POST', /^\/admin\/tick$/, async (ctx) => {
   const r = await tick(ctx);
   return { gate: r.gate, spawned: r.spawned, opened: r.opened, fade: r.fade, evaluations: r.evaluations };
 }, true);
+route('POST', /^\/admin\/art\/run$/, (ctx, _r, _u, _p, body) => runArtJob(ctx, { only: (body as { id?: string } | null)?.id }), true);
 route('GET', /^\/admin\/report$/, async (ctx) => {
-  const r = await tick(ctx, { writeReport: false });
+  const r = await tick(ctx, { writeReport: false, art: false });
   return { markdown: renderReport(ctx, r) };
 }, true);
 

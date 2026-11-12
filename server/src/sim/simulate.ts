@@ -9,7 +9,7 @@
  *   (c) new personas spawn only after every active persona reached the gate
  *   (d) the personalised feed beats a static deck (a 10% static holdout)
  *
- *   node src/sim/simulate.ts [--days 40] [--users-per-day 220] [--seed 7] [--quiet]
+ *   node src/sim/simulate.ts [--days 40] [--users-per-day 220] [--seed 7] [--quiet] [--no-premium] [--no-reports]
  *
  * The hidden world: users belong to 1-2 taste clusters over feed categories;
  * one cluster wants categories the seed roster does not have (animal-anthro,
@@ -32,6 +32,7 @@ import { serializePersona } from '../personas/markdown.ts';
 import { makeRng, type Rng } from '../stats/random.ts';
 import { tick, renderReport, type TickReport } from '../jobs/scheduler.ts';
 import { ingest, type IncomingEvent } from '../telemetry/ingest.ts';
+import { computeAllStats } from '../telemetry/rollups.ts';
 
 const args = process.argv.slice(2);
 const arg = (k: string, d: number) => {
@@ -41,6 +42,14 @@ const arg = (k: string, d: number) => {
 const DAYS = arg('days', 40);
 const USERS_PER_DAY = arg('users-per-day', 220);
 const SEED = arg('seed', 7);
+// Drop events the app does not send yet, to check the loop still works on what it does send.
+// The random draws are unchanged, so a seed simulates the same users either way.
+const NO_PREMIUM = args.includes('--no-premium');
+const NO_REPORTS = args.includes('--no-reports');
+// --shipped: the server's default thresholds (gate, fade, experiments) instead of the relaxed ones
+// below; only art (no generator in a simulation) and the served-replies rule (the simulator plays
+// the replies) are switched off.
+const SHIPPED = args.includes('--shipped');
 const QUIET = args.includes('--quiet');
 const DAY = 86_400_000;
 const T0 = Date.UTC(2026, 10, 12);
@@ -167,9 +176,14 @@ async function run() {
     {
       dbPath: path.join(dir, 'sim.db'),
       personasDir,
-      lifecycle: { requireArt: false, gateMde: 0.1, gateMinImpressions: 300, gateMinConversations: 120, minActive: 10, fadeStreak: 2 },
-      experiments: { minPerArm: 120, maxPerArm: 900, minConversationsForProposal: 80 },
-      telemetry: { patternMinSupport: 25 },
+      ...(SHIPPED
+        ? { lifecycle: { requireArt: false }, experiments: { requireServedReplies: false } }
+        : {
+            lifecycle: { requireArt: false, gateMde: 0.1, gateMinImpressions: 300, gateMinConversations: 120, minActive: 10, fadeStreak: 2 },
+            // The simulator plays every reply from the persona text (variant included), so tests are real here.
+            experiments: { minPerArm: 120, maxPerArm: 900, minConversationsForProposal: 80, requireServedReplies: false },
+            telemetry: { patternMinSupport: 25 },
+          }),
     },
     offlineLlm,
     () => now,
@@ -247,12 +261,17 @@ async function run() {
         }
         emit({ type: 'chat_close', user_id: u.id, persona_id: pid, props: { duration_ms: now - start } });
         if (turn >= ctx.cfg.telemetry.deepChatTurns) (u.holdout ? metrics.static : metrics.feed).deep++;
-        if (rng() < 0.004 + (t.quality < -0.5 ? 0.02 : 0)) emit({ type: rng() < 0.5 ? 'report' : 'block', user_id: u.id, persona_id: pid });
+        if (rng() < 0.004 + (t.quality < -0.5 ? 0.02 : 0)) {
+          const type = rng() < 0.5 ? 'report' : 'block';
+          if (!NO_REPORTS) emit({ type, user_id: u.id, persona_id: pid });
+        }
         if (rng() < 0.15) emit({ type: 'deck_return', user_id: u.id, persona_id: pid });
         if (!u.premium && rng() < 0.004 + (turn >= 10 ? 0.02 : 0)) {
           u.premium = true;
-          emit({ type: 'premium_view', user_id: u.id, persona_id: pid });
-          emit({ type: 'premium_convert', user_id: u.id, props: { plan: 'monthly' } });
+          if (!NO_PREMIUM) {
+            emit({ type: 'premium_view', user_id: u.id, persona_id: pid });
+            emit({ type: 'premium_convert', user_id: u.id, props: { plan: 'monthly' } });
+          }
         }
       }
       if (rng() < 0.05) {
@@ -279,7 +298,7 @@ async function run() {
     if (!QUIET) {
       const g = lastReport!.gate;
       console.log(
-        `day ${String(day + 1).padStart(2)}: users ${users.length}, active ${today.length}, personas ${ctx.personas.servable().length}, gate ${g.open ? 'open' : `${g.personas.filter((x) => x.reached).length}/${g.personas.length}`}, experiments running ${(ctx.db.prepare("SELECT COUNT(*) AS n FROM experiments WHERE status='running'").get() as { n: number }).n}`,
+        `day ${String(day + 1).padStart(2)}: users ${users.length}, active ${today.length}, personas ${ctx.personas.servable().length}, chats ${(ctx.db.prepare('SELECT COUNT(*) AS n FROM conversations WHERE user_turns > 0').get() as { n: number }).n}, gate ${g.open ? 'open' : `${g.personas.filter((x) => x.reached).length}/${g.personas.length} reached, ${g.personas.filter((x) => x.flagged).length} timed out (needs ${g.nImpressions} impressions, ${g.nConversations} chats each)`}, experiments running ${(ctx.db.prepare("SELECT COUNT(*) AS n FROM experiments WHERE status='running'").get() as { n: number }).n}`,
       );
     }
   }
@@ -315,6 +334,32 @@ async function run() {
     console.log(`      day ${Math.floor((s.ts - T0) / DAY) + 1} ${s.kind}: ${s.persona_id} (${p?.meta.kind}; ${p?.meta.categories.join(', ')}${p?.meta.parent ? `; parent ${p.meta.parent}` : ''}) status ${p?.meta.status}`);
   }
   console.log(`(d) like rate per impression: feed ${(feedLike * 100).toFixed(1)}% vs static ${(staticLike * 100).toFixed(1)}% (n=${metrics.feed.imp} / ${metrics.static.imp}); deep chats per user: feed ${feedDeep.toFixed(2)} vs static ${staticDeep.toFixed(2)}`);
+  // (e) Does the IPW like rate remove the feed's bias? Each persona's hidden population like rate
+  // (the true like probability averaged over every simulated user) against three estimates.
+  const ipwRows: { truth: number; naive: number; ipw: number; random: number | null }[] = [];
+  for (const st of computeAllStats(ctx, false)) {
+    if (st.impressions < 200) continue;
+    const t = truthFor(ctx, rng, truthCache, '__probe__', st.personaId);
+    const truth = users.reduce((a, u) => a + likeProb(u, ctx, st.personaId, t.quality), 0) / users.length;
+    const raw = ctx.db
+      .prepare("SELECT COUNT(*) AS n, SUM(outcome = 'like') AS x FROM impressions WHERE persona_id = ? AND outcome IS NOT NULL")
+      .get(st.personaId) as { n: number; x: number | null };
+    ipwRows.push({
+      truth,
+      naive: raw.n ? (raw.x ?? 0) / raw.n : 0,
+      ipw: st.likeRateIpw.rate,
+      random: st.likeRateRandom.n >= 30 ? st.likeRateRandom.rate : null,
+    });
+  }
+  const mae = (f: (r: (typeof ipwRows)[number]) => number | null) => {
+    const v = ipwRows.filter((r) => f(r) !== null);
+    return v.length ? `${((v.reduce((a, r) => a + Math.abs(f(r)! - r.truth), 0) / v.length) * 100).toFixed(1)}pp (n=${v.length})` : '-';
+  };
+  const bias = (f: (r: (typeof ipwRows)[number]) => number | null) => {
+    const v = ipwRows.filter((r) => f(r) !== null);
+    return v.length ? `${((v.reduce((a, r) => a + (f(r)! - r.truth), 0) / v.length) * 100).toFixed(1)}pp` : '-';
+  };
+  console.log(`(e) like-rate estimates vs the hidden population rate, personas with 200+ impressions: mean abs error naive ${mae((r) => r.naive)}, IPW ${mae((r) => r.ipw)}, random-slot ${mae((r) => r.random)}; mean bias naive ${bias((r) => r.naive)}, IPW ${bias((r) => r.ipw)}, random-slot ${bias((r) => r.random)}`);
   if (lastReport && !QUIET) console.log(`\n${renderReport(ctx, lastReport)}`);
   console.log(`scratch dir (personas as rewritten by the loop, sim.db): ${dir}`);
   return { truePromotions, promoted: promoted.length, harmfulPromoted, faded, retired, worstSeeds, gateOpenedDay, firstSpawnDay, spawnBeforeGate, feedLike, staticLike, feedDeep, staticDeep };

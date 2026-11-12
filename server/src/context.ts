@@ -1,3 +1,4 @@
+import type { ArtProvider } from './art/providers.ts';
 import type { Config } from './config.ts';
 import type { DB } from './db.ts';
 import type { Llm } from './llm/claude.ts';
@@ -13,4 +14,6 @@ export interface Ctx {
   llm: Llm;
   /** Wall clock; the simulation substitutes a virtual one. */
   now: () => number;
+  /** Image and video generation for the art job; tests inject a fake. Unset: the real Gemini + xAI provider. */
+  artProvider?: ArtProvider;
 }

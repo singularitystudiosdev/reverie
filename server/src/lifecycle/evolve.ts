@@ -25,7 +25,7 @@ import type { Ctx } from '../context.ts';
 import { serializePersona } from '../personas/markdown.ts';
 import { lockedBoundaries, type Descriptors, type Persona, type PersonaBranch, type PersonaGender } from '../personas/schema.ts';
 import type { PersonaStats } from '../telemetry/rollups.ts';
-import { axisMarginals, categoriesFor, DESCRIPTOR_SPACE, EXPLOIT_AXES, nicheKey, NICHE_AXES, occupiedOrTried, rebuildArchive, styleFor } from './niches.ts';
+import { axisMarginals, categoriesFor, descriptorSpace, DESCRIPTOR_SPACE, EXPLOIT_AXES, growVocabulary, nicheKey, NICHE_AXES, occupiedOrTried, rebuildArchive, styleFor } from './niches.ts';
 
 export interface SpawnPlan {
   branch: Exclude<PersonaBranch, 'seed'>;
@@ -47,15 +47,17 @@ export function planExplore(ctx: Ctx, stats: PersonaStats[], count: number, take
   const marg = axisMarginals(personas, stats);
   const scores = stats.map((s) => s.score?.score ?? 0);
   const globalMean = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
-  const tried = new Set(personas.flatMap((p) => (Object.keys(DESCRIPTOR_SPACE) as (keyof Descriptors)[]).map((k) => `${k}=${p.meta.descriptors[k]}`)));
+  const space = descriptorSpace(ctx);
+  // Tried: carried by any persona ever written, retired ones included.
+  const tried = new Set(ctx.personas.all().flatMap((p) => (Object.keys(space) as (keyof Descriptors)[]).map((k) => `${k}=${p.meta.descriptors[k]}`)));
   const plans: SpawnPlan[] = [];
   for (let i = 0; i < count; i++) {
     let best: { d: Descriptors; value: number } | null = null;
     for (let attempt = 0; attempt < 400; attempt++) {
       const d = {} as Descriptors;
       let value = 0;
-      for (const axis of Object.keys(DESCRIPTOR_SPACE) as (keyof Descriptors)[]) {
-        const options = DESCRIPTOR_SPACE[axis];
+      for (const axis of Object.keys(space) as (keyof Descriptors)[]) {
+        const options = space[axis];
         const weights = options.map((v) => Math.exp(ucb(marg.get(`${axis}=${v}`), globalMean, personas.length) / 0.5));
         const sum = weights.reduce((a, b) => a + b, 0);
         let r = ctx.rng() * sum;
@@ -90,6 +92,7 @@ export function planExploit(ctx: Ctx, stats: PersonaStats[], count: number, take
     .filter((s) => s.score && eligible.has(s.personaId) && ctx.personas.get(s.personaId)?.meta.status === 'active')
     .sort((a, b) => b.score!.lower - a.score!.lower)
     .slice(0, count);
+  const space = descriptorSpace(ctx);
   const plans: SpawnPlan[] = [];
   for (const s of top) {
     const parent = ctx.personas.get(s.personaId)!;
@@ -99,7 +102,7 @@ export function planExploit(ctx: Ctx, stats: PersonaStats[], count: number, take
       const nChange = ctx.rng() < 0.5 ? 1 : 2;
       const axes = [...EXPLOIT_AXES].sort(() => ctx.rng() - 0.5).slice(0, nChange);
       for (const axis of axes) {
-        const options = DESCRIPTOR_SPACE[axis].filter((v) => v !== d[axis]);
+        const options = space[axis].filter((v) => v !== d[axis]);
         const weights = options.map((v) => Math.exp(ucb(marg.get(`${axis}=${v}`), globalMean, personas.length) / 0.5));
         const sum = weights.reduce((a, b) => a + b, 0);
         let r = ctx.rng() * sum;
@@ -328,8 +331,8 @@ function templateWrite(ctx: Ctx, plan: SpawnPlan): Written {
         ? NAMES.group
         : (NAMES[d.form === 'animal-anthro' ? 'animal-anthro' : d.age_group] ?? NAMES.default);
   const name = ctx.rng.pick(pool);
-  const noun = plan.gender === 'male' && d.form === 'human' ? 'man' : plan.gender === 'group' ? 'crew' : (FORM_NOUN[d.form] ?? 'stranger');
-  const where = SETTING_PHRASE[d.setting] ?? d.setting;
+  const noun = plan.gender === 'male' && d.form === 'human' ? 'man' : plan.gender === 'group' ? 'crew' : (FORM_NOUN[d.form] ?? d.form.replace(/-/g, ' '));
+  const where = SETTING_PHRASE[d.setting] ?? d.setting.replace(/-/g, ' ');
   const age = d.age_group === 'senior-adult' ? '68' : d.age_group === 'mature-adult' ? '44' : d.age_group === 'ageless-adult' ? 'ageless (adult)' : d.age_group === 'young-adult' ? '23' : '29';
   const flirt = d.vibe === 'shy' || d.vibe === 'wholesome' ? 3 : d.vibe === 'bold' || d.vibe === 'confident' || d.vibe === 'teasing' ? 7 : 5;
   const kind = `${d.vibe[0].toUpperCase()}${d.vibe.slice(1)} ${noun} of the ${where}`;
@@ -376,6 +379,8 @@ export async function spawnGeneration(ctx: Ctx, stats: PersonaStats[], eligible:
   // Split the room between the branches, exploit first (it is the safer bet).
   const nExploit = Math.min(l.exploitCount, Math.ceil(room / 2));
   const nExplore = Math.min(l.exploreCount, room - nExploit);
+  // The explore branch needs untried values: grow the form and setting vocabulary when it runs low.
+  if (nExplore > 0) await growVocabulary(ctx);
   const plans = [...planExploit(ctx, stats, nExploit, taken, eligible), ...planExplore(ctx, stats, nExplore, taken)];
   const created: Persona[] = [];
   for (const plan of plans) {

@@ -22,7 +22,7 @@
  *   explore   every k-th card is an exploration slot: half go to the persona
  *             furthest from the significance gate, half uniformly at random
  *             (the unbiased sample the fade check reads).
- *   log       every card's slot and selection propensity (Monte Carlo over
+ *   log       every card's slot and selection propensity (Monte Carlo replays
  *             the Thompson draws), for inverse-propensity-weighted metrics.
  *
  * In the proxy simulation (600 users, correlated tastes) a 10-card deck got
@@ -34,7 +34,7 @@ import { makeId } from '../util.ts';
 import { fadeMultiplier } from '../lifecycle/fade.ts';
 import { feedTags, type Persona } from '../personas/schema.ts';
 import type { Rng } from '../stats/random.ts';
-import { dppSelect } from './dpp.ts';
+import { cosineCache, dppSelect } from './dpp.ts';
 import { getFeedModel, type FeedModel } from './model.ts';
 
 export interface FeedCard {
@@ -144,55 +144,51 @@ export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { re
   const fades = new Map(candidates.map((p) => [p.meta.id, fadeMultiplier(ctx, p.meta.id)]));
   const draws = candidates.map((p) => drawScore(model, p, u, ctx.rng, cfg.userShrink, fades.get(p.meta.id)!));
 
-  // Diversity: DPP over the scored pool.
-  const order = dppSelect(
-    draws.map((d) => d.score),
-    candidates.map((p) => model.vectors.get(p.meta.id) ?? [1]),
-    Math.min(limit, candidates.length),
-    cfg.dppTheta,
-  );
-
-  // Exploration slots.
-  const picked: { idx: number; slot: FeedCard['slot'] }[] = order.map((idx) => ({ idx, slot: 'exploit' as const }));
-  const used = new Set(order);
-  const remaining = () => candidates.map((_, i) => i).filter((i) => !used.has(i));
-  for (let pos = cfg.exploreEvery - 1; pos < picked.length; pos += cfg.exploreEvery) {
-    const pool = remaining();
-    if (!pool.length) break;
-    let idx: number;
-    let slot: FeedCard['slot'];
-    if (ctx.rng() < 0.5) {
-      // Furthest from the gate: fewest impressions relative to the roster.
-      idx = pool.reduce((best, i) =>
-        (model.impressions.get(candidates[i].meta.id) ?? 0) < (model.impressions.get(candidates[best].meta.id) ?? 0) ? i : best,
-      );
-      slot = 'undersampled';
-    } else {
-      idx = pool[ctx.rng.int(pool.length)];
-      slot = 'random';
+  // Selection: DPP over the scored pool, then every k-th card becomes an exploration slot.
+  const vectors = candidates.map((p) => model.vectors.get(p.meta.id) ?? [1]);
+  const sim = cosineCache(vectors);
+  const k = Math.min(limit, candidates.length);
+  const select = (scores: number[]): { idx: number; slot: FeedCard['slot'] }[] => {
+    const order = dppSelect(scores, vectors, k, cfg.dppTheta, sim);
+    const picked: { idx: number; slot: FeedCard['slot'] }[] = order.map((idx) => ({ idx, slot: 'exploit' as const }));
+    const used = new Set(order);
+    for (let pos = cfg.exploreEvery - 1; pos < picked.length; pos += cfg.exploreEvery) {
+      const pool = candidates.map((_, i) => i).filter((i) => !used.has(i));
+      if (!pool.length) break;
+      let idx: number;
+      let slot: FeedCard['slot'];
+      if (ctx.rng() < 0.5) {
+        // Furthest from the gate: fewest impressions relative to the roster.
+        idx = pool.reduce((best, i) =>
+          (model.impressions.get(candidates[i].meta.id) ?? 0) < (model.impressions.get(candidates[best].meta.id) ?? 0) ? i : best,
+        );
+        slot = 'undersampled';
+      } else {
+        idx = pool[ctx.rng.int(pool.length)];
+        slot = 'random';
+      }
+      used.delete(picked[pos].idx);
+      used.add(idx);
+      picked[pos] = { idx, slot };
     }
-    used.delete(picked[pos].idx);
-    used.add(idx);
-    picked[pos] = { idx, slot };
-  }
+    return picked;
+  };
+  const picked = select(draws.map((d) => d.score));
 
-  // Propensity: how often each candidate makes the exploit part of the deck across fresh Thompson draws.
+  // Propensity: the share of fresh replays of the WHOLE policy (Thompson draws, DPP rerank and
+  // the explore slots) that put each candidate in the deck. Estimating it from the scores' top-k
+  // alone would mis-weight the DPP's diversity picks and every explore slot.
   const M = cfg.propensityDraws;
-  const exploitCount = picked.filter((p) => p.slot === 'exploit').length;
   const freq = new Array(candidates.length).fill(0);
   for (let m = 0; m < M; m++) {
-    const s = candidates.map((p) => drawScore(model, p, u, ctx.rng, cfg.userShrink, fades.get(p.meta.id)!).score);
-    const top = s.map((v, i) => [v, i] as const).sort((a, b) => b[0] - a[0]).slice(0, exploitCount);
-    for (const [, i] of top) freq[i]++;
+    const scores = candidates.map((p) => drawScore(model, p, u, ctx.rng, cfg.userShrink, fades.get(p.meta.id)!).score);
+    for (const { idx } of select(scores)) freq[idx]++;
   }
-  const exploreSlots = picked.length - exploitCount;
-  const pRandom = exploreSlots ? exploreSlots / candidates.length : 0;
 
   const cards: FeedCard[] = picked.map(({ idx, slot }, position) => {
     const p = candidates[idx];
     const d = draws[idx];
-    const pExploit = freq[idx] / M;
-    const pShown = Math.min(1, Math.max(pExploit + pRandom * (1 - pExploit), 1 / (2 * M)));
+    const pShown = Math.min(1, Math.max(freq[idx] / M, 1 / (2 * M)));
     return { personaId: p.meta.id, position, slot, pShown, score: d.score, why: { pLike: d.pLike, pDeep: d.pDeep, pNeg: d.pNeg, affinity: d.affinity, quality: d.quality, isNew: d.isNew, fade: d.fade } };
   });
 

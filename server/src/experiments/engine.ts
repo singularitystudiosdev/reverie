@@ -42,6 +42,8 @@ export interface ExperimentRow {
   pattern_sig: string;
   target_turn: number;
   source: string;
+  /** This test's level from online FDR control; null on tests opened before it existed. */
+  alpha: number | null;
   decision: string | null;
   result: string | null;
 }
@@ -151,8 +153,11 @@ export function evaluate(ctx: Ctx, exp: ExperimentRow): Evaluation {
   const e = ctx.cfg.experiments;
   const basePass = c.target.n > 20 ? c.target.x / c.target.n : 0.7;
   // N*: the total sample at which a decision is expected (GrowthBook's tuning rule), from the target metric's power.
-  const nStar = Math.max(2 * e.minPerArm, 2 * twoProportionN(Math.min(basePass, 0.9), 0.08, e.alpha, 0.8));
-  const target = diffProportionsCS(t.target.x, t.target.n, c.target.x, c.target.n, nStar, e.alpha);
+  // The target is tested at this test's own FDR-controlled level; guardrails stay at the base level,
+  // so they block a harmful variant at least as readily.
+  const level = exp.alpha ?? e.alpha;
+  const nStar = Math.max(2 * e.minPerArm, 2 * twoProportionN(Math.min(basePass, 0.9), 0.08, level, 0.8));
+  const target = diffProportionsCS(t.target.x, t.target.n, c.target.x, c.target.n, nStar, level);
   const deep = diffProportionsCS(t.deep.x, t.deep.n, c.deep.x, c.deep.n, nStar, e.alpha);
   const rmst = diffMeansCS(moments(t.turns), moments(c.turns), nStar, e.alpha);
   const negative = diffProportionsCS(t.negative.x, t.negative.n, c.negative.x, c.negative.n, nStar, e.alpha);

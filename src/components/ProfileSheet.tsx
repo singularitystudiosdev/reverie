@@ -6,7 +6,9 @@
   - Content (v4, slimmed): her animated portrait (Portrait) as the header
     image with her name (--text-name) over a bottom scrim, then her bio with
     AnimatedBio. No interest chips, no Message button, no close button, no
-    kind or style lines.
+    kind or style lines. A quiet footer holds Report and Block (as Tinder and
+    Hinge keep them: low-emphasis text at the end of the profile); either asks
+    once inline, then ends the match, hides her for good and sends the event.
   - Mechanics (useSwipeDismiss): a swipe DOWN that starts anywhere in the
     window (the sheet, the scrim, or outside the frame) drags the sheet and
     tracks the finger 1:1; the scrim lightens as she is pulled down. It closes
@@ -23,7 +25,7 @@ import {
   motion,
   useIsPresent,
 } from 'motion/react';
-import { useEffect, useId, useRef, type JSX } from 'react';
+import { useEffect, useId, useRef, useState, type JSX } from 'react';
 import { trapTab } from './chat/focus';
 import { AnimatedBio } from './chat/AnimatedBio';
 import type { Character } from '../data/types';
@@ -156,9 +158,62 @@ function Sheet(props: { character: Character }): JSX.Element {
             }}
           >
             <AnimatedBio text={character.bio} style={character.style} />
+            <SafetyActions character={character} />
           </motion.div>
         </motion.div>
       </div>
     </motion.div>
   );
+}
+
+/** Report and Block: quiet until used, one inline confirmation, then the match ends. */
+function SafetyActions(props: { character: Character }): JSX.Element {
+  const { character } = props;
+  const { actions } = useApp();
+  const [asking, setAsking] = useState<'report' | 'block' | null>(null);
+  const first = shortName(character.name);
+  const quiet =
+    'inline-flex min-h-[var(--target-touch)] items-center text-label font-normal text-muted transition-opacity duration-[var(--duration-150)] ease-standard active:opacity-60';
+
+  return (
+    <div className="mt-24 border-t border-hairline pt-8" role="group" aria-label={`Safety options for ${character.name}`}>
+      {asking ? (
+        <div className="flex flex-col gap-12 pt-8">
+          <p className="text-label font-normal text-muted" aria-live="polite">
+            {asking === 'report'
+              ? `Report ${first}? Your chat ends, ${first} is hidden for good, and we review what was reported.`
+              : `Block ${first}? Your chat ends and ${first} never appears again.`}
+          </p>
+          <div className="flex items-center gap-16">
+            <button
+              type="button"
+              className="inline-flex h-[var(--target-touch)] items-center rounded-full bg-accent px-24 text-label text-on-accent transition-opacity duration-[var(--duration-150)] ease-standard active:opacity-80"
+              onClick={() => actions.endMatch(character.id, asking)}
+            >
+              {asking === 'report' ? 'Report' : 'Block'}
+            </button>
+            <button type="button" className={quiet} onClick={() => setAsking(null)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-24">
+          <button type="button" className={quiet} onClick={() => setAsking('report')}>
+            Report {first}
+          </button>
+          <button type="button" className={quiet} onClick={() => setAsking('block')}>
+            Block {first}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** "Officer Riley Kane" -> "Riley", "Captain Ava Lin" -> "Ava"; a group ("The Vegas Bridesmaids", "Mia & Jo") keeps its whole name. */
+function shortName(name: string): string {
+  if (/^the\s|&|\band\b/i.test(name)) return name;
+  const words = name.split(/\s+/).filter((w) => !/^(officer|sgt\.?|sergeant|captain|capt\.?|professor|prof\.?|dr\.?|lady|lord|sir|dame|madame|mr\.?|ms\.?|mrs\.?)$/i.test(w));
+  return words[0] ?? name;
 }

@@ -4,14 +4,17 @@
  *   2. experiments  evaluate running tests; promote winners into the markdown
  *   3. fade         decay and retire persistent underperformers
  *   4. gate         every active persona at a significant sample?
- *   5. evolve       if so (and no generation is still waiting on art), spawn
- *                   explore + exploit personas, globally
- *   6. experiments  open new tests for personas with enough conversations
- *   7. report       a markdown leaderboard in data/report.md
+ *   5. art          (opt-in, capped) draw, process and attach art for drafts
+ *                   waiting on it, so they go live without a human
+ *   6. evolve       if the gate is open (and no generation is still waiting on art),
+ *                   spawn explore + exploit personas, globally
+ *   7. experiments  open new tests for personas with enough conversations
+ *   8. report       a markdown leaderboard in data/report.md
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Ctx } from '../context.ts';
+import { runArtJob, type ArtRunResult } from '../art/job.ts';
 import { evaluateAll, libraryHitRate, type Evaluation } from '../experiments/engine.ts';
 import { startExperiments } from '../experiments/start.ts';
 import { invalidateFeedModel } from '../feed/model.ts';
@@ -29,9 +32,19 @@ export interface TickReport {
   gate: GateStatus;
   spawned: string[];
   opened: number[];
+  art: ArtRunResult;
 }
 
-export async function tick(ctx: Ctx, opts: { writeReport?: string | false } = {}): Promise<TickReport> {
+/**
+ * A new generation waits for the last one's art, except drafts the art job gave up on: they stay in
+ * the art queue for a person and must not stall the loop forever.
+ */
+export function waitingOnArt(ctx: Ctx): boolean {
+  const gaveUp = new Set((ctx.db.prepare("SELECT persona_id FROM lifecycle_log WHERE kind = 'art_gave_up'").all() as { persona_id: string }[]).map((r) => r.persona_id));
+  return ctx.personas.all().some((p) => p.meta.status === 'draft' && p.meta.branch !== 'seed' && !gaveUp.has(p.meta.id));
+}
+
+export async function tick(ctx: Ctx, opts: { writeReport?: string | false; art?: boolean } = {}): Promise<TickReport> {
   invalidateFeedModel(ctx);
   let stats = computeAllStats(ctx);
   const evaluations = evaluateAll(ctx);
@@ -40,9 +53,11 @@ export async function tick(ctx: Ctx, opts: { writeReport?: string | false } = {}
   const fade = fadeTick(ctx, stats, gate);
   if (fade.faded.length || fade.retired.length || fade.restored.length) gate = computeGate(ctx, stats);
 
+  // Art first, so drafts it finishes this tick no longer hold back the next generation.
+  const noArt = (skipped: string): ArtRunResult => ({ enabled: ctx.cfg.art.enabled, skipped, attached: [], failed: [], gaveUp: [], spentTodayUsd: 0, budgetUsd: ctx.cfg.art.dailyBudgetUsd });
+  const art = opts.art === false ? noArt('not-run') : await runArtJob(ctx).catch((e) => (console.error('[tick] art job failed', e), noArt('error')));
   let spawned: string[] = [];
-  const waitingOnArt = ctx.personas.all().some((p) => p.meta.status === 'draft' && p.meta.branch !== 'seed');
-  if (gate.open && !waitingOnArt) {
+  if (gate.open && !waitingOnArt(ctx)) {
     ctx.db.prepare('INSERT INTO lifecycle_log (ts, kind, detail) VALUES (?, ?, ?)').run(
       ctx.now(),
       'gate_open',
@@ -54,7 +69,7 @@ export async function tick(ctx: Ctx, opts: { writeReport?: string | false } = {}
 
   const opened = await startExperiments(ctx);
   invalidateFeedModel(ctx);
-  const report: TickReport = { at: ctx.now(), stats, evaluations, fade, gate, spawned, opened };
+  const report: TickReport = { at: ctx.now(), stats, evaluations, fade, gate, spawned, opened, art };
   if (opts.writeReport !== false) writeReport(ctx, report, opts.writeReport ?? path.join(path.dirname(ctx.cfg.dbPath), 'report.md'));
   return report;
 }
@@ -94,6 +109,7 @@ export function renderReport(ctx: Ctx, r: TickReport): string {
     ``,
     `- faded: ${r.fade.faded.join(', ') || 'none'}; retired: ${r.fade.retired.join(', ') || 'none'}; restored: ${r.fade.restored.join(', ') || 'none'}`,
     `- spawned: ${r.spawned.join(', ') || 'none'}`,
+    `- art: ${r.art.enabled ? `attached ${r.art.attached.join(', ') || 'none'}; failed ${r.art.failed.map((f) => f.id).join(', ') || 'none'}; spent today $${r.art.spentTodayUsd.toFixed(2)} of $${r.art.budgetUsd.toFixed(2)}${r.art.skipped ? ` (${r.art.skipped})` : ''}` : 'off'}`,
     `- experiments opened: ${r.opened.join(', ') || 'none'}`,
   ];
   return lines.join('\n') + '\n';

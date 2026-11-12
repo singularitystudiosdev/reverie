@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { dppSelect } from '../src/feed/dpp.ts';
 import { dynamicPrior, probBeats } from '../src/stats/dynamicPrior.ts';
 import { csHalfWidth, diffProportionsCS, normCdf, normInv, twoProportionN } from '../src/stats/inference.ts';
+import { gamma, lordLevel } from '../src/stats/fdr.ts';
 import { makeRng } from '../src/stats/random.ts';
 
 test('normal helpers are inverse of each other', () => {
@@ -82,4 +83,31 @@ test('DPP prefers a diverse slate over near-duplicates at equal scores', () => {
   assert.equal(pick.length, 3);
   const set = new Set(pick);
   assert.ok(set.has(3) && set.has(4), `picked ${pick}`);
+});
+
+test('online FDR (LORD++): levels start small, grow after discoveries, and hold the stream FDR near alpha', () => {
+  let sum = 0;
+  for (let j = 1; j <= 200_000; j++) sum += gamma(j);
+  assert.ok(sum > 0.98 && sum <= 1, `gamma sums to ${sum}`);
+  assert.ok(Math.abs(lordLevel(1, [], 0.05) - gamma(1) * 0.025) < 1e-12);
+  assert.ok(lordLevel(5, [2, 3], 0.05) > lordLevel(5, [], 0.05), 'discoveries earn level back');
+  assert.ok(lordLevel(3, [3, 7], 0.05) === lordLevel(3, [], 0.05), 'only earlier discoveries count');
+  // A stream of 400 tests, 80% true nulls (uniform p), 20% real effects (p concentrated near 0).
+  const rng = makeRng(11);
+  let fdpSum = 0;
+  const runs = 200;
+  for (let r = 0; r < runs; r++) {
+    const disc: number[] = [];
+    let falseDisc = 0;
+    for (let t = 1; t <= 400; t++) {
+      const isNull = rng() < 0.8;
+      const p = isNull ? rng() : rng() ** 8;
+      if (p <= lordLevel(t, disc, 0.05)) {
+        disc.push(t);
+        if (isNull) falseDisc++;
+      }
+    }
+    fdpSum += disc.length ? falseDisc / disc.length : 0;
+  }
+  assert.ok(fdpSum / runs <= 0.05, `empirical FDR ${fdpSum / runs}`);
 });

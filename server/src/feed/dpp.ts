@@ -6,21 +6,39 @@
  * (Chen et al., NeurIPS 2018). theta -> 0 is pure diversity; theta -> 1 is
  * pure score order. Returns indices in selection order.
  */
-export function dppSelect(scores: number[], vectors: number[][], k: number, theta: number): number[] {
+/** Cosine similarity between candidate vectors, computed once per pair and cached (the feed
+ *  replays the DPP many times per request to estimate propensities; only the scores change). */
+export function cosineCache(vectors: number[][]): (i: number, j: number) => number {
+  const n = vectors.length;
+  const norms = vectors.map((v) => Math.sqrt(v.reduce((a, x) => a + x * x, 0)) || 1);
+  const cache = new Float64Array(n * n).fill(NaN);
+  return (i, j) => {
+    const key = i < j ? i * n + j : j * n + i;
+    let v = cache[key];
+    if (Number.isNaN(v)) {
+      let dot = 0;
+      const a = vectors[i];
+      const b = vectors[j];
+      for (let x = 0; x < a.length; x++) dot += a[x] * b[x];
+      v = cache[key] = dot / (norms[i] * norms[j]);
+    }
+    return v;
+  };
+}
+
+export function dppSelect(
+  scores: number[],
+  vectors: number[][],
+  k: number,
+  theta: number,
+  sim: (i: number, j: number) => number = cosineCache(vectors),
+): number[] {
   const n = scores.length;
   if (n === 0) return [];
   const t = Math.min(Math.max(theta, 0), 1 - 1e-6);
   const alpha = t / (2 * (1 - t));
   const max = Math.max(...scores.map((s) => Math.abs(s)), 1e-9);
   const q = scores.map((s) => Math.exp((alpha * s) / max));
-  const norms = vectors.map((v) => Math.sqrt(v.reduce((a, x) => a + x * x, 0)) || 1);
-  const sim = (i: number, j: number) => {
-    let dot = 0;
-    const a = vectors[i];
-    const b = vectors[j];
-    for (let x = 0; x < a.length; x++) dot += a[x] * b[x];
-    return dot / (norms[i] * norms[j]);
-  };
   const L = (i: number, j: number) => q[i] * q[j] * (i === j ? 1 : sim(i, j));
 
   const d2 = q.map((x) => x * x);

@@ -128,6 +128,16 @@ CREATE TABLE IF NOT EXISTS persona_stats (
   stats       TEXT NOT NULL
 );
 
+-- Descriptor values the explore branch's vocabulary has grown (lifecycle/niches.ts growVocabulary).
+CREATE TABLE IF NOT EXISTS vocab (
+  id     INTEGER PRIMARY KEY,
+  axis   TEXT NOT NULL,
+  value  TEXT NOT NULL,
+  source TEXT NOT NULL,   -- llm | reserve
+  ts     INTEGER NOT NULL,
+  UNIQUE (axis, value)
+);
+
 CREATE TABLE IF NOT EXISTS experiments (
   id            INTEGER PRIMARY KEY,
   persona_id    TEXT NOT NULL,
@@ -141,6 +151,7 @@ CREATE TABLE IF NOT EXISTS experiments (
   pattern_sig   TEXT NOT NULL,
   target_turn   INTEGER NOT NULL,
   source        TEXT NOT NULL,    -- llm | library | heuristic
+  alpha         REAL,             -- this test's level from online FDR control (LORD++), fixed at its start
   decision      TEXT,
   result        TEXT
 );
@@ -181,7 +192,7 @@ CREATE TABLE IF NOT EXISTS niches (
 CREATE TABLE IF NOT EXISTS lifecycle_log (
   id          INTEGER PRIMARY KEY,
   ts          INTEGER NOT NULL,
-  kind        TEXT NOT NULL,      -- spawn_explore | spawn_exploit | fade | retire | promote | discard | gate_open | gate_flag
+  kind        TEXT NOT NULL,      -- spawn_explore | spawn_exploit | fade | retire | promote | discard | gate_open | gate_flag | art_attached | art_gave_up
   persona_id  TEXT,
   detail      TEXT
 );
@@ -203,6 +214,19 @@ CREATE TABLE IF NOT EXISTS colike (
   PRIMARY KEY (cat_a, cat_b)
 );
 
+-- Automatic art: one row per generation attempt. est_usd is the estimated spend the attempt
+-- incurred (list prices from config); the daily cap sums it over the UTC day.
+CREATE TABLE IF NOT EXISTS art_spend (
+  id          INTEGER PRIMARY KEY,
+  persona_id  TEXT NOT NULL,
+  ts          INTEGER NOT NULL,
+  est_usd     REAL NOT NULL DEFAULT 0,
+  status      TEXT NOT NULL,      -- pending | ok | failed | refused
+  error       TEXT
+);
+CREATE INDEX IF NOT EXISTS art_spend_ts ON art_spend(ts);
+CREATE INDEX IF NOT EXISTS art_spend_persona ON art_spend(persona_id);
+
 -- SB 243 style counters: crisis referrals, disclosures.
 CREATE TABLE IF NOT EXISTS safety_events (
   id        INTEGER PRIMARY KEY,
@@ -217,6 +241,9 @@ export function openDb(file: string): DB {
   if (file !== ':memory:') fs.mkdirSync(path.dirname(file), { recursive: true });
   const db = new DatabaseSync(file);
   db.exec(SCHEMA);
+  // Columns added after a database was first created.
+  const cols = (table: string) => new Set((db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name));
+  if (!cols('experiments').has('alpha')) db.exec('ALTER TABLE experiments ADD COLUMN alpha REAL');
   return db;
 }
 

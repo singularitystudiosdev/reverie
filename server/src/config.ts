@@ -6,6 +6,9 @@
  * ANTHROPIC_API_KEY (LLM features; offline fallbacks without it),
  * REVERIE_REQUIRE_ART=0 (activate generated personas without art),
  * REVERIE_TICK_MS (scheduler cadence).
+ * Automatic art (default OFF, see `art` below and server/README.md): REVERIE_AUTO_ART=1,
+ * GEMINI_API_KEY (stills), XAI_API_KEY (video), REVERIE_ART_DAILY_USD (UTC-day spend cap),
+ * REVERIE_ART_PERSONA_USD, REVERIE_ART_DIR, REVERIE_ART_MAX_PER_TICK.
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -51,7 +54,13 @@ export interface Config {
   };
 
   experiments: {
+    /** Target false discovery rate across all persona tests (online FDR, LORD++); each test gets
+     *  its own level at its start from `fdr` (arXiv 1710.00499; asynchronous form arXiv 1812.05068). */
     alpha: number;
+    fdr: 'lord' | 'none';
+    /** Open tests only when the server's LLM writes the replies. With no LLM the app shows its
+     *  scripted replies, both arms are identical, and any "win" would be noise. */
+    requireServedReplies: boolean;
     /** Delayed start: no decision before this many target-turn conversations per arm
      *  (asymptotic CS are only near-valid for a late first peek, arXiv 2103.06476 Thm 2.8). */
     minPerArm: number;
@@ -97,13 +106,11 @@ export interface Config {
 
   feed: {
     deckSize: number;
-    /** Every k-th card is an exploration slot (random or furthest from the gate). */
+    /** Every k-th card is an exploration slot (random or furthest from the gate). The random half
+     *  is every active persona's traffic floor: each gets about 1/(2 k N) of all cards. */
     exploreEvery: number;
     /** Per-user category posterior is shrunk toward the global category rate with this pseudo-count. */
     userShrink: number;
-    /** Category diversity decay per repeat inside one deck (X author-diversity decay analog). */
-    diversityDecay: number;
-    diversityFloor: number;
     /** DPP quality/diversity knob (X vm-ranker dpp.rs: alpha = theta / (2(1 - theta))). */
     dppTheta: number;
     /** Dynamic-prior Thompson sampling for new personas (arXiv 2602.00943): P(new beats incumbent) = eps. */
@@ -111,8 +118,38 @@ export interface Config {
     newPriorStrength: number;
     /** Monte Carlo draws used to estimate each card's selection propensity. */
     propensityDraws: number;
-    /** Minimum traffic share any active persona keeps (GrowthBook bandits floor). */
-    floorShare: number;
+  };
+
+  /**
+   * Automatic art for personas the loop invents (src/art/). Default OFF: it spends money.
+   * With it on and both API keys set, each tick generates a portrait, a background and a
+   * 6 s profile video for non-seed drafts that have no art, post-processes them into the
+   * five files the starters have, attaches the art and activates the persona. Estimated
+   * spend is written to the `art_spend` table and refused past `dailyBudgetUsd` (UTC day).
+   */
+  art: {
+    enabled: boolean;
+    /** Hard cap on estimated spend per UTC day. */
+    dailyBudgetUsd: number;
+    /** What one persona is expected to cost; checked against the cap before each persona.
+     *  Default = 2 images + `videoSeconds` of video (about $0.42). */
+    perPersonaEstimateUsd: number;
+    /** List prices read 2026-11-05 (Gemini image ~$0.057 incl. prompt tokens; xAI grok-imagine-video $0.05/s). */
+    imageUsd: number;
+    videoUsdPerSec: number;
+    videoSeconds: number;
+    /** Where the five files per persona land; the app serves them as /characters/<id>... */
+    outputDir: string;
+    /** Personas handled per tick (and per POST /admin/art/run). */
+    maxPerTick: number;
+    /** Failed or refused attempts allowed per persona before it is left for a human. */
+    maxAttempts: number;
+    /** Gemini image model, size and the xAI video model: see src/art/providers.ts for the docs. */
+    imageModel: string;
+    imageSize: string;
+    videoModel: string;
+    geminiKey?: string;
+    xaiKey?: string;
   };
 
   /** Persona score: components shrunk toward the population rate with `shrink` pseudo-observations,
@@ -145,6 +182,8 @@ export function loadConfig(overrides: DeepPartial<Config> = {}): Config {
     },
     experiments: {
       alpha: 0.05,
+      fdr: 'lord',
+      requireServedReplies: true,
       minPerArm: 200,
       maxPerArm: 3000,
       futilityLift: 0.02,
@@ -176,13 +215,26 @@ export function loadConfig(overrides: DeepPartial<Config> = {}): Config {
       deckSize: 10,
       exploreEvery: 5,
       userShrink: 4,
-      diversityDecay: 0.92,
-      diversityFloor: 0.6,
       dppTheta: 0.5,
       newEps: 0.1,
       newPriorStrength: 30,
       propensityDraws: 32,
-      floorShare: 0.01,
+    },
+    art: {
+      enabled: env('REVERIE_AUTO_ART') === '1',
+      dailyBudgetUsd: num('REVERIE_ART_DAILY_USD', 5),
+      perPersonaEstimateUsd: num('REVERIE_ART_PERSONA_USD', 2 * 0.057 + 6 * 0.05),
+      imageUsd: 0.057,
+      videoUsdPerSec: 0.05,
+      videoSeconds: 6,
+      outputDir: env('REVERIE_ART_DIR') ?? path.resolve(SERVER_ROOT, '..', 'public', 'characters'),
+      maxPerTick: num('REVERIE_ART_MAX_PER_TICK', 2),
+      maxAttempts: 3,
+      imageModel: 'gemini-nano-banana-2.1',
+      imageSize: '2K',
+      videoModel: 'grok-imagine-video',
+      geminiKey: env('GEMINI_API_KEY'),
+      xaiKey: env('XAI_API_KEY'),
     },
     score: { negativeMultiple: 3, shrink: 50 },
   };
