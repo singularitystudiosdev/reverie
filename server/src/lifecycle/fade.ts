@@ -1,11 +1,14 @@
 /**
  * Fading the lowest performers.
  *
- * A persona that has reached the gate is "below" on a tick when the UPPER
- * end of its score interval is under the bottom-quartile score of the active,
- * gate-reached roster (confidently among the worst, not merely under the
- * median, which half of any roster always is), and its random-slot like rate (unbiased by the feed)
- * agrees when there is enough random-slot data. After `fadeStreak`
+ * A persona is judged once its LIKE sample is in: as many impressions as the gate asks of
+ * every persona. Not the gate's conversation count: a persona nobody likes gets few chats, so
+ * waiting for those would shield exactly the worst personas forever. It is "below" on a tick
+ * when the UPPER end of its score interval is under the bottom-quartile score of every persona
+ * judged so far (confidently among the worst, not merely under the median, which half of any
+ * roster always is; and not the bottom of only the popular personas that reached the gate) and,
+ * once enough personas have 30+ random-slot impressions to compare, its own random-slot like
+ * rate (unbiased by the feed, 30+ impressions required) agrees. After `fadeStreak`
  * consecutive below ticks it starts FADING: still served, with its feed
  * weight multiplied by `fadeDecay` each tick (traffic decays first, as a
  * bandit would), and RETIRED once the weight falls under `fadeRetireBelow`.
@@ -36,9 +39,8 @@ export interface FadeResult {
 
 export function fadeTick(ctx: Ctx, stats: PersonaStats[], gate: GateStatus): FadeResult {
   const l = ctx.cfg.lifecycle;
-  const reached = new Set(gate.personas.filter((g) => g.reached).map((g) => g.id));
   const byId = new Map(stats.map((s) => [s.personaId, s]));
-  const pool = stats.filter((s) => reached.has(s.personaId) && s.score);
+  const pool = stats.filter((s) => s.impressions >= gate.nImpressions && s.score);
   const res: FadeResult = { faded: [], retired: [], restored: [], medianScore: 0 };
   if (pool.length < 3) return res;
   const scores = pool.map((s) => s.score!.score);
@@ -76,14 +78,14 @@ export function fadeTick(ctx: Ctx, stats: PersonaStats[], gate: GateStatus): Fad
     } else setState.run(row?.below_streak ?? 0, Math.max(mult, l.fadeRetireBelow / 2), p.meta.id);
   }
 
-  // Active, gate-reached personas: count below-median streaks, start fading the worst.
+  // Active personas with their like sample in: count below-bar streaks, start fading the worst.
   const candidates = pool
     .filter((s) => ctx.personas.get(s.personaId)?.meta.status === 'active')
     .sort((a, b) => a.score!.upper - b.score!.upper);
   for (const s of candidates) {
     const row = getState.get(s.personaId) as { below_streak: number; fade_multiplier: number } | undefined;
     const randomAgrees =
-      randomMed === null || s.likeRateRandom.n < 30 || wilson(s.likeRateRandom.x, s.likeRateRandom.n).upper < randomMed + 0.05;
+      randomMed === null || (s.likeRateRandom.n >= 30 && wilson(s.likeRateRandom.x, s.likeRateRandom.n).upper < randomMed + 0.05);
     const below = s.score!.upper < bar && randomAgrees;
     const streak = below ? (row?.below_streak ?? 0) + 1 : 0;
     if (below && streak >= l.fadeStreak && actions < l.maxRetiresPerTick && activeCount - 1 >= l.minActive) {

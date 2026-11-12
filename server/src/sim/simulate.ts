@@ -9,7 +9,7 @@
  *   (c) new personas spawn only after every active persona reached the gate
  *   (d) the personalised feed beats a static deck (a 10% static holdout)
  *
- *   node src/sim/simulate.ts [--days 40] [--users-per-day 220] [--seed 7] [--quiet] [--no-premium] [--no-reports]
+ *   node src/sim/simulate.ts [--days 40] [--users-per-day 220] [--seed 7] [--quiet] [--no-premium] [--no-reports] [--shipped] [--launch-only]
  *
  * The hidden world: users belong to 1-2 taste clusters over feed categories;
  * one cluster wants categories the seed roster does not have (animal-anthro,
@@ -50,6 +50,8 @@ const NO_REPORTS = args.includes('--no-reports');
 // below; only art (no generator in a simulation) and the served-replies rule (the simulator plays
 // the replies) are switched off.
 const SHIPPED = args.includes('--shipped');
+// --launch-only: the 14 launch personas alone (the roster the first acceptance runs used).
+const LAUNCH_ONLY = args.includes('--launch-only');
 const QUIET = args.includes('--quiet');
 const DAY = 86_400_000;
 const T0 = Date.UTC(2026, 10, 12);
@@ -119,6 +121,8 @@ interface Truth {
   long: number;
 }
 
+const baseTruth = new Map<string, { quality: number; habits: { q: number; long: number } }>();
+
 /** The hidden truth for a persona, read from its effective markdown (variant included). */
 function truthFor(ctx: Ctx, rng: Rng, cache: Map<string, Truth>, userId: string, personaId: string): Truth {
   const eff = effectivePersona(ctx, userId, personaId);
@@ -130,11 +134,21 @@ function truthFor(ctx: Ctx, rng: Rng, cache: Map<string, Truth>, userId: string,
   let quality = SEED_QUALITY[personaId];
   let habits = SEED_HABITS[personaId];
   if (quality === undefined) {
-    // A spawned persona: its hidden quality is what the hidden demand makes of its categories.
-    const novelHits = p.meta.categories.filter((c) => CLUSTERS.novel.includes(c)).length;
-    const parent = p.meta.parent ? SEED_QUALITY[p.meta.parent] ?? 0 : null;
-    quality = (parent !== null ? parent * 0.8 : -0.2) + 0.35 * novelHits + rng.normal() * 0.25;
-    habits = { q: 0.3 + rng() * 0.4, long: 0.15 + rng() * 0.35 };
+    // A persona without a planted truth (a starter or a spawned one): its hidden quality is what the
+    // hidden demand makes of its categories. Drawn ONCE per persona, so both arms of a test share it
+    // and only the edit itself can differ between them.
+    let base = baseTruth.get(personaId);
+    if (!base) {
+      const novelHits = p.meta.categories.filter((c) => CLUSTERS.novel.includes(c)).length;
+      const parent = p.meta.parent ? SEED_QUALITY[p.meta.parent] ?? 0 : null;
+      base = {
+        quality: (parent !== null ? parent * 0.8 : -0.2) + 0.35 * novelHits + rng.normal() * 0.25,
+        habits: { q: 0.3 + rng() * 0.4, long: 0.15 + rng() * 0.35 },
+      };
+      baseTruth.set(personaId, base);
+    }
+    quality = base.quality;
+    habits = base.habits;
   }
   let { q, long } = habits;
   // Lines the offline proposer can add, and what they really do to reply habits.
@@ -170,7 +184,10 @@ async function run() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'reverie-sim-'));
   const personasDir = path.join(dir, 'personas');
   fs.mkdirSync(personasDir);
-  for (const f of fs.readdirSync(path.join(SERVER_ROOT, 'personas'))) if (f.endsWith('.md')) fs.copyFileSync(path.join(SERVER_ROOT, 'personas', f), path.join(personasDir, f));
+  for (const f of fs.readdirSync(path.join(SERVER_ROOT, 'personas'))) {
+    if (!f.endsWith('.md') || (LAUNCH_ONLY && !(f.replace(/\.md$/, '') in SEED_QUALITY))) continue;
+    fs.copyFileSync(path.join(SERVER_ROOT, 'personas', f), path.join(personasDir, f));
+  }
   let now = T0;
   const ctx = createContext(
     {

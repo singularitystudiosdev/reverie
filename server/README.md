@@ -263,8 +263,11 @@ Conversation after a user's goodbye never counts toward any metric.
   once some persona has an event for it: premium before a paywall exists would
   otherwise get weight 1000 and swamp every interval, so nothing could fade.
   The app sends report and block from the profile sheet.
-- **Fade:** a gate-reached persona whose score upper bound sits under the
-  roster's bottom-quartile score for 3 ticks (random-slot like rate agreeing) starts fading: its feed
+- **Fade:** once a persona has its like sample (the gate's impression count;
+  not its chat count, which a persona nobody likes never reaches), a score
+  upper bound under the bottom-quartile score of every persona judged so far
+  for 3 ticks, confirmed by its own random-slot like rate (30+ random
+  impressions), starts fading: its feed
   weight halves each tick, it retires under 5%. At most one action per tick,
   never under 8 active, restored if it recovers. Matched users keep the chat.
 

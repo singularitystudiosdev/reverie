@@ -18,6 +18,7 @@ import { buildFeed } from '../src/feed/ranker.ts';
 import { planExplore, spawnGeneration } from '../src/lifecycle/evolve.ts';
 import { descriptorSpace, growVocabulary, MIN_UNTRIED, occupiedOrTried, untried } from '../src/lifecycle/niches.ts';
 import { computeGate } from '../src/lifecycle/gate.ts';
+import { fadeTick } from '../src/lifecycle/fade.ts';
 import { offlineLlm } from '../src/llm/claude.ts';
 import { getSection, parsePersona } from '../src/personas/markdown.ts';
 import { ingest } from '../src/telemetry/ingest.ts';
@@ -251,4 +252,27 @@ test('the explore branch keeps finding untried niches at the full roster: the vo
   // Spawning writes them as valid persona files.
   const created = await spawnGeneration(ctx, stats, new Set(stats.map((s) => s.personaId)));
   assert.ok(created.filter((p) => p.meta.branch === 'explore').length >= 1);
+});
+
+test('a dud with its like sample in fades even with almost no chats; a liked persona is not faded on thin random-slot data', () => {
+  const { ctx } = scratch();
+  const stats = computeAllStats(ctx, false);
+  const gate = computeGate(ctx, stats);
+  for (const st of stats) {
+    st.impressions = gate.nImpressions + 100;
+    st.conversations = 400;
+    st.score = { score: 3 + (st.personaId.length % 5) * 0.1, lower: 2.6, upper: 3.4, components: {} };
+    st.likeRateRandom = { x: 12, n: 40, rate: 0.3 };
+  }
+  const dud = stats.find((x) => x.personaId === 'raven')!;
+  dud.conversations = 20; // nobody likes her, so hardly anyone chats: she never reaches the gate
+  dud.score = { score: 0, lower: -1, upper: 1, components: {} };
+  dud.likeRateRandom = { x: 2, n: 40, rate: 0.05 };
+  const liked = stats.find((x) => x.personaId === 'nova')!;
+  liked.score = { score: 1.5, lower: 0.5, upper: 2.5, components: {} }; // under the bar on score alone...
+  liked.likeRateRandom = { x: 4, n: 11, rate: 0.36 }; // ...but too few random-slot impressions to confirm
+  const faded: string[] = [];
+  for (let i = 0; i < ctx.cfg.lifecycle.fadeStreak; i++) faded.push(...fadeTick(ctx, stats, gate).faded);
+  assert.deepEqual(faded, ['raven']);
+  assert.equal(ctx.personas.get('nova')!.meta.status, 'active');
 });
