@@ -239,7 +239,7 @@ function cfFactor(model: FeedModel, u: UserState, id: string, weight: number, sh
 }
 
 /** One tempered Thompson draw of a candidate's score for this user (`cf`: its cfFactor, which takes no draw). */
-function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink: number, fade: number, scale: number, cf = 1): FeedCard['why'] & { score: number } {
+function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink: number, fade: number, scale: number, cf = 1, chatExponent = 1): FeedCard['why'] & { score: number } {
   const post = model.persona.get(p.meta.id)!;
   // Co-like boost: how much more often this persona's categories are liked by people who liked what this user liked.
   const nCats = Math.max(model.categories.length, 1);
@@ -287,7 +287,13 @@ function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink:
   const pDeep = post.deep.a / (post.deep.a + post.deep.b);
   const pNeg = post.negative.a / (post.negative.a + post.negative.b);
   const w = weights(model);
-  const score = pLike * (w.like + w.deep * pDeep - w.neg * pNeg) * fade;
+  // The chat term is the persona's, the same for every user. Fitted weights make P(like) about
+  // half as spread across a deck as the plain product (sd of its log 0.38 against 0.76), which
+  // doubled that shared term's say and pulled every user toward the same chat-heavy personas: the
+  // closed loop lost 2.5 points of like rate at seed 7. Calibrated, the term is compressed by the
+  // same factor (cfg.feed.calibratedChatExponent).
+  const chat = Math.max(w.like + w.deep * pDeep - w.neg * pNeg, 0);
+  const score = pLike * (cw ? Math.pow(chat, chatExponent) : chat) * fade;
   return { score, pLike, pDeep, pNeg, affinity, quality, traits, cf, pBase, factors, isNew: post.isNew, fade };
 }
 
@@ -316,7 +322,7 @@ export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { re
 
   const fades = new Map(candidates.map((p) => [p.meta.id, fadeMultiplier(ctx, p.meta.id)]));
   const cfs = new Map(candidates.map((p) => [p.meta.id, cfFactor(model, u, p.meta.id, cfg.cfWeight, cfg.cfShrink)]));
-  const score = (p: Persona) => drawScore(model, p, u, ctx.rng, cfg.userShrink, fades.get(p.meta.id)!, cfg.tsScale, cfs.get(p.meta.id));
+  const score = (p: Persona) => drawScore(model, p, u, ctx.rng, cfg.userShrink, fades.get(p.meta.id)!, cfg.tsScale, cfs.get(p.meta.id), cfg.calibratedChatExponent);
   const draws = candidates.map(score);
 
   // Selection: DPP over the scored pool, then every k-th card becomes an exploration slot.

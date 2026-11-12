@@ -297,8 +297,28 @@ paging), but the closed loop, which also has chats feeding the affinity and the 
 lifecycle, disagrees: like rate 20.6% against 23.1% at seed 7 (21.5% in an earlier run of the
 unbounded fit) and 22.8% against 22.6% at seed 11, deep chats 0.42 / 0.47 against 0.46 / 0.48.
 With them on, both seeds faded the true dud `isolde` (off: nothing at seed 7, two non-duds at
-11) and the naive like-rate error fell to 1.5 / 2.0 points from 3.2 / 3.1. They ship off
-(`feed.calibrate`) until a live A/B settles it.
+11) and the naive like-rate error fell to 1.5 / 2.0 points from 3.2 / 3.1.
+
+The closed-loop loss came from the chat term, not the fit. The score multiplies P(like) by
+`1 + w_deep P(deep chat) - w_neg P(report)`, a persona-level term the same for every user. The
+fit makes P(like) about half as spread across a deck (sd of its log 0.38 against 0.76), so the
+shared term got about twice the say and pulled every user toward the same chat-heavy personas;
+deep chats per user did not rise with it. Removing the term gave 23.0% with the fit on against
+20.6% (seed 7), and changed nothing with it off; the loss was all in exploit cards and largest
+on each user's first cards. Ruled out: chat messages inflating the affinity factor (they halve
+its fitted weight, but removing them left the loss), drift over the 25 days (the loss is flat
+from day 1), the persona-to-persona term (the loss stays at weight 0). With the fit on, the
+chat term is now raised to `feed.calibratedChatExponent` (0.5):
+
+| Closed loop, 25 days, `--no-premium` | like rate, fit on -> off | deep chats per user, on -> off | faded, on / off |
+|---|---|---|---|
+| seed 7 | 22.9% -> 23.1% (20.6% before the fix) | 0.42 -> 0.46 | `isolde`, `megumi` / nothing |
+| seed 11 | 22.3% -> 22.6% | 0.47 -> 0.48 | nothing / `ravenna`, `eleanor-ashby` |
+| seed 3 | 21.7% -> 22.2% | 0.39 -> 0.43 | `isolde` / `nerissa` |
+
+Near parity, with the same small sign on all three seeds, in a world with no latent look (where
+the bench's +0.009 lives); naive like-rate error 2.1 / 2.2 / 2.1 points against 3.2 / 3.1 / 2.5.
+The fit ships off (`feed.calibrate`) and is safe to turn on for a live A/B.
 
 Closed loop, 25 days, 220 users a day, all 154 personas, `--no-premium`, seed 7 (whole decks
 of 6, so the paging bug does not show here), before the exploration cap: like rate 23.1% -> 23.2%, deep chats per user

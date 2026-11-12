@@ -323,9 +323,11 @@ factor is under 0.5.
   logs (at posterior means), and the model rebuild fits a logistic regression
   of the latest decided cards on them (ridge toward weight 1 each, the plain
   product; `feed.calibrate`, from 500 swipes). The plain product spread
-  predictions about 3x too wide in logit space. **Off by default** until a live
-  A/B: it gains in the feed bench (+0.009 with a latent look) but cost 2.5
-  points of like rate in one closed-loop seed (SIMULATION.md).
+  predictions about 3x too wide in logit space; with the fit on, the
+  persona-level chat term is raised to `feed.calibratedChatExponent` (0.5) so
+  it keeps its say against the narrower P(like). **Off by default** until a
+  live A/B: +0.009 in the feed bench with a latent look, 0.3 points of like
+  rate under off in the closed loop, which has none (SIMULATION.md).
 - **Persona-to-persona term.** P(like) is multiplied by how much more the
   user's fellow fans liked the candidate than the ranker predicted for them:
   among users who liked persona i, the likes of j over the ranker's logged mean

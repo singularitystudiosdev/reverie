@@ -151,10 +151,14 @@ export interface Config {
      *  the logs of the factors logged with each serve, ridge toward the plain product) instead of
      *  multiplying them at weight 1 each, which made predictions about 3x too spread in logit
      *  space. OFF until a live A/B: the feed bench (3 ranker seeds) gains +0.009 with a latent
-     *  look and ties without, but the closed loop lost 2.5 points of like rate at seed 7 (level at
-     *  11) while it faded the true dud and halved the estimate error (SIMULATION.md). Falls back
-     *  to the product below 500 swipes. */
+     *  look and ties without; the closed loop (no latent look), with the chat term compressed
+     *  below, is 0.3 points of like rate and 0.03 deep chats per user under off (3 seeds) while it
+     *  fades the true dud and cuts the estimate error by a third (SIMULATION.md). Falls back to
+     *  the product below 500 swipes. */
     calibrate: boolean;
+    /** With fitted weights, the persona-level chat term (1 + w_deep P(deep) - w_neg P(report)) is
+     *  raised to this power: the fit halves P(like)'s spread, so the term's say is halved too. */
+    calibratedChatExponent: number;
   };
 
   /**
@@ -265,6 +269,7 @@ export function loadConfig(overrides: DeepPartial<Config> = {}): Config {
       randomTarget: 40,
       undersampledTarget: 0,
       calibrate: false,
+      calibratedChatExponent: 0.5,
     },
     art: {
       enabled: env('REVERIE_AUTO_ART') === '1',
