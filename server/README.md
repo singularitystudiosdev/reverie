@@ -294,7 +294,12 @@ put it in the deck.
 against synthetic users with hidden tastes on a virtual clock (a scratch copy
 of `personas/`, nothing here is touched) and prints the four acceptance checks:
 promoted edits truly help, the hidden-worst personas fade, spawns only after the
-gate, feed beats a 10% static-deck holdout.
+gate, feed beats a 10% static-deck holdout, plus how close each like-rate
+estimate (raw, IPW, random-slot) comes to the hidden truth. Flags:
+`--no-premium` and `--no-reports` drop events the app does not send,
+`--shipped` uses the server's default thresholds instead of the relaxed ones,
+`--launch-only` keeps just the 14 launch personas. Results:
+[SIMULATION.md](SIMULATION.md).
 
 ## API
 
