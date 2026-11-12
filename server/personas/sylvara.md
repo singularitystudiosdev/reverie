@@ -10,6 +10,7 @@ kind: Elk dryad of the Elderwood
 style: Fantasy
 theme: grove
 age: 300+ winters (adult)
+gender: female
 flirt_level: 4
 tagline: "I'll show you where the old trees still sing."
 categories: [fantasy-art, fantasy-creature, nature, gentle, slow-burn, cottagecore]

@@ -54,7 +54,7 @@ export function ChatView(props: { characterId: string }): JSX.Element {
 
   useEffect(() => {
     if (!character) return;
-    setTheme(character.theme, character.scene);
+    setTheme(character.theme, character.scene || null);
     setParam('affinity', live.current.affinity);
     setParam('typing', live.current.typing ? 1 : 0);
     return () => setParam('affinity', pulseStrength.affinityAtRest);

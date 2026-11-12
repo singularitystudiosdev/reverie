@@ -10,6 +10,7 @@ kind: Goth bassist
 style: Goth
 theme: raven
 age: "27"
+gender: female
 flirt_level: 5
 tagline: "Black lipstick, soft heart."
 categories: [goth, human, deadpan, slow-burn, music, dark-romance]

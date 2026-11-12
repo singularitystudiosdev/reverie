@@ -32,7 +32,7 @@
 import type { Ctx } from '../context.ts';
 import { makeId } from '../util.ts';
 import { fadeMultiplier } from '../lifecycle/fade.ts';
-import type { Persona } from '../personas/schema.ts';
+import { feedTags, type Persona } from '../personas/schema.ts';
 import type { Rng } from '../stats/random.ts';
 import { dppSelect } from './dpp.ts';
 import { getFeedModel, type FeedModel } from './model.ts';
@@ -86,7 +86,10 @@ function hydrate(ctx: Ctx, userId: string): UserState {
   }
   for (const r of ctx.db.prepare('SELECT persona_id FROM matches WHERE user_id = ?').all(userId) as { persona_id: string }[]) liked.add(r.persona_id);
   for (const id of liked) passed.delete(id);
-  const likedCategories = [...liked].flatMap((id) => ctx.personas.get(id)?.meta.categories ?? []);
+  const likedCategories = [...liked].flatMap((id) => {
+    const p = ctx.personas.get(id);
+    return p ? feedTags(p) : [];
+  });
   return { affinity, liked, passed, likedCategories };
 }
 
@@ -97,7 +100,8 @@ function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink:
   const nCats = Math.max(model.categories.length, 1);
   let affSum = 0;
   let catMeanSum = 0;
-  for (const c of p.meta.categories) {
+  const tags = feedTags(p);
+  for (const c of tags) {
     const g = model.category.get(c) ?? { a: 1, b: 2 };
     let m = g.a / (g.a + g.b);
     if (u.likedCategories.length) {
@@ -111,7 +115,7 @@ function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink:
     affSum += rng.beta(ua.a + shrink * m + 1e-3, ua.b + shrink * (1 - m) + 1e-3);
     catMeanSum += g.a / (g.a + g.b);
   }
-  const k = Math.max(p.meta.categories.length, 1);
+  const k = Math.max(tags.length, 1);
   const affinity = affSum / k;
   const catMean = Math.max(catMeanSum / k, 1e-3);
   const qualityDraw = rng.beta(post.like.a, post.like.b);

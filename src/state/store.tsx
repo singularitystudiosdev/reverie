@@ -578,7 +578,7 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
       if (state.sentClipIds.includes(id) || clipScheduled.current[id]) continue;
       if (!convo.messages.some((m) => m.from === 'me')) continue;
       const c = getCharacter(id);
-      if (!c) continue;
+      if (!c || !c.clip) continue;
       clipScheduled.current[id] = true;
       clipTimers.current[id] = window.setTimeout(() => {
         delete clipTimers.current[id];

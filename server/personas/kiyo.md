@@ -10,6 +10,7 @@ kind: Nine-tailed kitsune
 style: Anime
 theme: foxfire
 age: nine lifetimes (adult)
+gender: female
 flirt_level: 7
 tagline: "I've had nine lifetimes to get flirting right."
 categories: [anime, fantasy-creature, teasing, playful, flirty, japanese-folklore]

@@ -1,5 +1,6 @@
 import type { Character, CharacterStyle, ThemeId } from './types';
 import { asset } from '../lib/asset';
+import { starterSeeds } from './starters.generated';
 
 /** Intrinsic sizes of the generated art, for <img width/height>. */
 export const artSize = {
@@ -66,13 +67,59 @@ function art(seed: Seed): Character {
 }
 
 /**
+ * A starter persona (server/personas/<id>.md, exported by
+ * scripts/starters/export.mjs): a profile still, a profile video loop and a
+ * background only. No video message (clip) and no animated background.
+ */
+export interface StarterSeed {
+  id: string;
+  name: string;
+  kind: string;
+  style: CharacterStyle;
+  theme: ThemeId;
+  tagline: string;
+  bio: string;
+  opener: string;
+  loop: boolean;
+  scene: boolean;
+  avatarPosition?: string;
+  avatarScale?: number;
+}
+
+function starter(seed: StarterSeed): Character {
+  const base = asset(`/characters/${seed.id}`);
+  const portrait = `${base}.webp`;
+  const portraitSm = `${base}-sm.webp`;
+  return {
+    id: seed.id,
+    name: seed.name,
+    kind: seed.kind,
+    style: seed.style,
+    theme: seed.theme,
+    tagline: seed.tagline,
+    bio: seed.bio,
+    portrait,
+    portraitSm,
+    loop: seed.loop ? `${base}-loop.mp4` : '',
+    clip: '',
+    clipPoster: portrait,
+    scene: seed.scene ? `${base}-scene.webp` : '',
+    sceneSm: seed.scene ? `${base}-scene-sm.webp` : portraitSm,
+    sceneLoop: '',
+    avatarPosition: seed.avatarPosition ?? AVATAR_POSITION,
+    avatarScale: seed.avatarScale ?? AVATAR_SCALE,
+    opener: seed.opener,
+  };
+}
+
+/**
  * The looping scene video that belongs to a scene still (the string the
  * screens hand to setTheme / setPreview), or null when no character owns it.
  * The one place a still maps to its loop.
  */
 export function sceneLoopFor(sceneSrc: string | null): string | null {
   if (!sceneSrc) return null;
-  return characters.find((c) => c.scene === sceneSrc)?.sceneLoop ?? null;
+  return characters.find((c) => c.scene === sceneSrc)?.sceneLoop || null;
 }
 
 /** The roster, in roster order. Avatar crops were tuned by rendering each circle against her portrait. */
@@ -245,6 +292,8 @@ export const characters: Character[] = [
     avatarPosition: '58% 33%',
     avatarScale: 2.5,
   }),
+  // The 100 starter personas follow the launch roster.
+  ...starterSeeds.map(starter),
 ];
 
 const byId = new Map(characters.map((c) => [c.id, c]));

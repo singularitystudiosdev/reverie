@@ -12,7 +12,8 @@ const dir = path.join(SERVER_ROOT, 'personas');
 const files = fs.readdirSync(dir).filter((f) => f.endsWith('.md'));
 
 test('every seed persona file round-trips, validates and carries the canonical locked boundaries', () => {
-  assert.equal(files.length, 14);
+  // 14 launch personas + 100 starters (server/starters/roster.json).
+  assert.equal(files.length, 114);
   for (const f of files) {
     const md = fs.readFileSync(path.join(dir, f), 'utf8');
     const p = parsePersona(md);
@@ -24,6 +25,28 @@ test('every seed persona file round-trips, validates and carries the canonical l
     }
     assert.match(getSection(p, 'Flirting')!.body, /^Flirt level \d+ of 10:/, `${f} flirting section`);
     assert.ok((getSection(p, 'Reactions')!.body.match(/^### /gm) ?? []).length >= 11, `${f} reactions`);
+  }
+});
+
+test('the 100 starters match their roster entry and carry only a still, a profile video and a background', () => {
+  const roster = JSON.parse(fs.readFileSync(path.join(SERVER_ROOT, 'starters', 'roster.json'), 'utf8')).personas as {
+    id: string;
+    name: string;
+    gender: string;
+    style: string;
+    group: string;
+  }[];
+  assert.equal(roster.length, 100);
+  assert.equal(roster.filter((r) => r.group === 'novel').length, 30);
+  for (const r of roster) {
+    const p = parsePersona(fs.readFileSync(path.join(dir, `${r.id}.md`), 'utf8'));
+    assert.equal(p.meta.name, r.name, r.id);
+    assert.equal(p.meta.gender, r.gender, r.id);
+    assert.equal(p.meta.style, r.style, r.id);
+    assert.equal(p.meta.branch, 'seed', r.id);
+    assert.ok(p.meta.art.portrait, `${r.id} has a profile still`);
+    const extra = Object.keys(p.meta.art).filter((k) => !['portrait', 'portraitSm', 'loop', 'scene', 'sceneSm'].includes(k));
+    assert.deepEqual(extra, [], `${r.id} has no clip or scene loop`);
   }
 });
 

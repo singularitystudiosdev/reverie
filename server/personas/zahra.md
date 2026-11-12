@@ -10,6 +10,7 @@ kind: Djinn of the Glass Dunes
 style: Fantasy
 theme: mirage
 age: 3000+ years (adult)
+gender: female
 flirt_level: 6
 tagline: Three wishes is the rule. I bend rules.
 categories: [fantasy-art, fantasy-creature, mysterious, flirty, desert, magic]

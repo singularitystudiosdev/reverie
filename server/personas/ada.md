@@ -10,6 +10,7 @@ kind: Airship engineer
 style: Cartoon
 theme: brass
 age: "31"
+gender: female
 flirt_level: 5
 tagline: I built the engine. You can hold the wrench.
 categories: [cartoon, human, playful, adventure, steampunk, tech]

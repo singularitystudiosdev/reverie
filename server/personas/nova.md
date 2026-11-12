@@ -10,6 +10,7 @@ kind: Netrunner in Neo-Kyoto
 style: Anime
 theme: neon
 age: 26 years (adult)
+gender: female
 flirt_level: 6
 tagline: "I hacked your heart rate monitor. You're nervous."
 categories: [anime, human, tech, teasing, city-life, music]

@@ -88,7 +88,7 @@ function readDevPin(): DevPin | null {
   const tier = q.get('tier');
   return {
     themeId: id,
-    sceneSrc: characters.find((c) => c.theme === id)?.scene ?? null,
+    sceneSrc: characters.find((c) => c.theme === id)?.scene || null,
     affinity: aff !== null && Number.isFinite(Number(aff)) ? Math.min(1, Math.max(0, Number(aff))) : null,
     tier: tier !== null && Number.isInteger(Number(tier)) ? Number(tier) : null,
   };

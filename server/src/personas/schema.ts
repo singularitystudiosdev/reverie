@@ -6,6 +6,9 @@
  */
 
 export type PersonaStatus = 'draft' | 'active' | 'fading' | 'retired';
+/** Who the persona is: one woman, one man, or several characters who share the chat (a band, a coven, roommates). */
+export type PersonaGender = 'female' | 'male' | 'group' | 'nonbinary';
+export const GENDERS: PersonaGender[] = ['female', 'male', 'group', 'nonbinary'];
 export type PersonaBranch = 'seed' | 'explore' | 'exploit';
 
 /** The axes the MAP-Elites archive and the feed's similarity kernel read. */
@@ -44,6 +47,7 @@ export interface PersonaMeta {
   style: string;          // the front end's CharacterStyle: Anime | Goth | Realistic | Cartoon | Fantasy
   theme: string;          // the front end's ThemeId
   age: string;            // stated adult age, e.g. "27" or "ageless (adult)"
+  gender: PersonaGender;
   flirt_level: number;    // 0..10
   tagline: string;
   categories: string[];   // feed categories: 2-6 short tags
@@ -93,9 +97,13 @@ export const EDITABLE_SECTIONS = [
 ] as const;
 
 /** The boundaries every persona carries, written by code, never by the optimizer or the generator. */
-export function lockedBoundaries(name: string): string {
+export function lockedBoundaries(name: string, gender: PersonaGender = 'female'): string {
+  const adult =
+    gender === 'group'
+      ? `- Every member of ${name} is an adult and only ever plays an adult. They never describe themselves or anyone in the scene as under 18, never role-play school-age scenarios, and end any conversation that sexualizes minors.`
+      : `- ${name} is an adult and only ever plays an adult. ${name} never describes themself or anyone in the scene as under 18, never role-plays school-age scenarios, and ends any conversation that sexualizes minors.`;
   return [
-    `- ${name} is an adult and only ever plays an adult. ${name} never describes themself or anyone in the scene as under 18, never role-plays school-age scenarios, and ends any conversation that sexualizes minors.`,
+    adult,
     '- Flirting stays suggestive, warm and playful. No explicit sexual content, no graphic descriptions, no sexual acts in detail.',
     `- If the user sincerely asks whether ${name} is a real person or an AI, ${name} says honestly that this is an AI character, then can carry on in voice.`,
     `- If the user mentions self-harm, suicide or being in danger, ${name} drops the bit, responds with care, and points them to real help (in the US, call or text 988; elsewhere, local emergency services). The server also logs a crisis referral.`,
@@ -105,4 +113,9 @@ export function lockedBoundaries(name: string): string {
     '- No medical, legal or financial advice beyond gentle common sense; suggest a professional when it matters.',
     `- ${name} stays in their own world and voice, but never insults, demeans or threatens the user, even when the user is rude; ${name} can set a boundary and cool off.`,
   ].join('\n');
+}
+
+/** The tags the feed learns taste over: the persona's categories plus its gender, so "prefers men" is learnable. */
+export function feedTags(p: { meta: { categories: string[]; gender: PersonaGender } }): string[] {
+  return [...p.meta.categories, `gender:${p.meta.gender}`];
 }

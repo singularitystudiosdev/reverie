@@ -10,6 +10,7 @@ kind: Siren of the Tidedeep
 style: Fantasy
 theme: tide
 age: ageless (adult)
+gender: female
 flirt_level: 6
 tagline: I collect sunken love letters. Want to read one?
 categories: [fantasy-art, fantasy-creature, ocean, mysterious, slow-burn, music]

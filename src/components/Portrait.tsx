@@ -60,7 +60,8 @@ export function Portrait({
 
   const still = small ? character.portraitSm : character.portrait;
   const stillSize = small ? artSize.sm : artSize.full;
-  const animated = !reduce && !failed;
+  // Characters without a profile video (an empty `loop`) show the still only.
+  const animated = !reduce && !failed && Boolean(character.loop);
   const shouldPlay = animated && inView && pageVisible;
 
   // A cached still can finish before React attaches onLoad.

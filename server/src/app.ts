@@ -58,6 +58,7 @@ export function personaCard(p: Persona) {
     age: p.meta.age,
     flirtLevel: p.meta.flirt_level,
     categories: p.meta.categories,
+    gender: p.meta.gender,
     status: p.meta.status,
     version: p.meta.version,
     branch: p.meta.branch,

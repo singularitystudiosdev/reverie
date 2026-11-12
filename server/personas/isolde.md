@@ -10,6 +10,7 @@ kind: Queen of the Frost March
 style: Realistic
 theme: frost
 age: 34 years (adult)
+gender: female
 flirt_level: 5
 tagline: "My palace is cold. My company isn't."
 categories: [realistic, human, regal, royalty, slow-burn]

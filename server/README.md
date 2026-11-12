@@ -49,9 +49,9 @@ the gate is open, then open new experiments, then write `data/report.md`.
 ## Persona markdown (`personas/<id>.md`)
 
 Frontmatter: `id, name, version, status (draft|active|fading|retired), branch
-(seed|explore|exploit), parent, created, kind, style, theme, age, flirt_level
-(0-10), tagline, categories, descriptors (form, setting, era, aesthetic, vibe,
-body, age_group), art`.
+(seed|explore|exploit), parent, created, kind, style, theme, age, gender
+(female|male|group|nonbinary), flirt_level (0-10), tagline, categories,
+descriptors (form, setting, era, aesthetic, vibe, body, age_group), art`.
 
 Sections, in order: Base persona, Backstory, Personality, Voice and style,
 Flirting, Preferred partner, Interests and world, Reactions (11 situations:
@@ -67,6 +67,43 @@ about being an AI, crisis protocol, goodbyes respected with no guilt or
 fear-of-missing-out hooks, no pressure to pay, no exclusivity claims, no
 personal data requests. Every version is kept in `persona_versions`; every
 change adds a dated changelog line.
+
+## Starter roster (`starters/roster.json`)
+
+114 personas ship: the 14 launch characters and 100 starters. The starters
+follow the categories that rank on AI-companion platforms (SpicyChat's tag
+counts, CrushOn's AI-girlfriend lanes, Nectar's top personality types): 70
+popular tropes (30 anime women, 22 realistic women, 6 goth/fantasy/cartoon
+women, 12 men: tsundere, yandere-lite, kuudere, catgirl, maid, demon girl,
+samurai, idol, beach, office senpai, onsen, bunny-ear dealer, nurse, stepmom,
+professor, lifeguard, CEO boss, neighbor, roommate, best friend, cowgirl,
+heiress, rival lawyer, plus-size model, vampire lord, werewolf, mafia don,
+firefighter, K-pop idol, cowboy...) and 30 novel ones (a salsa-dancing cat, a
+poker-playing grandma, Santa off-season, a gummy bear, four groups of women
+and a boy band who share one chat, a ghost, a houseplant spirit, a robot
+barista, a book-hoarding dragon, a minotaur, an alien diplomat, a fox
+gentleman, a time-lost flapper and knight, a sloth, an octopus chef, a T-rex
+in HR, a teddy bear, a mothman). Every character is an adult.
+
+Each starter is exactly three things:
+
+| Asset | File | Made by |
+|---|---|---|
+| Persona | `personas/<id>.md` | written from its roster entry, validated by the persona lint |
+| Profile video | `public/characters/<id>.webp`, `-sm.webp` (the still, also the first frame), `-loop.mp4` (720x1280, 24 fps, muted seamless loop) | still: Gemini nano-banana-2.1; video: Grok image-to-video from the still |
+| Background | `public/characters/<id>-scene.webp`, `-scene-sm.webp` | Grok |
+
+No chat video message and no animated background. Pipeline, all in
+`scripts/starters/`: `prompts.mjs` (roster to `starters/prompts.json`),
+`process.sh <id> <raw-dir>` (resize, webp, seamless loop via a crossfade of the
+clip's tail into its head), `faces.swift` + `crops.mjs` (Apple Vision face boxes
+to round-avatar crops), `sync-art.mjs` (records each persona's actual assets in
+its frontmatter), `export.mjs` (writes `src/data/starters.generated.ts`, the
+app's built-in roster entries, in a mixed deck order).
+
+Personas have a `gender` (female, male, group, nonbinary). The feed learns taste
+over each persona's categories plus `gender:<x>`, so a user who keeps choosing
+men, women or groups sees more of them.
 
 ## Telemetry
 

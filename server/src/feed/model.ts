@@ -6,7 +6,7 @@
  * persona's feature vector for the DPP kernel.
  */
 import type { Ctx } from '../context.ts';
-import { DESCRIPTOR_KEYS, type Persona } from '../personas/schema.ts';
+import { DESCRIPTOR_KEYS, feedTags, type Persona } from '../personas/schema.ts';
 import { dynamicPrior, type BetaParams } from '../stats/dynamicPrior.ts';
 
 export interface PersonaPosterior {
@@ -79,7 +79,7 @@ export function buildFeedModel(ctx: Ctx): FeedModel {
   const category = new Map<string, BetaParams>();
   for (const p of personas) {
     const s = imp.get(p.meta.id) ?? { n: 0, likes: 0 };
-    for (const c of p.meta.categories) {
+    for (const c of feedTags(p)) {
       const cur = category.get(c) ?? { a: 1, b: 2 };
       cur.a += s.likes;
       cur.b += s.n - s.likes;
@@ -93,7 +93,7 @@ export function buildFeedModel(ctx: Ctx): FeedModel {
     const s = imp.get(p.meta.id);
     if (!s || s.n < NEW_PERSONA_IMPRESSIONS) continue;
     const post = { a: 1 + s.likes, b: 1 + s.n - s.likes };
-    for (const c of p.meta.categories) {
+    for (const c of feedTags(p)) {
       const cur = incumbent.get(c);
       if (!cur || post.a / (post.a + post.b) > cur.a / (cur.a + cur.b)) incumbent.set(c, post);
     }
@@ -129,7 +129,7 @@ export function buildFeedModel(ctx: Ctx): FeedModel {
     colikeRow.set(r.cat_a, (colikeRow.get(r.cat_a) ?? 0) + r.n);
   }
 
-  const categories = [...new Set(personas.flatMap((p) => p.meta.categories))].sort();
+  const categories = [...new Set(personas.flatMap((p) => feedTags(p)))].sort();
   const vectors = new Map<string, number[]>();
   for (const p of personas) vectors.set(p.meta.id, featureVector(p, categories));
 
@@ -155,7 +155,8 @@ export function buildFeedModel(ctx: Ctx): FeedModel {
 
 /** Multi-hot over categories plus one-hot descriptor values: the DPP similarity space. */
 function featureVector(p: Persona, categories: string[]): number[] {
-  const v: number[] = categories.map((c) => (p.meta.categories.includes(c) ? 1 : 0));
+  const tags = feedTags(p);
+  const v: number[] = categories.map((c) => (tags.includes(c) ? 1 : 0));
   for (const k of DESCRIPTOR_KEYS) {
     // Hash each descriptor value into 8 buckets per axis so the vector length is fixed.
     const val = p.meta.descriptors[k];

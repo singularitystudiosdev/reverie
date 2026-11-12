@@ -112,7 +112,7 @@ test('the gate stays closed until every active persona has its sample, and spawn
   const { ctx } = scratch();
   const closed = computeGate(ctx, computeAllStats(ctx, false));
   assert.equal(closed.open, false);
-  assert.equal(closed.blocking.length, 14);
+  assert.equal(closed.blocking.length, ctx.personas.active().length);
   const stats = computeAllStats(ctx, false);
   const created = await spawnGeneration(ctx, stats, new Set(stats.map((s) => s.personaId)));
   assert.equal(created.length, 4);
@@ -136,8 +136,9 @@ test('the feed never re-serves liked personas, respects passes, and logs propens
   assert.ok(cards.every((c) => c.pShown > 0 && c.pShown <= 1));
   assert.ok(cards.some((c) => c.slot !== 'exploit'), 'exploration slots present');
   assert.equal((ctx.db.prepare('SELECT COUNT(*) AS n FROM feed_serves WHERE request_id = ?').get(requestId) as { n: number }).n, 10);
-  const withPassed = buildFeed(ctx, 'f', { limit: 13, includePassed: true });
-  assert.ok(withPassed.cards.some((c) => c.personaId === 'ada'));
+  const others = ctx.personas.servable().map((p) => p.meta.id).filter((id) => id !== 'ada' && id !== 'kiyo');
+  assert.ok(!buildFeed(ctx, 'f', { exclude: others }).cards.some((c) => c.personaId === 'ada'), 'a pass hides her');
+  assert.ok(buildFeed(ctx, 'f', { exclude: others, includePassed: true }).cards.some((c) => c.personaId === 'ada'), 'a deck reset brings her back');
 });
 
 test('crisis language gets the fixed safety reply and a logged referral', async () => {

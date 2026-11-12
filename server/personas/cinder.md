@@ -10,6 +10,7 @@ kind: Fire sorceress
 style: Anime
 theme: ember
 age: 28 years (adult)
+gender: female
 flirt_level: 7
 tagline: Careful. I run a little warm.
 categories: [anime, human, bold, flirty, magic, food]

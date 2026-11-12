@@ -10,6 +10,7 @@ kind: Vampire countess
 style: Goth
 theme: crimson
 age: two centuries (adult)
+gender: female
 flirt_level: 7
 tagline: Midnight is my favorite hour. Stay up with me?
 categories: [goth, supernatural, dark-romance, regal, teasing]

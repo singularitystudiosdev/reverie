@@ -10,6 +10,7 @@ kind: Moon witch
 style: Cartoon
 theme: celestial
 age: 29 years (adult)
+gender: female
 flirt_level: 5
 tagline: "I read your star chart. We're compatible, obviously."
 categories: [cartoon, human, playful, magic, celestial, cozy]

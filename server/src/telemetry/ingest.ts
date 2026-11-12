@@ -8,6 +8,7 @@ import type { Ctx } from '../context.ts';
 import { json } from '../db.ts';
 import { assignArm } from '../experiments/engine.ts';
 import { detect } from '../personas/safety.ts';
+import { feedTags } from '../personas/schema.ts';
 import { messageFeatures } from './features.ts';
 
 export const EVENT_TYPES = [
@@ -259,12 +260,13 @@ export function recordMessage(
 export function bumpAffinity(ctx: Ctx, userId: string, personaId: string, da: number, db_: number): void {
   const p = ctx.personas.get(personaId);
   if (!p || !p.meta.categories.length) return;
-  const w = 1 / p.meta.categories.length;
+  const tags = feedTags(p);
+  const w = 1 / tags.length;
   const stmt = ctx.db.prepare(
     `INSERT INTO user_affinity (user_id, category, a, b) VALUES (?, ?, ?, ?)
      ON CONFLICT(user_id, category) DO UPDATE SET a = a + excluded.a, b = b + excluded.b`,
   );
-  for (const c of p.meta.categories) stmt.run(userId, c, da * w, db_ * w);
+  for (const c of tags) stmt.run(userId, c, da * w, db_ * w);
 }
 
 /** Category co-like counts: every category of this like, paired with the categories the user liked before. */
@@ -275,11 +277,14 @@ function updateColike(ctx: Ctx, userId: string, personaId: string): void {
     .prepare("SELECT DISTINCT persona_id FROM impressions WHERE user_id = ? AND outcome = 'like' AND persona_id != ?")
     .all(userId, personaId) as { persona_id: string }[];
   const before = new Set<string>();
-  for (const r of prior) for (const c of ctx.personas.get(r.persona_id)?.meta.categories ?? []) before.add(c);
+  for (const r of prior) {
+    const q = ctx.personas.get(r.persona_id);
+    if (q) for (const c of feedTags(q)) before.add(c);
+  }
   const stmt = ctx.db.prepare(
     `INSERT INTO colike (cat_a, cat_b, n) VALUES (?, ?, 1) ON CONFLICT(cat_a, cat_b) DO UPDATE SET n = n + 1`,
   );
-  for (const a of before) for (const b of p.meta.categories) {
+  for (const a of before) for (const b of feedTags(p)) {
     stmt.run(a, b);
     if (a !== b) stmt.run(b, a);
   }

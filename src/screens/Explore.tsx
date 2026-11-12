@@ -88,7 +88,7 @@ export function Explore(): JSX.Element {
 
   // The focus world: the top card's, or base when the deck is empty.
   useEffect(() => {
-    if (top) setTheme(top.theme, top.scene);
+    if (top) setTheme(top.theme, top.scene || null);
     else setTheme('base');
   }, [top, setTheme]);
 
@@ -99,7 +99,7 @@ export function Explore(): JSX.Element {
   // not) the deck advances, the effect above sets the new top's theme = the
   // armed one, then this re-arms the card behind it.
   useEffect(() => {
-    if (next) setPreview(next.theme, next.scene, 0);
+    if (next) setPreview(next.theme, next.scene || null, 0);
     else setPreview(null);
   }, [next, setPreview]);
 
@@ -122,7 +122,7 @@ export function Explore(): JSX.Element {
     (d: number) => {
       setParam('drag', d);
       progress.set(Math.abs(d));
-      if (next) setPreview(next.theme, next.scene, Math.abs(d));
+      if (next) setPreview(next.theme, next.scene || null, Math.abs(d));
     },
     [next, progress, setParam, setPreview]
   );

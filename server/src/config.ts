@@ -169,7 +169,7 @@ export function loadConfig(overrides: DeepPartial<Config> = {}): Config {
       fadeRetireBelow: 0.05,
       maxRetiresPerTick: 1,
       minActive: 8,
-      maxActive: 40,
+      maxActive: 200,
       requireArt: env('REVERIE_REQUIRE_ART') !== '0',
     },
     feed: {

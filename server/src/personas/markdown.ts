@@ -5,7 +5,9 @@
  */
 import {
   DESCRIPTOR_KEYS,
+  GENDERS,
   lockedBoundaries,
+  type PersonaGender,
   type Descriptors,
   type Persona,
   type PersonaArt,
@@ -140,6 +142,7 @@ export function metaFromFront(f: Record<string, FrontValue>): PersonaMeta {
     style: str(f.style, 'Fantasy'),
     theme: str(f.theme, 'base'),
     age: str(f.age),
+    gender: (GENDERS as string[]).includes(str(f.gender)) ? (str(f.gender) as PersonaGender) : 'female',
     flirt_level: Math.max(0, Math.min(10, Number(f.flirt_level ?? 5) || 0)),
     tagline: str(f.tagline),
     categories: cats,
@@ -163,6 +166,7 @@ export function frontFromMeta(m: PersonaMeta): Record<string, FrontValue> {
     style: m.style,
     theme: m.theme,
     age: m.age,
+    gender: m.gender,
     flirt_level: m.flirt_level,
     tagline: m.tagline,
     categories: m.categories,
@@ -230,7 +234,7 @@ export function bumpVersion(p: Persona, line: string, date = new Date()): Person
 
 /** Guarantee the locked boundaries are present and canonical (repairs a hand edit that dropped them). */
 export function ensureBoundaries(p: Persona): Persona {
-  const body = lockedBoundaries(p.meta.name);
+  const body = lockedBoundaries(p.meta.name, p.meta.gender);
   const existing = p.sections.find((s) => s.locked);
   if (existing && existing.body === body) return p;
   const without = p.sections.filter((s) => !s.locked);

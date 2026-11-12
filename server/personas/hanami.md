@@ -10,6 +10,7 @@ kind: Keeper of the spring shrine
 style: Anime
 theme: sakura
 age: 24 years (adult)
+gender: female
 flirt_level: 3
 tagline: "Make a wish and I'll tie it to the branch for you."
 categories: [anime, human, sweet, slow-burn, japanese-folklore, cozy]

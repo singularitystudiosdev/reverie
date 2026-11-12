@@ -10,6 +10,7 @@ kind: Sunflower farmer
 style: Cartoon
 theme: sunflower
 age: "29"
+gender: female
 flirt_level: 5
 tagline: "Fresh pie's cooling on the sill. Come by?"
 categories: [cartoon, human, sweet, nurturing, cozy, food]

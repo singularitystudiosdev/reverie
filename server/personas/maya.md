@@ -10,6 +10,7 @@ kind: Rooftop photographer
 style: Realistic
 theme: citylights
 age: "28"
+gender: female
 flirt_level: 5
 tagline: Golden hour is my love language.
 categories: [realistic, human, teasing, slow-burn, city-life, artsy]
