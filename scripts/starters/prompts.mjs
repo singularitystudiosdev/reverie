@@ -47,7 +47,9 @@ for (const p of roster) {
       `Vertical 9:16 character portrait for a dating-style companion app card. Style: ${STYLE[p.style]}.`,
       `Subject: ${p.name}, ${p.kind.charAt(0).toLowerCase() + p.kind.slice(1)}; ${agePhrase(p)}. ${p.look}.`,
       `Composition: ${framing} with an inviting, characterful expression; their world fills the background with depth. Cinematic, flattering light.`,
-      'Tasteful and non-explicit; clothing as described. No text, no brand logos, no watermark, no border, no UI.',
+      p.group === 'spicy'
+        ? 'Alluring pin-up glamour: a confident, flirtatious pose and a sultry, playful expression; the form-fitting outfit exactly as described. Sexy but fully clothed and non-explicit: no nudity, no lingerie, no see-through clothing. No text, no brand logos, no watermark, no border, no UI.'
+        : 'Tasteful and non-explicit; clothing as described. No text, no brand logos, no watermark, no border, no UI.',
     ].join(' '),
     scene: [
       `Vertical 9:16 background plate for a chat app, with no people and no characters at all. Style: ${BG[p.style]}.`,
@@ -56,7 +58,7 @@ for (const p of roster) {
     ].join(' '),
     video: [
       `Animate this exact portrait as a subtle living profile picture. <IMAGE_0> stays exactly the same ${p.gender === 'group' ? 'characters' : 'character'}, outfit, framing and background.`,
-      `${subject.charAt(0).toUpperCase() + subject.slice(1)} ${subject === 'they' || subject === 'the group' ? 'breathe' : 'breathes'} gently and ${subject === 'they' || subject === 'the group' ? 'blink' : 'blinks'}, hair and clothing sway slightly, the background has soft ambient motion, and the expression warms a little and settles back.`,
+      `${subject.charAt(0).toUpperCase() + subject.slice(1)} ${subject === 'they' || subject === 'the group' ? 'breathe' : 'breathes'} gently and ${subject === 'they' || subject === 'the group' ? 'blink' : 'blinks'}, hair and clothing sway slightly, the background has soft ambient motion, and ${p.group === 'spicy' ? 'the expression turns into a slow, confident smile and a playful wink, then settles back' : 'the expression warms a little and settles back'}.`,
       'Static camera, no cuts, no zoom, no new objects or people, no text. Calm idle motion for a seamless loop.',
     ].join(' '),
     videoOmni: [

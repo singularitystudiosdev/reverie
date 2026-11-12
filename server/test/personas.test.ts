@@ -12,8 +12,8 @@ const dir = path.join(SERVER_ROOT, 'personas');
 const files = fs.readdirSync(dir).filter((f) => f.endsWith('.md'));
 
 test('every seed persona file round-trips, validates and carries the canonical locked boundaries', () => {
-  // 14 launch personas + 100 starters (server/starters/roster.json).
-  assert.equal(files.length, 114);
+  // 14 launch personas + 140 starters (server/starters/roster.json).
+  assert.equal(files.length, 154);
   for (const f of files) {
     const md = fs.readFileSync(path.join(dir, f), 'utf8');
     const p = parsePersona(md);
@@ -28,7 +28,7 @@ test('every seed persona file round-trips, validates and carries the canonical l
   }
 });
 
-test('the 100 starters match their roster entry and carry only a still, a profile video and a background', () => {
+test('the 140 starters match their roster entry and carry only a still, a profile video and a background', () => {
   const roster = JSON.parse(fs.readFileSync(path.join(SERVER_ROOT, 'starters', 'roster.json'), 'utf8')).personas as {
     id: string;
     name: string;
@@ -36,8 +36,10 @@ test('the 100 starters match their roster entry and carry only a still, a profil
     style: string;
     group: string;
   }[];
-  assert.equal(roster.length, 100);
+  assert.equal(roster.length, 140);
+  assert.equal(roster.filter((r) => r.group === 'trope').length, 70);
   assert.equal(roster.filter((r) => r.group === 'novel').length, 30);
+  assert.equal(roster.filter((r) => r.group === 'spicy').length, 40);
   for (const r of roster) {
     const p = parsePersona(fs.readFileSync(path.join(dir, `${r.id}.md`), 'utf8'));
     assert.equal(p.meta.name, r.name, r.id);

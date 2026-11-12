@@ -292,7 +292,7 @@ export const characters: Character[] = [
     avatarPosition: '58% 33%',
     avatarScale: 2.5,
   }),
-  // The 100 starter personas follow the launch roster.
+  // The 140 starter personas follow the launch roster.
   ...starterSeeds.map(starter),
 ];
 

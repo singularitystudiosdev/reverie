@@ -70,7 +70,7 @@ change adds a dated changelog line.
 
 ## Starter roster (`starters/roster.json`)
 
-114 personas ship: the 14 launch characters and 100 starters. The starters
+154 personas ship: the 14 launch characters and 140 starters. The starters
 follow the categories that rank on AI-companion platforms (SpicyChat's tag
 counts, CrushOn's AI-girlfriend lanes, Nectar's top personality types): 70
 popular tropes (30 anime women, 22 realistic women, 6 goth/fantasy/cartoon
@@ -83,7 +83,20 @@ poker-playing grandma, Santa off-season, a gummy bear, four groups of women
 and a boy band who share one chat, a ghost, a houseplant spirit, a robot
 barista, a book-hoarding dragon, a minotaur, an alien diplomat, a fox
 gentleman, a time-lost flapper and knight, a sloth, an octopus chef, a T-rex
-in HR, a teddy bear, a mothman). Every character is an adult.
+in HR, a teddy bear, a mothman), plus 40 "spicy" ones (`group: "spicy"`, flirt
+level 8 to 10) built on the role-play tropes that top adult sites' 2025 search
+data (Pornhub's Year in Review: job role play such as cop +54%, soldier +41%,
+boss +175%, plumber +67%, driver +144%, chef +39% and professor +33%; MILF as
+the #2 search with cougar, GILF and mature rising; hentai #1; cosplay; femboy
+entering the top 10): a police officer, an army sergeant, an editor-in-chief
+boss, a fire captain, an airline pilot, a head chef, a plumber, a chauffeur, a
+divorced neighbor, a cougar, a former showgirl, a superyacht stewardess, an
+anime traffic cop, a very curvy landlady, a dark elf, a cosplayer, a succubus,
+a race queen, a shrine maiden, a bodyguard, a host, a femboy streamer, a couple
+next door and three Vegas bridesmaids. Their art is glamorous and
+form-fitting but fully clothed, and their chat is heavy on innuendo but still
+bound by the locked Boundaries: suggestive, never explicit. Every character is
+an adult.
 
 Each starter is exactly three things:
 

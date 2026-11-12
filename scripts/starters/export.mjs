@@ -1,4 +1,4 @@
-// Writes src/data/starters.generated.ts: the 100 starter personas as the app's
+// Writes src/data/starters.generated.ts: the 140 starter personas as the app's
 // built-in roster entries, read from their server/personas/<id>.md files (the
 // single source of truth), with only the assets each persona actually has on
 // disk: profile still (+ small), profile video loop, background (+ small).
@@ -15,13 +15,14 @@ const faces = fs.existsSync(facesFile) ? JSON.parse(fs.readFileSync(facesFile, '
 const has = (f) => fs.existsSync(path.join(root, 'public/characters', f));
 
 // Deal the local deck order round-robin across kinds so it never runs ten anime cards in a row.
-const buckets = { anime: [], realistic: [], men: [], other: [], novel: [] };
+const buckets = { anime: [], realistic: [], men: [], other: [], novel: [], spicy: [] };
 for (const p of roster) {
-  const b = p.group === 'novel' ? 'novel' : p.gender === 'male' ? 'men' : p.style === 'Anime' ? 'anime' : p.style === 'Realistic' ? 'realistic' : 'other';
+  const b = p.group === 'novel' ? 'novel' : p.group === 'spicy' ? 'spicy' : p.gender === 'male' ? 'men' : p.style === 'Anime' ? 'anime' : p.style === 'Realistic' ? 'realistic' : 'other';
   buckets[b].push(p);
 }
 const order = [];
-const pattern = ['anime', 'realistic', 'novel', 'anime', 'men', 'realistic', 'novel', 'other'];
+// The spicy starters are dealt in evenly, about one card in four.
+const pattern = ['anime', 'spicy', 'realistic', 'novel', 'anime', 'spicy', 'men', 'realistic', 'novel', 'spicy', 'other'];
 while (order.length < roster.length) {
   for (const b of pattern) if (buckets[b].length) order.push(buckets[b].shift());
 }
