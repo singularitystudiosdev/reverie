@@ -348,6 +348,22 @@ factor is under 0.5.
   the request that served it.
 - **Dwell.** Every decided card logs `dwell_ms` (impression to swipe). The
   ranker does not read it yet; it needs real swipes to calibrate.
+- **Live ranker experiments** (`src/feed/experiment.ts`). `feed.experiment`
+  (or the env var `REVERIE_FEED_EXPERIMENT`, JSON) splits users by a stable
+  hash into arms, each serving with its own `feed` overrides, e.g.
+  `{"name":"pe-1","arms":[{"name":"control","weight":4},{"name":"intercepts","feed":{"personaEffects":true}}]}`.
+  A user's arm is fixed at their first serve (`feed_arms`), so editing weights
+  moves nobody; `"unit":"page"` instead draws an arm per request, for
+  serve-time knobs, at about a twentieth of the users for the same lift. Every
+  serve and impression carries `<experiment>:<arm>`; an arm that changes the
+  factor fit (`calibrate`, `personaEffects`) gets its own fit on the pooled
+  rows. `GET /admin/feed-experiment`: likes per card per arm (clustered by
+  user), its difference from the first arm as a confidence sequence (valid at
+  any peek), deep chats and reports per liked card, next-day return,
+  a sample-ratio-mismatch test, the cards needed for a 5% lift, and warnings.
+  Arms share one model and its statistics (symbiosis bias, arXiv 2309.07107):
+  run treatments small, read them again at a larger share, and do not test
+  exploration this way (an arm with less exploration rides on the others').
 
 The app re-ranks after every 3 swipes and sends its queued events before it
 asks for the next page, so the server ranks with the swipes the user just made;
@@ -381,7 +397,7 @@ value, so ranker settings compare in minutes.
 | `GET /v1/feed?user_id=&limit=&visible=&include_passed=1&exclude=` | the ranked deck |
 | `POST /v1/events` | `{ events: [...] }`, up to 500 |
 | `POST /v1/chat` | `{ user_id, persona_id, text }` -> `{ messages, source }` |
-| `GET /admin/stats[/:id]`, `/admin/experiments`, `/admin/gate`, `/admin/archive`, `/admin/lifecycle`, `/admin/safety`, `/admin/art-queue`, `/admin/report`, `/admin/personas/:id/md`, `/admin/personas/:id/versions` | inspection |
+| `GET /admin/stats[/:id]`, `/admin/experiments`, `/admin/feed-experiment`, `/admin/gate`, `/admin/archive`, `/admin/lifecycle`, `/admin/safety`, `/admin/art-queue`, `/admin/report`, `/admin/personas/:id/md`, `/admin/personas/:id/versions` | inspection |
 | `POST /admin/tick`, `POST /admin/art/run`, `POST /admin/personas/:id/art` | actions |
 
 Admin routes require `Authorization: Bearer $REVERIE_ADMIN_TOKEN` and are
@@ -423,6 +439,37 @@ Measured in `SIMULATION.md`. Status as of this branch.
 | 21 | Client-chosen user ids could flood the shared stats; admin open without a token | - | fixed: served cards only, one vote per user and persona, rate limit, admin fail-closed |
 | 22 | Recycling by a fixed 3-day rule | [Tinder: model-ranked recycling](https://lifeattinder.com/blog/how-to-keep-recommendations-fresh) | in place (ranked by the model after 3 days) |
 | - | Elo leagues, Gale-Shapley, reciprocity, like caps | [Tinder retired Elo](https://tinderpressroom.com/powering-tinder-r-the-method-behind-our-matching) | not applicable: personas always accept |
+
+### Second audit (2026-11-12, independent pass)
+
+Re-read against the leaders' current code and papers, then measured in the
+feed bench (app paging, 3 ranker seeds) and the paired closed loop
+(SIMULATION.md, "Independent audit"). Every ranker change that could be
+measured offline tied or lost: the ranker sits at a local optimum of the
+simulator, and the gaps left need real users. So the change shipped is the
+missing way to measure on real users (row 24), and the rest is ordered as live
+arms.
+
+| # | Gap | What the leaders do | Status |
+|---|---|---|---|
+| 24 | No way to compare ranker settings on real users; every choice rests on a simulator the authors wrote | [X: experiments on a share of For You traffic, production defaults in code](https://github.com/xai-org/x-algorithm); [Hinge ships its ranker as an A/B result (SIGIR '26)](https://dl.acm.org/doi/10.1145/3805712.3808464); [symbiosis bias when arms share data](https://arxiv.org/abs/2309.07107) | **fixed**: live ranker arms (`feed.experiment`), sticky and namespaced, per-arm fits, clustered primary metric with always-valid intervals, SRM test, shared-data warnings |
+| 25 | The chat term is persona-level: P(deep chat) and P(report) are the same for every user, and it already pulled every user toward the same personas (patched with an exponent) | per-viewer prediction of every action, summed with weights ([X](https://github.com/xai-org/x-algorithm)); the chain P(like) P(match given like) P(conversation given match) per pair, multi-task two-tower over interaction sequences, +2.8% conversations in an A/B ([Hinge, SIGIR '26](https://dl.acm.org/doi/10.1145/3805712.3808464)) | open, first live arm once chats exist: P(chat given like) and P(deep given chat) per user (the bench has no chats; the closed loop's chat depth hangs on flirt-level fit, which no tag carries) |
+| 26 | No P(chat given match): the score assumes every like is chatted with | [Hinge's chain](https://dl.acm.org/doi/10.1145/3805712.3808464) | open (with 25) |
+| 27 | Dwell, profile opens and video plays logged, none read | X weights dwell, dwell time, profile visit seconds and "not dwelled" (-0.02) ([param.rs](https://github.com/xai-org/x-algorithm/blob/main/home-mixer/params/param.rs)); [Hinge: a fast skip reads as not your type](https://hinge.co/how-we-connect-daters); [Kuaishou: under 3 s of watch time is a negative](https://arxiv.org/abs/2308.13249) | open: needs real swipes to calibrate; a weaker negative for a slow pass and a profile open as a half-like are the first arm |
+| 28 | Chat messages add to the user's tag affinity without limit (+0.15 per message on every tag, so one 100-message chat outweighs 17 likes) | engagement counts enter through saturating transforms; X scales predicted probabilities, not raw counts ([README](https://github.com/xai-org/x-algorithm)) | open (cap or log1p per conversation; a live arm) |
+| 29 | No sequence or recency model: the user is a bag of counts that never decays (also row 18) | X Phoenix reads the recent engagement sequence; [Tinder ranks on recent activity](https://tinderpressroom.com/powering-tinder-r-the-method-behind-our-matching); Hinge encodes interaction sequences with a transformer; [HSTU](https://arxiv.org/abs/2402.17152) | open (the simulator's tastes are static, so it cannot price it) |
+| 30 | No photo or text understanding of personas (also row 17); the DPP kernel is hand tags | [Tinder: similar photos to ones members liked (2019), VLM pairwise photo ranking](https://lifeattinder.com/blog/how-tinder-r-uses-ai-to-rank-profile-photos); X's DPP over post embeddings, CLIP in its media models | open: embed each portrait and persona file offline, use for cold-start similarity and the kernel |
+| 31 | One portrait per persona, never tested | Tinder Smart Photos: an epsilon-greedy bandit over a profile's photos on swipe-right rate, up to +12% matches (2016) | open (art pipeline: 2-3 portrait variants, a bandit picks the opener) |
+| 32 | No stated preferences or "not interested" (also rows 11, 12); the chat text, where users say what they like, is unused | [Meta "Your algorithm" (2026-11-10)](https://engineering.fb.com/2026/11/10/ml-applications/your-algorithm-giving-people-more-ways-to-personalize-facebook-recommendations/): LLM-kept Interested / Not interested lists, new interests boosted for a while and capped | open (product) |
+| 33 | Persona quality is a raw like rate over the cards a personalised feed chose (exposure bias, row 10) | [feedback loops amplify popularity bias](https://arxiv.org/abs/2007.13019) | built, off: `feed.personaEffects` (random intercepts against the audience; a unit test shows it removes an audience gap the raw rate keeps): -0.009 in the bench, +0.4 / +0.3 points of like rate in the paired closed loop (seeds 7 / 11); the first live arm |
+| 34 | One fitted weight per factor for a user's 1st card and 50th | varying-coefficient / history-length features | tried, dropped: evidence-scaled weights tied or lost on 5 of 5 bench cells |
+| 35 | Affinity and trait factors overlap (gender and art style are in both); the fit splits them (affinity 0.42, traits 0.21) and pinning traits at 1 drives affinity negative | one learned model over raw features, no hand-built overlapping factors ([X](https://github.com/xai-org/x-algorithm): "eliminated hand-engineered features") | documented; a learned per-user model lost here before (SIMULATION.md) |
+| 36 | The persona lifecycle stalls at launch traffic: nothing fades and the gate never opens in 25 days at 220 users a day | X gives cold-start authors Thompson-sampled slots by default ([author_cold_start.rs](https://github.com/xai-org/x-algorithm/blob/main/home-mixer/scorers/author_cold_start.rs)) | open: judge personas on all served cards through a debiased estimate (row 33's intercepts, or doubly robust, row 20) instead of waiting for 30 uniform-random swipes each |
+| 37 | Each 3-card page's DPP ignores the page just shown | [Chen et al.: sliding-window DPP, +1.33% titles watched in an A/B](https://arxiv.org/abs/1709.05135) | open (the simulator has no satiation; a live arm) |
+| 38 | Propensities from 32 Monte Carlo replays (floor 1/64) | X logs the exact Plackett-Luce slot probability of its exploration ([page_rl_exploration_scorer.rs](https://github.com/xai-org/x-algorithm/blob/main/home-mixer/scorers/page_rl_exploration_scorer.rs), off by default) | open, minor |
+| 39 | The model rebuilds every 60 s on the request path, scanning every impression (rates, persona-to-persona table) in synchronous SQLite | [Monolith: online training on a stream](https://arxiv.org/abs/2209.07663); incremental counters | open: fine at launch, seconds per rebuild near a million impressions |
+| 40 | No retention or long-term objective | TikTok's leaked "Algo 101": retention and time spent ([Gizmodo on the NYT leak](https://gizmodo.com/leaked-tiktok-doc-reveals-its-obvious-secret-to-an-addi-1848166901)); [YouTube: exploration's long-term value](https://dl.acm.org/doi/fullHtml/10.1145/3460231.3474236) | open: next-day return is now a per-arm metric (row 24) |
+| 41 | No position or session-fatigue term (row 15): acceptance falls about 27% from first to last option | [Pronk & Denissen 2020](https://doi.org/10.1177/1948550619866189) | open |
 
 ## Prior art
 

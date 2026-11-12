@@ -26,7 +26,7 @@ import { SERVER_ROOT } from '../config.ts';
 import { getFeedModel } from '../feed/model.ts';
 import { buildFeed } from '../feed/ranker.ts';
 import { offlineLlm } from '../llm/claude.ts';
-import type { Persona } from '../personas/schema.ts';
+import { feedTags, type Persona } from '../personas/schema.ts';
 import { makeRng } from '../stats/random.ts';
 import { ingest } from '../telemetry/ingest.ts';
 import { computeAllStats } from '../telemetry/rollups.ts';
@@ -211,6 +211,24 @@ const est: Record<string, unknown> = {};
   const model = getFeedModel(ctx);
   const ids = personas.map((p) => p.meta.id).filter((id: string) => model.persona.has(id));
   est.corrModel = +pearson(ids.map((id: string) => { const l = model.persona.get(id)!.like; return l.a / (l.a + l.b); }), ids.map((id: string) => popMean.get(id)!)).toFixed(3);
+  // The persona's own term in the model against its hidden quality (the intercept in likeP, which
+  // the audience does not move): the raw like rate's logit, and with fitted weights the persona's
+  // whole log-odds contribution (weight x log quality factor + its fitted intercept).
+  const logit = (x: number) => Math.log(x / (1 - x));
+  const hidden = ids.map((id: string) => truth.get(id)!.quality);
+  est.corrQualityRaw = +pearson(ids.map((id: string) => { const l = model.persona.get(id)!.like; return logit(l.a / (l.a + l.b)); }), hidden).toFixed(3);
+  if (model.calib) {
+    const cw = model.calib;
+    const term = ids.map((id: string) => {
+      const p = ctx.personas.get(id)!;
+      const tags = feedTags(p);
+      const cat = tags.reduce((a: number, c: string) => { const g = model.category.get(c) ?? { a: 1, b: 2 }; return a + g.a / (g.a + g.b); }, 0) / Math.max(tags.length, 1);
+      const l = model.persona.get(id)!.like;
+      return cw[2] * Math.log(Math.min(l.a / (l.a + l.b) / Math.max(cat, 1e-3), 3)) + (model.effects?.get(id)?.mean ?? 0);
+    });
+    est.corrQualityModel = +pearson(term, hidden).toFixed(3);
+    est.calib = cw.map((x) => +x.toFixed(3));
+  }
   const imps = ids.map((id: string) => model.persona.get(id)!.impressions);
   est.impressionsMedian = imps.sort((a: number, b: number) => a - b)[Math.floor(imps.length / 2)];
 }

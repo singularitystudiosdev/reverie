@@ -6,10 +6,12 @@
  * co-like matrix; per-category incumbents for the new-persona dynamic prior;
  * each persona's theme vector for the DPP kernel.
  */
+import type { Config } from '../config.ts';
 import type { Ctx } from '../context.ts';
 import { feedTags, type Persona } from '../personas/schema.ts';
 import { dynamicPrior, type BetaParams } from '../stats/dynamicPrior.ts';
 import { twoProportionN } from '../stats/inference.ts';
+import { fitKey, fitSettings } from './experiment.ts';
 
 export interface PersonaPosterior {
   like: BetaParams;
@@ -17,6 +19,14 @@ export interface PersonaPosterior {
   negative: BetaParams;
   impressions: number;
   isNew: boolean;
+}
+
+/** A persona's random intercept in the fitted P(like) model: posterior mean and sd (logit scale). */
+export interface PersonaEffect {
+  mean: number;
+  sd: number;
+  /** Decided cards behind it. */
+  n: number;
 }
 
 export interface FeedModel {
@@ -34,6 +44,12 @@ export interface FeedModel {
   impressions: Map<string, number>;
   /** Fitted weights [intercept, affinity, quality, traits, cf] on the factors' logs, or null. */
   calib: number[] | null;
+  /** Per-persona intercepts in logit space fitted with the weights above (cfg.feed.personaEffects),
+   *  or null: what each persona's likes say once the audience the feed chose for it is accounted for. */
+  effects: Map<string, PersonaEffect> | null;
+  /** The fit for every distinct fit setting the default or a ranker-experiment arm serves with
+   *  (experiment.ts fitKey); `calib` and `effects` above are the default's. */
+  fits: Map<string, Calibration>;
   /** Decided random-slot impressions per persona (the fade check's unbiased sample). */
   randomN: Map<string, number>;
   /** Impressions a persona needs before the undersampled slot stops spending traffic on it. */
@@ -203,7 +219,7 @@ export function buildFeedModel(ctx: Ctx): FeedModel {
     impressions: new Map([...imp].map(([k, v]) => [k, v.n])),
     randomN,
     gateImpressions,
-    calib: cfg.feed.calibrate ? calibration(ctx) : null,
+    ...fitsFor(ctx, centeredLogits(featurePrior)),
     conversations,
     categories,
   };
@@ -343,63 +359,148 @@ function buildCf(ctx: Ctx): Map<string, Map<string, { o: number; e: number }>> {
   return cf;
 }
 
-const CALIB_ROWS = 20_000;
 const CALIB_TTL_MS = 10 * 60_000;
-const calibCache = new WeakMap<Ctx, { at: number; w: number[] | null }>();
+export type Calibration = { calib: number[] | null; effects: Map<string, PersonaEffect> | null };
+const calibCache = new WeakMap<Ctx, Map<string, { at: number; c: Calibration }>>();
 
-/** The fitted factor weights, refitted at most every 10 minutes (the model itself rebuilds every minute). */
-function calibration(ctx: Ctx): number[] | null {
-  const c = calibCache.get(ctx);
-  if (c && ctx.now() - c.at < CALIB_TTL_MS) return c.w;
-  const w = fitCalibration(ctx);
-  calibCache.set(ctx, { at: ctx.now(), w });
-  return w;
+/** The default's fit (`calib`, `effects`) and one per distinct fit setting an experiment arm serves with. */
+function fitsFor(ctx: Ctx, prior: Map<string, number>): Calibration & { fits: Map<string, Calibration> } {
+  const fits = new Map<string, Calibration>();
+  for (const f of fitSettings(ctx.cfg.feed)) fits.set(fitKey(f), calibration(ctx, f, prior));
+  return { ...fits.get(fitKey(ctx.cfg.feed))!, fits };
+}
+
+/** The fitted factor weights and persona intercepts for one fit setting, refitted at most every 10 minutes (the model itself rebuilds every minute). */
+function calibration(ctx: Ctx, feed: Config['feed'], prior: Map<string, number>): Calibration {
+  if (!feed.calibrate) return { calib: null, effects: null };
+  const key = fitKey(feed);
+  const byKey = calibCache.get(ctx) ?? new Map<string, { at: number; c: Calibration }>();
+  calibCache.set(ctx, byKey);
+  const c = byKey.get(key);
+  if (c && ctx.now() - c.at < CALIB_TTL_MS) return c.c;
+  const fit = fitCalibration(ctx, feed, prior);
+  byKey.set(key, { at: ctx.now(), c: fit });
+  return fit;
+}
+
+/** Each persona's feature-prior like rate as a logit, centred on the roster mean: the prior mean of its intercept. */
+function centeredLogits(fp: Map<string, { mean: number }>): Map<string, number> {
+  const l = new Map([...fp].map(([id, f]) => [id, Math.log(Math.max(f.mean, 1e-4) / Math.max(1 - f.mean, 1e-4))]));
+  const m = l.size ? [...l.values()].reduce((a, b) => a + b, 0) / l.size : 0;
+  return new Map([...l].map(([id, x]) => [id, x - m]));
 }
 
 /**
  * Weights for the P(like) factors: a logistic regression of the latest decided cards (at most
- * 20,000: bounded cost, and it follows drift) on the logs of the factors the ranker logged when
- * it served each (posterior means), ridge 1 on each weight around 1 (the plain product) and a
- * vague prior on the intercept. Null below 500 such cards.
+ * cfg.feed.calibRows: bounded cost, and it follows drift) on the logs of the factors the ranker
+ * logged when it served each (posterior means), ridge 1 on each weight around 1 (the plain
+ * product) and a vague prior on the intercept. Null below 500 such cards.
+ *
+ * With cfg.feed.personaEffects the persona's side of the model is its own intercept instead:
+ * u_p ~ N(m_p, tau^2), m_p its feature-prior logit centred on the roster (`prior`), in a
+ * random-intercept logistic regression on the user-side factors (affinity, traits, the
+ * persona-to-persona term) with the quality factor's weight held at 0 (the logit-space form of
+ * Koren's baseline predictors, KDD 2008; a GLMM), fitted by alternating Newton steps with tau^2 by
+ * EM. Why: the quality factor is a raw like rate over the cards the feed chose to show, and a
+ * personalised feed shows each persona mostly to its fans, so that rate overstates the personas
+ * with fan-heavy audiences (selection bias), and the rate logged at serve time is staler than the
+ * one the ranker multiplies in now, so a residual fitted next to it counts the same likes twice.
+ * Given the user-side factors the feed selected on, the likes are an unbiased sample again
+ * (selection on observables): u_p is what each persona's likes say once its audience is
+ * accounted for. A persona with no cards in the window keeps its prior (mean m_p, sd tau).
  */
-function fitCalibration(ctx: Ctx): number[] | null {
-  const rows = (
+function fitCalibration(ctx: Ctx, feed: Config['feed'], prior: Map<string, number>): Calibration {
+  const withEffects = feed.personaEffects;
+  const raw = (
     ctx.db
-      .prepare('SELECT outcome, factors FROM impressions WHERE outcome IS NOT NULL AND factors IS NOT NULL ORDER BY id DESC LIMIT ?')
-      .all(CALIB_ROWS) as { outcome: string; factors: string }[]
+      .prepare('SELECT persona_id, outcome, factors FROM impressions WHERE outcome IS NOT NULL AND factors IS NOT NULL ORDER BY id DESC LIMIT ?')
+      .all(feed.calibRows) as { persona_id: string; outcome: string; factors: string }[]
   )
-    .map((r) => ({ y: r.outcome === 'like' ? 1 : 0, x: [1, ...(JSON.parse(r.factors) as number[])] }))
+    .map((r) => ({ id: r.persona_id, y: r.outcome === 'like' ? 1 : 0, x: [1, ...(JSON.parse(r.factors) as number[])] }))
     .filter((r) => r.x.length === 5 && r.x.every(Number.isFinite));
-  if (rows.length < 500) return null;
+  if (raw.length < 500) return { calib: null, effects: null };
+  // With persona intercepts the quality column is dropped (its weight stays 0).
+  if (withEffects) for (const r of raw) r.x[2] = 0;
+  const ids = [...new Set([...prior.keys(), ...raw.map((r) => r.id)])];
+  const index = new Map(ids.map((id, i) => [id, i]));
+  const rows = raw.map((r) => ({ ...r, p: index.get(r.id)! }));
+  const m = Float64Array.from(ids, (id) => prior.get(id) ?? 0);
   const d = 5;
-  const w = [Math.log(0.2 / 0.8), 1, 1, 1, 1];
-  const mu = [Math.log(0.2 / 0.8), 1, 1, 1, 1];
+  const w = [Math.log(0.2 / 0.8), 1, withEffects ? 0 : 1, 1, 1];
+  const mu = [...w];
   const prec = [0.01, 1, 1, 1, 1];
-  for (let iter = 0; iter < 25; iter++) {
-    const g = new Float64Array(d);
-    const h = new Float64Array(d * d);
-    for (let j = 0; j < d; j++) {
-      g[j] = -prec[j] * (w[j] - mu[j]);
-      h[j * d + j] = prec[j];
+  const u = withEffects ? Float64Array.from(m) : new Float64Array(ids.length);
+  const uVar = new Float64Array(ids.length);
+  let tau2 = 0.25;
+  for (let round = 0; round < (withEffects ? 6 : 1); round++) {
+    // The factor weights, with each persona's current intercept as an offset.
+    for (let iter = 0; iter < 25; iter++) {
+      const g = new Float64Array(d);
+      const h = new Float64Array(d * d);
+      for (let j = 0; j < d; j++) {
+        g[j] = -prec[j] * (w[j] - mu[j]);
+        h[j * d + j] = prec[j];
+      }
+      for (const r of rows) {
+        let z = u[r.p];
+        for (let j = 0; j < d; j++) z += w[j] * r.x[j];
+        const p = 1 / (1 + Math.exp(-z));
+        for (let a = 0; a < d; a++) {
+          g[a] += (r.y - p) * r.x[a];
+          for (let b = 0; b < d; b++) h[a * d + b] += p * (1 - p) * r.x[a] * r.x[b];
+        }
+      }
+      const step = solveSpd(h, d, g);
+      if (!step) break;
+      let max = 0;
+      for (let j = 0; j < d; j++) max = Math.max(max, Math.abs(step[j]));
+      const damp = max > 2 ? 2 / max : 1;
+      for (let j = 0; j < d; j++) w[j] += damp * step[j];
+      if (max * damp < 1e-6) break;
     }
-    for (const r of rows) {
+    if (!withEffects) break;
+    // Each persona's intercept given the weights: a one-dimensional Newton fit, ridge 1/tau^2.
+    const eta = rows.map((r) => {
       let z = 0;
       for (let j = 0; j < d; j++) z += w[j] * r.x[j];
-      const p = 1 / (1 + Math.exp(-z));
-      for (let a = 0; a < d; a++) {
-        g[a] += (r.y - p) * r.x[a];
-        for (let b = 0; b < d; b++) h[a * d + b] += p * (1 - p) * r.x[a] * r.x[b];
+      return z;
+    });
+    const seen = new Uint8Array(ids.length);
+    for (let iter = 0; iter < 20; iter++) {
+      const g = Array.from(u, (x, k) => -(x - m[k]) / tau2);
+      const h = new Array(ids.length).fill(1 / tau2);
+      rows.forEach((r, i) => {
+        const p = 1 / (1 + Math.exp(-(eta[i] + u[r.p])));
+        g[r.p] += r.y - p;
+        h[r.p] += p * (1 - p);
+        seen[r.p] = 1;
+      });
+      let max = 0;
+      for (let k = 0; k < ids.length; k++) {
+        const step = Math.max(-2, Math.min(2, g[k] / h[k]));
+        u[k] += step;
+        uVar[k] = 1 / h[k];
+        max = Math.max(max, Math.abs(step));
       }
+      if (max < 1e-6) break;
     }
-    const step = solveSpd(h, d, g);
-    if (!step) break;
-    let max = 0;
-    for (let j = 0; j < d; j++) max = Math.max(max, Math.abs(step[j]));
-    const damp = max > 2 ? 2 / max : 1;
-    for (let j = 0; j < d; j++) w[j] += damp * step[j];
-    if (max * damp < 1e-6) break;
+    // EM for the spread of true persona effects around their priors (Laplace posteriors of the
+    // personas with cards), held off a floor so one round cannot collapse it and the effects with it.
+    let s = 0;
+    let k0 = 0;
+    for (let k = 0; k < ids.length; k++) if (seen[k]) {
+      s += (u[k] - m[k]) ** 2 + uVar[k];
+      k0++;
+    }
+    if (k0) tau2 = Math.min(Math.max(s / k0, 0.02), 1);
   }
-  return w;
+  const effects = withEffects ? new Map<string, PersonaEffect>() : null;
+  if (effects) {
+    const n = new Map<number, number>();
+    for (const r of rows) n.set(r.p, (n.get(r.p) ?? 0) + 1);
+    ids.forEach((id, k) => effects.set(id, { mean: u[k], sd: n.has(k) ? Math.sqrt(uVar[k]) : Math.sqrt(tau2), n: n.get(k) ?? 0 }));
+  }
+  return { calib: w, effects };
 }
 
 /**

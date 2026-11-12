@@ -464,6 +464,32 @@ test('with enough swipes the P(like) factors get fitted weights, and a factor th
   assert.ok(Math.abs(w![2]) < 0.3, `quality weight ${w![2].toFixed(2)}`);
 });
 
+test("persona intercepts judge a persona against the audience the feed chose for it, not by its raw rate", () => {
+  const { ctx } = scratch({ feed: { calibrate: true, personaEffects: true } });
+  const insert = ctx.db.prepare('INSERT INTO impressions (ts, user_id, persona_id, slot, p_shown, outcome, factors) VALUES (?, ?, ?, ?, ?, ?, ?)');
+  // Two personas equally good for any given user; 'ada' is shown only to its fans (high affinity),
+  // 'luna' to everyone. Likes follow the affinity factor alone.
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const raw: Record<string, { x: number; n: number }> = { ada: { x: 0, n: 0 }, luna: { x: 0, n: 0 } };
+  for (let i = 0; i < 4000; i++) {
+    const id = i % 2 ? 'ada' : 'luna';
+    const la = id === 'ada' ? Math.log(0.45 + 0.15 * rnd()) : Math.log(0.05 + 0.55 * rnd());
+    const like = rnd() < 1 / (1 + Math.exp(-(-0.4 + 1.2 * la))) ? 'like' : 'pass';
+    raw[id].x += like === 'like' ? 1 : 0;
+    raw[id].n++;
+    insert.run(i, `u${i}`, id, 'exploit', 0.5, like, JSON.stringify([la, 0, 0, 0]));
+  }
+  const logit = (p: number) => Math.log(p / (1 - p));
+  const rawGap = logit(raw.ada.x / raw.ada.n) - logit(raw.luna.x / raw.luna.n);
+  const m = getFeedModel(ctx, 0);
+  const gap = m.effects!.get('ada')!.mean - m.effects!.get('luna')!.mean;
+  assert.ok(rawGap > 0.4, `the raw rates differ: ${rawGap.toFixed(2)}`);
+  assert.ok(Math.abs(gap) < 0.2, `the intercepts do not: ${gap.toFixed(2)}`);
+  assert.equal(m.calib![2], 0, 'the raw quality factor is not in the fit');
+  assert.ok(m.calib![1] > 0.8, `affinity carries the likes: ${m.calib![1].toFixed(2)}`);
+});
+
 test('with fitted weights the shared chat term keeps its say: its ratio between two personas is compressed by the exponent', () => {
   // Same P(like); one persona's chat term is 4x the other's.
   const plain = combineScore(0.2, 4, 1, false, 0.5) / combineScore(0.2, 1, 1, false, 0.5);

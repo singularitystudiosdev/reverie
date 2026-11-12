@@ -11,7 +11,7 @@
  *   POST /v1/events   { events: IncomingEvent[] }   (also accepts text/plain for sendBeacon)
  *   POST /v1/chat     { user_id, persona_id, text }
  *
- *   GET  /admin/stats | /admin/stats/:id | /admin/experiments | /admin/gate
+ *   GET  /admin/stats | /admin/stats/:id | /admin/experiments | /admin/gate | /admin/feed-experiment
  *   GET  /admin/archive | /admin/lifecycle | /admin/safety | /admin/art-queue | /admin/report
  *   GET  /admin/personas/:id/md | /admin/personas/:id/versions
  *   POST /admin/tick
@@ -25,6 +25,7 @@ import { attachArt } from './art/attach.ts';
 import { loadConfig, type DeepPartial, type Config } from './config.ts';
 import type { Ctx } from './context.ts';
 import { json, openDb } from './db.ts';
+import { feedExperimentReport } from './feed/experiment.ts';
 import { buildFeed } from './feed/ranker.ts';
 import { artBrief } from './lifecycle/evolve.ts';
 import { computeGate } from './lifecycle/gate.ts';
@@ -159,6 +160,7 @@ route(
   }),
   true,
 );
+route('GET', /^\/admin\/feed-experiment$/, (ctx) => feedExperimentReport(ctx), true);
 route('GET', /^\/admin\/gate$/, (ctx) => computeGate(ctx, computeAllStats(ctx, false)), true);
 route(
   'GET',

@@ -408,6 +408,56 @@ the ranker now beats the true-popularity deck; where tags explain taste it is 0.
 (0.012 before this pass). The DPP kernel no longer carries art style (142 of 154 personas had
 their style as a theme tag).
 
+## Independent audit: what the bench can still settle (2026-11-12, later)
+
+A second, independent pass (README, "Second audit") built and measured every ranker change it
+could test offline. Feed bench, `--page 3 --warm 1000 --test 300`, world seed 7 where not noted,
+mean true like probability per card (SE about 0.0016; latent look about 0.0022):
+
+| | ranker seed 101 | 202 | 303 | latent look, 101 | seed 11 | seed 11, latent |
+|---|---|---|---|---|---|---|
+| **current defaults** | **0.2123** | **0.2114** | **0.2128** | **0.2382** | **0.2134** | **0.2495** |
+| persona intercepts (`personaEffects`) | 0.2033 | | | | | |
+| evidence-scaled factor weights | 0.2130 | 0.2095 | | 0.2364 | 0.2126 | 0.2455 |
+| trait weight pinned at 1 | 0.2032 | 0.2046 | | 0.2389 | 0.2059 | |
+| affinity and trait weights pinned at 1 | 0.2139 | | | | | |
+| fit weighted by inverse propensity | 0.2139 | | | 0.2330 | | |
+| explore slots keep trait-ruled-out personas | 0.2106 | | | | | |
+
+Ablations of the current defaults (ranker seed 101): no DPP 0.2109, no exploration 0.1961, no
+Thompson spread 0.2045, no persona-to-persona term 0.2063, no fitted weights 0.2113, DPP picks in
+score order 0.2137. Every part earns its place or ties; nothing measured here beats the defaults.
+
+- **The fitted trait weight (0.21) is not a bug.** Gender and art style sit in both the trait factor
+  and the tag affinity (gender is a feed tag; 142 of 154 personas carry their style as a theme), so
+  the fit splits one signal between two collinear factors: pinning the trait weight at 1 drives the
+  affinity weight to -0.33 and costs 0.009.
+- **Persona intercepts** (a random-intercept logistic model: each persona judged against the
+  audience the feed chose for it, the quality factor's weight held at 0) remove an audience gap
+  the raw rate keeps (unit test), but cost 0.009 in the bench, whose selection bias is small, and
+  track the hidden quality no better (correlation 0.22 against 0.21 to 0.24 for the raw rate, at
+  about 10 impressions for the median persona). A first version that kept the quality factor next
+  to the intercepts counted the same likes twice (the serve-time rate is staler than the one the
+  ranker multiplies in now): 0.2039 against 0.2147 at launch scale.
+- **Exposure is concentrated.** After 12,000 warm-up cards the median persona has about 10
+  impressions; the ranker loses to a true-popularity deck in sessions 4 and 5 (0.184 and 0.172
+  against 0.205 and 0.176) while it wins session 3.
+
+Paired closed loop, 25 days, 220 users a day, `--no-premium --paired --page 3`:
+
+| | like rate, seed 7 / 11 | deep chats per user, seed 7 / 11 | faded | gate |
+|---|---|---|---|---|
+| current defaults | 22.9% / 24.0% | 0.43 / 0.46 | nothing | never opens |
+| persona intercepts | **23.3% / 24.3%** | 0.42 / 0.46 | nothing | opens day 23 at seed 11 |
+| evidence-scaled weights | 23.0% / 24.0% | 0.42 / 0.46 | nothing | never opens |
+
+The intercepts win both closed-loop seeds by 0.3 to 0.4 points where the bench says -0.009, as the
+fitted weights did before them: the loop has the feedback the bench lacks. Two seeds cannot settle
+it, so `feed.personaEffects` stays off and is the first arm for the live ranker experiment
+(`feed.experiment`, README). The evidence-scaled weights tie or lose everywhere and were removed.
+In every run nothing fades and the gate stays shut at launch traffic: the lifecycle waits on 30
+uniform-random swipes per persona that 220 users a day do not supply in 25 days (README row 36).
+
 ## Settings
 
 The 45-day runs use relaxed thresholds so a run finishes in minutes (gate: a

@@ -5,13 +5,14 @@
  * Environment overrides: REVERIE_DB, REVERIE_PERSONAS_DIR, PORT,
  * ANTHROPIC_API_KEY (LLM features; offline fallbacks without it),
  * REVERIE_REQUIRE_ART=0 (activate generated personas without art),
- * REVERIE_TICK_MS (scheduler cadence).
+ * REVERIE_TICK_MS (scheduler cadence), REVERIE_FEED_EXPERIMENT (a live ranker A/B, src/feed/experiment.ts).
  * Automatic art (default OFF, see `art` below and server/README.md): REVERIE_AUTO_ART=1,
  * GEMINI_API_KEY (stills), XAI_API_KEY (video), REVERIE_ART_DAILY_USD (UTC-day spend cap),
  * REVERIE_ART_PERSONA_USD, REVERIE_ART_DIR, REVERIE_ART_MAX_PER_TICK.
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { FeedExperiment } from './feed/experiment.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const SERVER_ROOT = path.resolve(here, '..');
@@ -169,6 +170,20 @@ export interface Config {
      *  rate (all 5 seeds) and +0.026 deep chats per user against off (SIMULATION.md). Falls back
      *  to the product below 500 swipes. */
     calibrate: boolean;
+    /** A live ranker experiment (src/feed/experiment.ts): users (or pages) split by a stable hash
+     *  into arms, each serving with its own feed overrides; null for none (env
+     *  REVERIE_FEED_EXPERIMENT). GET /admin/feed-experiment reads it. */
+    experiment: FeedExperiment | null;
+    /** Decided cards the fit reads (the latest; bounded cost, and it follows drift). */
+    calibRows: number;
+    /** With `calibrate`: the persona's side of the fitted model is its own intercept (random
+     *  intercepts around its feature prior, tau by EM) instead of the raw quality factor, so its
+     *  likes are judged against the audience the feed chose for it, not as a raw rate a
+     *  personalised feed inflates for personas with fan-heavy audiences (model.ts fitCalibration).
+     *  OFF: the bench (small selection bias) says -0.009, the paired closed loop +0.4 / +0.3
+     *  points of like rate (seeds 7 / 11; SIMULATION.md, "Independent audit"): the first arm for a
+     *  live ranker experiment (`experiment`). */
+    personaEffects: boolean;
     /** With fitted weights, the persona-level chat term (1 + w_deep P(deep) - w_neg P(report)) is
      *  raised to this power: the fit halves P(like)'s spread, so the term's say is halved too. */
     calibratedChatExponent: number;
@@ -285,7 +300,10 @@ export function loadConfig(overrides: DeepPartial<Config> = {}): Config {
       randomTarget: 40,
       undersampledTarget: 0,
       calibrate: true,
+      calibRows: 20_000,
+      personaEffects: false,
       calibratedChatExponent: 0.5,
+      experiment: feedExperimentFromEnv(),
     },
     art: {
       enabled: env('REVERIE_AUTO_ART') === '1',
@@ -308,7 +326,19 @@ export function loadConfig(overrides: DeepPartial<Config> = {}): Config {
   return deepMerge(base, overrides);
 }
 
-function deepMerge<T>(a: T, b: DeepPartial<T>): T {
+/** REVERIE_FEED_EXPERIMENT: a JSON FeedExperiment ({"name": "...", "arms": [{"name": "control"}, {"name": "x", "feed": {...}}]}). */
+function feedExperimentFromEnv(): FeedExperiment | null {
+  const raw = env('REVERIE_FEED_EXPERIMENT');
+  if (!raw) return null;
+  try {
+    const e = JSON.parse(raw) as FeedExperiment;
+    return e && typeof e.name === 'string' && Array.isArray(e.arms) && e.arms.every((a) => typeof a?.name === 'string') ? e : null;
+  } catch {
+    return null;
+  }
+}
+
+export function deepMerge<T>(a: T, b: DeepPartial<T>): T {
   const out: Record<string, unknown> = { ...(a as Record<string, unknown>) };
   for (const [k, v] of Object.entries(b as Record<string, unknown>)) {
     const cur = out[k];

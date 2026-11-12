@@ -202,6 +202,15 @@ CREATE TABLE IF NOT EXISTS lifecycle_log (
   detail      TEXT
 );
 
+-- Live ranker experiments (src/feed/experiment.ts): a user's arm, fixed at their first serve.
+CREATE TABLE IF NOT EXISTS feed_arms (
+  user_id     TEXT NOT NULL,
+  experiment  TEXT NOT NULL,
+  arm         TEXT NOT NULL,
+  enrolled_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, experiment)
+);
+
 -- Per-user, per-category Beta posteriors (the feed's "zoom in").
 CREATE TABLE IF NOT EXISTS user_affinity (
   user_id   TEXT NOT NULL,
@@ -254,6 +263,9 @@ export function openDb(file: string): DB {
     if (!cols(t).has('factors')) db.exec(`ALTER TABLE ${t} ADD COLUMN factors TEXT`);
   }
   if (!cols('impressions').has('dwell_ms')) db.exec('ALTER TABLE impressions ADD COLUMN dwell_ms INTEGER');
+  // The live ranker experiment's '<experiment>:<arm>' (src/feed/experiment.ts), on the serve and the impression it led to.
+  for (const t of ['feed_serves', 'impressions']) if (!cols(t).has('arm')) db.exec(`ALTER TABLE ${t} ADD COLUMN arm TEXT`);
+  db.exec('CREATE INDEX IF NOT EXISTS impressions_arm ON impressions(arm)');
   return db;
 }
 

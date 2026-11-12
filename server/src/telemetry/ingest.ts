@@ -91,11 +91,11 @@ export function ingest(ctx: Ctx, e: IncomingEvent): void {
       // may have come from an earlier page: then the latest request that served it to this user.
       // The serve row also carries what the ranker predicted for this card (p_pred): the model's
       // persona-to-persona term reads it back as the expected side of its O/E ratios.
-      const latest = db.prepare('SELECT slot, p_shown, p_pred, factors FROM feed_serves WHERE user_id = ? AND persona_id = ? ORDER BY ts DESC LIMIT 1');
+      const latest = db.prepare('SELECT slot, p_shown, p_pred, factors, arm FROM feed_serves WHERE user_id = ? AND persona_id = ? ORDER BY ts DESC LIMIT 1');
       const serve = ((typeof props.request_id === 'string'
-        ? db.prepare('SELECT slot, p_shown, p_pred, factors FROM feed_serves WHERE user_id = ? AND persona_id = ? AND request_id = ? LIMIT 1').get(e.user_id, pid, props.request_id)
-        : undefined) ?? latest.get(e.user_id, pid)) as { slot: string; p_shown: number; p_pred: number | null; factors: string | null } | undefined;
-      db.prepare('INSERT INTO impressions (ts, user_id, persona_id, slot, p_shown, p_pred, factors) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
+        ? db.prepare('SELECT slot, p_shown, p_pred, factors, arm FROM feed_serves WHERE user_id = ? AND persona_id = ? AND request_id = ? LIMIT 1').get(e.user_id, pid, props.request_id)
+        : undefined) ?? latest.get(e.user_id, pid)) as { slot: string; p_shown: number; p_pred: number | null; factors: string | null; arm: string | null } | undefined;
+      db.prepare('INSERT INTO impressions (ts, user_id, persona_id, slot, p_shown, p_pred, factors, arm) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
         ts,
         e.user_id,
         pid,
@@ -103,6 +103,7 @@ export function ingest(ctx: Ctx, e: IncomingEvent): void {
         serve?.p_shown ?? 1,
         serve?.p_pred ?? null,
         serve?.factors ?? null,
+        serve?.arm ?? null,
       );
       break;
     }

@@ -29,9 +29,9 @@
  *             the top cfg.feed.dppPool x k candidates by score only, theta
  *             cfg.feed.dppTheta (X ships 0.65), the chosen cards then shown in
  *             score order; the kernel is theme categories only (model.ts).
- *             With cfg.feed.calibrate (off until a live A/B) the factors are
- *             combined with weights a logistic regression fits to the logged
- *             swipes (the plain product is about 3x too spread in logit space).
+ *             With cfg.feed.calibrate (on) the factors are combined with weights a
+ *             logistic regression fits to the logged swipes (the plain product is
+ *             about 3x too spread in logit space).
  *             A persona-to-persona term multiplies P(like): how much more the
  *             users who liked what this user liked liked the candidate than the
  *             ranker predicted (O/E on its logged predictions; item-based CF on
@@ -63,7 +63,8 @@ import { fadeMultiplier } from '../lifecycle/fade.ts';
 import { feedTags, type Persona } from '../personas/schema.ts';
 import type { Rng } from '../stats/random.ts';
 import { cosineCache, dppSelect } from './dpp.ts';
-import { getFeedModel, type FeedModel } from './model.ts';
+import { feedArm, fitKey } from './experiment.ts';
+import { getFeedModel, type Calibration, type FeedModel } from './model.ts';
 
 export interface FeedCard {
   personaId: string;
@@ -256,7 +257,7 @@ export function combineScore(pLike: number, chatTerm: number, fade: number, cali
 }
 
 /** One tempered Thompson draw of a candidate's score for this user (`cf`: its cfFactor, which takes no draw). */
-function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink: number, fade: number, scale: number, cf = 1, chatExponent = 1): FeedCard['why'] & { score: number } {
+function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink: number, fade: number, scale: number, cf = 1, chatExponent = 1, fit: Calibration = model): FeedCard['why'] & { score: number } {
   const post = model.persona.get(p.meta.id)!;
   // Co-like boost: how much more often this persona's categories are liked by people who liked what this user liked.
   const nCats = Math.max(model.categories.length, 1);
@@ -290,16 +291,24 @@ function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink:
   // The factors at their posterior means, logged with the serve (the calibration fits on them).
   const qualityMean = Math.min(post.like.a / (post.like.a + post.like.b) / catMean, 3);
   const factors = [Math.log(Math.max(affMeanSum / k, 1e-4)), Math.log(Math.max(qualityMean, 1e-4)), Math.log(traits), Math.log(cf)];
-  const cw = model.calib;
+  // The fitted weights (and persona intercepts) for this request's fit setting: the default's, or its experiment arm's.
+  const cw = fit.calib;
   const sig = (z: number) => 1 / (1 + Math.exp(-z));
+  // With persona intercepts (cfg.feed.personaEffects) the persona's side of the fitted model is its
+  // own intercept, not the quality factor (whose weight the fit holds at 0): what its likes say
+  // once the audience the feed chose for it is accounted for, drawn like the quality factor
+  // (tempered by the same scale) so a persona with little evidence still gets explored.
+  const eff = fit.effects?.get(p.meta.id);
+  const effect = eff ? eff.mean : 0;
+  const effectDraw = eff && scale > 0 ? eff.mean + scale * eff.sd * rng.normal() : effect;
   const pLike = cw
-    ? sig(cw[0] + cw[1] * Math.log(Math.max(affinity, 1e-4)) + cw[2] * Math.log(Math.max(quality, 1e-4)) + cw[3] * factors[2] + cw[4] * factors[3])
+    ? sig(cw[0] + cw[1] * Math.log(Math.max(affinity, 1e-4)) + cw[2] * Math.log(Math.max(quality, 1e-4)) + cw[3] * factors[2] + cw[4] * factors[3] + effectDraw)
     : Math.min(affinity * quality * traits * cf, 0.99);
   // The mean prediction without the collaborative term (no draw), logged with the serve: the
   // expected side of the persona-to-persona O/E ratios, so that term learns only what the rest of
   // the model misses.
   const pBase = cw
-    ? sig(cw[0] + cw[1] * factors[0] + cw[2] * factors[1] + cw[3] * factors[2])
+    ? sig(cw[0] + cw[1] * factors[0] + cw[2] * factors[1] + cw[3] * factors[2] + effect)
     : Math.min((affMeanSum / k) * qualityMean * traits, 0.99);
   const pDeep = post.deep.a / (post.deep.a + post.deep.b);
   const pNeg = post.negative.a / (post.negative.a + post.negative.b);
@@ -313,8 +322,10 @@ function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink:
   return { score, pLike, pDeep, pNeg, affinity, quality, traits, cf, pBase, factors, isNew: post.isNew, fade };
 }
 
-export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { requestId: string; cards: FeedCard[] } {
-  const cfg = ctx.cfg.feed;
+export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { requestId: string; cards: FeedCard[]; arm: string | null } {
+  // The arm of a live ranker experiment this request is served under, if one runs, and its feed settings.
+  const requestId = makeId('feed');
+  const { arm, feed: cfg } = feedArm(ctx, userId, { requestId, persist: !req.dryRun });
   const limit = Math.max(1, Math.min(req.limit ?? cfg.deckSize, 50));
   const model = getFeedModel(ctx);
   const u = hydrate(ctx, userId);
@@ -333,12 +344,11 @@ export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { re
     const before = ctx.now() - cfg.recycleAfterMs;
     candidates = [...candidates, ...eligible.filter((p) => u.passed.has(p.meta.id) && (u.passedAt.get(p.meta.id) ?? 0) < before)];
   }
-  const requestId = makeId('feed');
-  if (!candidates.length) return { requestId, cards: [] };
+  if (!candidates.length) return { requestId, cards: [], arm };
 
   const fades = new Map(candidates.map((p) => [p.meta.id, fadeMultiplier(ctx, p.meta.id)]));
   const cfs = new Map(candidates.map((p) => [p.meta.id, cfFactor(model, u, p.meta.id, cfg.cfWeight, cfg.cfShrink)]));
-  const score = (p: Persona) => drawScore(model, p, u, ctx.rng, cfg.userShrink, fades.get(p.meta.id)!, cfg.tsScale, cfs.get(p.meta.id), cfg.calibratedChatExponent);
+  const score = (p: Persona) => drawScore(model, p, u, ctx.rng, cfg.userShrink, fades.get(p.meta.id)!, cfg.tsScale, cfs.get(p.meta.id), cfg.calibratedChatExponent, model.fits.get(fitKey(cfg)) ?? model);
   const draws = candidates.map(score);
 
   // Selection: DPP over the scored pool, then every k-th card becomes an exploration slot.
@@ -447,10 +457,10 @@ export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { re
 
   if (!req.dryRun) {
     const ins = ctx.db.prepare(
-      'INSERT INTO feed_serves (request_id, position, ts, user_id, persona_id, slot, p_shown, score, p_pred, factors) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO feed_serves (request_id, position, ts, user_id, persona_id, slot, p_shown, score, p_pred, factors, arm) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     );
     const now = ctx.now();
-    for (const c of cards) ins.run(requestId, c.position, now, userId, c.personaId, c.slot, c.pShown, c.score, c.why.pBase, JSON.stringify(c.why.factors.map((x) => +x.toFixed(4))));
+    for (const c of cards) ins.run(requestId, c.position, now, userId, c.personaId, c.slot, c.pShown, c.score, c.why.pBase, JSON.stringify(c.why.factors.map((x) => +x.toFixed(4))), arm);
   }
-  return { requestId, cards };
+  return { requestId, cards, arm };
 }
