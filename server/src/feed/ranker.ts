@@ -230,6 +230,17 @@ function tempered(rng: Rng, a: number, b: number, scale: number): number {
  */
 function cfFactor(model: FeedModel, u: UserState, id: string, weight: number, shrink: number): number {
   if (!weight || !u.liked.size) return 1;
+  const e = model.ease;
+  if (e) {
+    const j = e.index.get(id);
+    if (j === undefined) return 1;
+    let s = 0;
+    for (const lid of u.liked) {
+      const i = e.index.get(lid);
+      if (i !== undefined) s += e.B[i * e.n + j];
+    }
+    return Math.min(Math.max(Math.exp(3 * weight * s), 0.2), 5);
+  }
   let s = 0;
   for (const i of u.liked) {
     const c = model.cf.get(i)?.get(id);

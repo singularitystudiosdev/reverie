@@ -28,6 +28,8 @@ export interface FeedModel {
   /** Persona-to-persona residuals: cf[i][j] = likes of j (o) and the likes the ranker expected (e)
    *  when it served j, among users who liked i. */
   cf: Map<string, Map<string, { o: number; e: number }>>;
+  /** EASE item-item weights (row-major n x n over `index`), with cfg.feed.cfMethod 'ease'. */
+  ease: { index: Map<string, number>; n: number; B: Float64Array } | null;
   vectors: Map<string, number[]>;
   impressions: Map<string, number>;
   /** Fitted weights [intercept, affinity, quality, traits, cf] on the factors' logs, or null. */
@@ -159,7 +161,8 @@ export function buildFeedModel(ctx: Ctx): FeedModel {
     colikeRow.set(r.cat_a, (colikeRow.get(r.cat_a) ?? 0) + r.n);
   }
 
-  const cf = cfg.feed.cfWeight > 0 ? buildCf(ctx) : new Map<string, Map<string, { o: number; e: number }>>();
+  const cf = cfg.feed.cfWeight > 0 && cfg.feed.cfMethod !== 'ease' ? buildCf(ctx) : new Map<string, Map<string, { o: number; e: number }>>();
+  const ease = cfg.feed.cfWeight > 0 && cfg.feed.cfMethod === 'ease' ? buildEase(ctx, personas.map((p) => p.meta.id), cfg.feed.easeLambda) : null;
 
   const randomN = new Map<string, number>();
   for (const r of db
@@ -195,6 +198,7 @@ export function buildFeedModel(ctx: Ctx): FeedModel {
     colike,
     colikeRow,
     cf,
+    ease,
     vectors,
     impressions: new Map([...imp].map(([k, v]) => [k, v.n])),
     randomN,
@@ -396,6 +400,57 @@ function fitCalibration(ctx: Ctx): number[] | null {
     if (max * damp < 1e-6) break;
   }
   return w;
+}
+
+/**
+ * EASE (Steck, WWW 2019, arXiv 1905.03375): B = I - P diagMat(1 / diag(P)), P = (X'X + lambda I)^-1,
+ * over the binary user x persona like matrix of served cards. A user's score for persona j is the
+ * sum of B[i][j] over the personas i they liked.
+ */
+function buildEase(ctx: Ctx, ids: string[], lambda: number): { index: Map<string, number>; n: number; B: Float64Array } {
+  const n = ids.length;
+  const index = new Map(ids.map((id, i) => [id, i]));
+  const G = new Float64Array(n * n);
+  let user: string | null = null;
+  let liked: number[] = [];
+  const flush = () => {
+    for (const a of liked) for (const b of liked) G[a * n + b] += 1;
+  };
+  for (const r of ctx.db
+    .prepare("SELECT DISTINCT user_id, persona_id FROM impressions WHERE outcome = 'like' AND slot != 'unranked' ORDER BY user_id")
+    .all() as { user_id: string; persona_id: string }[]) {
+    if (r.user_id !== user) {
+      flush();
+      user = r.user_id;
+      liked = [];
+    }
+    const i = index.get(r.persona_id);
+    if (i !== undefined) liked.push(i);
+  }
+  flush();
+  for (let i = 0; i < n; i++) G[i * n + i] += lambda;
+  // Gauss-Jordan inverse (G is symmetric positive definite).
+  const P = new Float64Array(n * n);
+  for (let i = 0; i < n; i++) P[i * n + i] = 1;
+  for (let c = 0; c < n; c++) {
+    const piv = G[c * n + c];
+    for (let k = 0; k < n; k++) {
+      G[c * n + k] /= piv;
+      P[c * n + k] /= piv;
+    }
+    for (let r = 0; r < n; r++) {
+      if (r === c) continue;
+      const f = G[r * n + c];
+      if (!f) continue;
+      for (let k = 0; k < n; k++) {
+        G[r * n + k] -= f * G[c * n + k];
+        P[r * n + k] -= f * P[c * n + k];
+      }
+    }
+  }
+  const B = new Float64Array(n * n);
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) B[i * n + j] = i === j ? 0 : -P[i * n + j] / P[j * n + j];
+  return { index, n, B };
 }
 
 /** Solve A x = b for a symmetric positive-definite A (row-major), or null. */

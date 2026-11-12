@@ -343,6 +343,71 @@ multiplicative lift overshoots where probabilities saturate, so the expected sid
 exactly the fans it should correct for. The bias it targets (a persona's fans inflate its
 raw rate) is real; correcting it needs a calibrated model in logit space.
 
+## Paired closed loop under the app's paging (2026-11-12, later)
+
+The closed loop could not settle small differences: each day's users were drawn from the same
+random stream the swipes consume, so two configs met different people from day 1 (the static
+holdout alone moved 16.4% to 18.0%), and it served whole decks of 6, so the paging fix never ran
+end to end. `--paired` keys every world draw by what it is about (a user, a persona, a (user,
+persona) swipe, a chat turn), gives each user a fixed slot on the day's clock and the ranker a
+stream per request; `--page 3` plays the app's paging (10 cards, 3 swiped, the next one pinned on
+top, ask again). Without the flags a seed reproduces the earlier runs exactly. The holdouts now
+agree to within half a point across arms. 25 days, 220 users a day, `--no-premium --paired
+--page 3`, seeds 3, 7, 11, 13, 17:
+
+| | like rate | deep chats per user | faded (population like rate, rank of 154; 1 = least liked) |
+|---|---|---|---|
+| old ranker (`404c643`: explore cards never on screen) | 23.46% | 0.416 | nothing |
+| explore 1 in 5 (`513f525`) | 21.82% (-1.64, 5 of 5 seeds) | 0.394 | `isolde` 3.1% (rank 2-4) at 3 seeds; `luna` 19.3% (132) |
+| + fitted factor weights | 22.40% (+0.58 over the row above, 5 of 5) | 0.420 | `isolde` at 3 seeds; `sylvara` 20.1% (138) |
+| + random-slot sample 80 or uncapped (same: none reaches 80) | 22.18% | 0.418 | `nikki-starr` (113), `fern` (147) |
+| + explore 1 in 10, old fade rule | 23.24% | 0.440 | four non-duds, `kiyo` 26.3% (150) among them |
+| + fade check fails closed, explore 1 in 5 | 22.24% | 0.420 | `nikki-starr` (115) |
+| + fade check fails closed, explore 1 in 10 | 23.28% | 0.436 | nothing |
+| **current: + picks in DPP order, no 5-point fade margin** | **23.24%** | **0.436** | **nothing** |
+
+Naive like-rate error against the hidden population rate: 2.3 points now, 3.3 for the old ranker.
+
+- **The false fades were a fail-open check.** A persona's random-slot like rate was only checked
+  once 3 judged personas had 30 random-slot swipes; before that a noisy score alone could fade
+  it. `luna` (24 random-slot swipes) and `sylvara` (26) were faded that way. The check now always
+  needs the persona's own 30 random-slot swipes, against the judged personas' median random rate
+  or, while fewer than 3 have theirs, the pooled random rate; the 5-point margin on top is gone
+  (it let `nikki-starr`'s 2 likes in 30 through).
+- **Exploration: 1 card in 10.** At 1 in 5 the explore cards cost 1.2 points of like rate; at
+  1 in 10 the feed keeps the old ranker's like rate within 0.2 points, with more deep chats
+  (0.436 against 0.416, 4 of 5 seeds), and fades nothing wrongly. The price is a slower
+  lifecycle: at 220 users a day no persona gathers 30 random-slot swipes in 25 days, so even
+  the true dud `isolde` is not faded yet.
+- **Fitted factor weights are on**: +0.58 points of like rate on every seed and +0.026 deep chats
+  per user against the plain product, where the unpaired whole-deck loop had read a loss.
+- Shared statistics now count only cards the ranker served, one vote per user and persona
+  (replays dropped, a match needs a like, `/v1/events` 300 per user per minute); the simulator's
+  static holdout, which no ranker serves, no longer trains the model.
+
+Feed bench, 3 ranker seeds each (`--page 3 --rseed 101/202/303`):
+
+| | seed 7 | latent look, seed 7 | seed 11 | latent look, seed 11 |
+|---|---|---|---|---|
+| persona-to-persona term, residual O/E (current) | 0.2130 | **0.2462** | 0.2070 | **0.2420** |
+| the same term as EASE (Steck 2019, lambda 100) | 0.2149 | 0.2400 | 0.2081 | 0.2349 |
+
+EASE ties where tags explain taste and loses 0.006 to 0.007 with a latent look on every seed: it
+refits likes the tags already explain, where the residual term learns only what the rest of the
+model misses. It stays available as `feed.cfMethod: 'ease'`.
+
+| current defaults (explore 1 in 10, fitted weights), seed 7 | like probability | visible-window kernel cosine |
+|---|---|---|
+| DPP picks in score order (X's order) | 0.2206 / latent 0.2524 | 0.146 / 0.144 |
+| **DPP picks in pick order (current)** | 0.2185 / latent 0.2574 | **0.094 / 0.089** |
+| static popularity deck (true means) | 0.2242 / latent 0.2508 | |
+
+In pick order the 3 cards on screen are about 37% less alike, at -0.002 / +0.005 like
+probability; the bench has no satiation, so the variety itself is not priced. With a latent look
+the ranker now beats the true-popularity deck; where tags explain taste it is 0.004 behind it
+(0.012 before this pass). The DPP kernel no longer carries art style (142 of 154 personas had
+their style as a theme tag).
+
 ## Settings
 
 The 45-day runs use relaxed thresholds so a run finishes in minutes (gate: a

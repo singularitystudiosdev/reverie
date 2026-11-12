@@ -6,9 +6,10 @@
  * waiting for those would shield exactly the worst personas forever. It is "below" on a tick
  * when the UPPER end of its score interval is under the bottom-quartile score of every persona
  * judged so far (confidently among the worst, not merely under the median, which half of any
- * roster always is; and not the bottom of only the popular personas that reached the gate) and,
- * once enough personas have 30+ random-slot impressions to compare, its own random-slot like
- * rate (unbiased by the feed, 30+ impressions required) agrees. After `fadeStreak`
+ * roster always is; and not the bottom of only the popular personas that reached the gate) and
+ * its own random-slot like rate (unbiased by the feed, 30+ impressions required, always) agrees:
+ * its upper bound under the judged personas' median random-slot rate (the pooled random-slot
+ * rate while fewer than 3 have their sample). After `fadeStreak`
  * consecutive below ticks it starts FADING: still served, with its feed
  * weight multiplied by `fadeDecay` each tick (traffic decays first, as a
  * bandit would), and RETIRED once the weight falls under `fadeRetireBelow`.
@@ -48,7 +49,11 @@ export function fadeTick(ctx: Ctx, stats: PersonaStats[], gate: GateStatus): Fad
   const bar = quantile(scores, l.fadeQuantile);
   res.medianScore = med;
   const randomPool = pool.filter((s) => s.likeRateRandom.n >= 30);
-  const randomMed = randomPool.length >= 3 ? median(randomPool.map((s) => s.likeRateRandom.rate)) : null;
+  // The unbiased reference the random-slot check compares against: the median random-slot rate of
+  // the judged personas, or while fewer than 3 have their sample, the pooled random-slot rate.
+  const pooledX = stats.reduce((a, s) => a + s.likeRateRandom.x, 0);
+  const pooledN = stats.reduce((a, s) => a + s.likeRateRandom.n, 0);
+  const randomRef = randomPool.length >= 3 ? median(randomPool.map((s) => s.likeRateRandom.rate)) : pooledN > 0 ? pooledX / pooledN : null;
 
   const getState = ctx.db.prepare('SELECT below_streak, fade_multiplier FROM persona_state WHERE persona_id = ?');
   const setState = ctx.db.prepare('UPDATE persona_state SET below_streak = ?, fade_multiplier = ? WHERE persona_id = ?');
@@ -84,8 +89,12 @@ export function fadeTick(ctx: Ctx, stats: PersonaStats[], gate: GateStatus): Fad
     .sort((a, b) => a.score!.upper - b.score!.upper);
   for (const s of candidates) {
     const row = getState.get(s.personaId) as { below_streak: number; fade_multiplier: number } | undefined;
+    // Fails closed: no persona fades on its score alone. It needs its own 30 random-slot swipes,
+    // and their upper bound under the reference. (Open while the pool had fewer than 3 such
+    // personas, this let noisy scores fade two of the most-liked personas in the paired loop; a
+    // 5-point margin on top of the reference let a mid-table persona's unlucky 2 likes in 30 through.)
     const randomAgrees =
-      randomMed === null || (s.likeRateRandom.n >= 30 && wilson(s.likeRateRandom.x, s.likeRateRandom.n).upper < randomMed + 0.05);
+      randomRef !== null && s.likeRateRandom.n >= 30 && wilson(s.likeRateRandom.x, s.likeRateRandom.n).upper < randomRef;
     const below = s.score!.upper < bar && randomAgrees;
     const streak = below ? (row?.below_streak ?? 0) + 1 : 0;
     if (below && streak >= l.fadeStreak && actions < l.maxRetiresPerTick && activeCount - 1 >= l.minActive) {

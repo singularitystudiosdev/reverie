@@ -106,9 +106,11 @@ export interface Config {
 
   feed: {
     deckSize: number;
-    /** Every k-th card is an exploration slot (random, or the user's best among the least-shown
-     *  quarter). The random half is every active persona's traffic floor: each gets about
-     *  1/(2 k N) of all cards. */
+    /** Every k-th card the user decides on is an exploration slot (random, or the user's best
+     *  among the least-shown quarter). 10, not 5: in the paired closed loop under the app's paging,
+     *  1 in 10 kept the like rate of a ranker that never explored (23.28% vs 23.46%, 5 seeds) where
+     *  1 in 5 cost 1.2 points; the price is a slower lifecycle (a persona needs 30 random-slot
+     *  swipes before it can fade). */
     exploreEvery: number;
     /** Per-user category posterior is shrunk toward the global category rate with this pseudo-count. */
     userShrink: number;
@@ -124,7 +126,9 @@ export interface Config {
     dppPool: number;
     /** 'score': the DPP's picks shown in score order, as X does (its whole slate is consumed);
      *  'pick': in the order the DPP chose them, so the diversity reaches the 3 cards the app shows
-     *  of each page. */
+     *  of each page. Pick order: the visible window 37% less alike (mean kernel cosine 0.09 vs
+     *  0.14), like probability -0.002 where tags explain taste and +0.005 with a latent look
+     *  (feed bench, 3 ranker seeds); the bench has no satiation, so variety itself is unpriced. */
     dppOrder: 'score' | 'pick';
     /** A passed persona may come back once the unseen roster runs short, this long after the pass. */
     recycleAfterMs: number;
@@ -143,6 +147,12 @@ export interface Config {
     cfWeight: number;
     /** Pseudo-likes pulling each persona-pair O/E lift toward 1. */
     cfShrink: number;
+    /** The persona-to-persona term: 'oe' (likes over the ranker's prediction among fans of what the
+     *  user liked) or 'ease' (Steck 2019's closed-form item-item weights on the like matrix,
+     *  arXiv 1905.03375; the term is exp(3 x cfWeight x the user's EASE score)). */
+    cfMethod: 'oe' | 'ease';
+    /** EASE's L2 penalty on the persona-persona weights. */
+    easeLambda: number;
     /** Exploration stops where its sample is in: a random slot draws only among personas with
      *  fewer random-slot swipes than this (the fade check needs 30; the rest is headroom), an
      *  undersampled slot only among personas short of `undersampledTarget` impressions (0: the
@@ -154,11 +164,10 @@ export interface Config {
     /** Combine the P(like) factors with weights fitted to the swipes (a logistic regression on
      *  the logs of the factors logged with each serve, ridge toward the plain product) instead of
      *  multiplying them at weight 1 each, which made predictions about 3x too spread in logit
-     *  space. OFF until a live A/B: the feed bench (3 ranker seeds) gains +0.009 with a latent
-     *  look and ties without; the closed loop (no latent look), with the chat term compressed
-     *  below, is 0.3 points of like rate and 0.03 deep chats per user under off (3 seeds) while it
-     *  fades the true dud and cuts the estimate error by a third (SIMULATION.md). Falls back to
-     *  the product below 500 swipes. */
+     *  space. Feed bench (3 ranker seeds): +0.009 with a latent look, a tie without. Paired closed
+     *  loop under the app's paging (5 seeds, the same users in every arm): +0.58 points of like
+     *  rate (all 5 seeds) and +0.026 deep chats per user against off (SIMULATION.md). Falls back
+     *  to the product below 500 swipes. */
     calibrate: boolean;
     /** With fitted weights, the persona-level chat term (1 + w_deep P(deep) - w_neg P(report)) is
      *  raised to this power: the fit halves P(like)'s spread, so the term's say is halved too. */
@@ -258,12 +267,12 @@ export function loadConfig(overrides: DeepPartial<Config> = {}): Config {
     },
     feed: {
       deckSize: 10,
-      exploreEvery: 5,
+      exploreEvery: 10,
       userShrink: 4,
       tsScale: 0.3,
       dppTheta: 0.65,
       dppPool: 3,
-      dppOrder: 'score',
+      dppOrder: 'pick',
       recycleAfterMs: 3 * 86_400_000,
       newEps: 0.1,
       newPriorStrength: 30,
@@ -271,9 +280,11 @@ export function loadConfig(overrides: DeepPartial<Config> = {}): Config {
       visible: 3,
       cfWeight: 0.5,
       cfShrink: 3,
+      cfMethod: 'oe',
+      easeLambda: 100,
       randomTarget: 40,
       undersampledTarget: 0,
-      calibrate: false,
+      calibrate: true,
       calibratedChatExponent: 0.5,
     },
     art: {

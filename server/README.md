@@ -268,7 +268,7 @@ Conversation after a user's goodbye never counts toward any metric.
   not its chat count, which a persona nobody likes never reaches), a score
   upper bound under the bottom-quartile score of every persona judged so far
   for 3 ticks, confirmed by its own random-slot like rate (30+ random
-  impressions), starts fading: its feed
+  impressions, always: the check fails closed), starts fading: its feed
   weight halves each tick, it retires under 5%. At most one action per tick,
   never under 8 active, restored if it recovers. Matched users keep the chat.
 
@@ -299,12 +299,14 @@ factor is under 0.5.
   a ridge logistic regression on every persona's likes, strength by the method
   of moments. Personas the loop spawns into an established roster still start
   from the pessimistic dynamic prior until they have 100 impressions.
-- **Diversity as X runs it.** A DPP (`vm-ranker/dpp.rs`) over the top
-  `feed.dppPool` x k candidates by score only, theta `feed.dppTheta` (0.65, X's
-  default), the chosen cards then shown in score order. The kernel is theme
-  categories only: gender, age and style in it made the wrong gender look like
-  "variety".
-- **Exploration.** Every 5th card the user decides on is an exploration card:
+- **Diversity.** A DPP as X's vm-ranker runs it (`vm-ranker/dpp.rs`) over the
+  top `feed.dppPool` x k candidates by score only, theta `feed.dppTheta` (0.65,
+  X's default). X then shows the chosen cards in score order because its whole
+  slate is consumed; the app shows 3 cards a page, so here they keep the order
+  the DPP chose them in (`feed.dppOrder: 'pick'`): the visible cards are 37%
+  less alike. The kernel is theme categories without gender, age or art style:
+  those in it made the wrong gender look like "variety".
+- **Exploration.** Every 10th card the user decides on is an exploration card:
   half uniformly random (the unbiased sample the fade check reads), half the
   user's best-scoring persona among the least-shown quarter (traffic for the
   gate). The slots follow the user's card stream, not fixed page positions:
@@ -325,9 +327,9 @@ factor is under 0.5.
   product; `feed.calibrate`, from 500 swipes). The plain product spread
   predictions about 3x too wide in logit space; with the fit on, the
   persona-level chat term is raised to `feed.calibratedChatExponent` (0.5) so
-  it keeps its say against the narrower P(like). **Off by default** until a
-  live A/B: +0.009 in the feed bench with a latent look, 0.3 points of like
-  rate under off in the closed loop, which has none (SIMULATION.md).
+  it keeps its say against the narrower P(like). On by default: +0.58 points
+  of like rate and +0.026 deep chats per user in the paired closed loop under
+  the app's paging (all 5 seeds), +0.009 in the feed bench with a latent look.
 - **Persona-to-persona term.** P(like) is multiplied by how much more the
   user's fellow fans liked the candidate than the ranker predicted for them:
   among users who liked persona i, the likes of j over the ranker's logged mean
@@ -399,10 +401,10 @@ Measured in `SIMULATION.md`. Status as of this branch.
 |---|---|---|---|
 | 1 | Explore slots at page positions the app never shows | - | fixed: slots follow the user's card stream |
 | 2 | Propensities logged for the whole page, not the 3 cards seen | [X home-mixer](https://github.com/xai-org/x-algorithm) logs per served slot | fixed (`visible`) |
-| 3 | No persona-level collaborative filtering | [TinVec](https://slideshare.net/slideshow/dr-steve-liu-chief-scientist-tinder-at-mlconf-sf-2017/81871516); [Koren 2008](https://www.cs.cornell.edu/courses/cs6241/2020sp/readings/Koren-2008-Factorization.pdf); [EASE](https://arxiv.org/abs/1905.03375) | fixed: residual persona-to-persona term; EASE not yet benched |
-| 4 | Uniform exploration with no stopping rule | [KuaiRand](https://arxiv.org/abs/2208.08696) one random slot at a small fixed rate; [X](https://github.com/xai-org/x-algorithm/blob/main/home-mixer/params/param.rs) none | fixed: stops once a persona's sample is in |
+| 3 | No persona-level collaborative filtering | [TinVec](https://slideshare.net/slideshow/dr-steve-liu-chief-scientist-tinder-at-mlconf-sf-2017/81871516); [Koren 2008](https://www.cs.cornell.edu/courses/cs6241/2020sp/readings/Koren-2008-Factorization.pdf); [EASE](https://arxiv.org/abs/1905.03375) | fixed: residual persona-to-persona term; EASE benched and kept as `cfMethod: 'ease'` (ties without a latent look, -0.006 / -0.007 with one) |
+| 4 | Uniform exploration at 1 card in 5 with no stopping rule | [KuaiRand](https://arxiv.org/abs/2208.08696) one random slot at a small fixed rate; [X](https://github.com/xai-org/x-algorithm/blob/main/home-mixer/params/param.rs) none | fixed: 1 card in 10, stops once a persona's sample is in |
 | 5 | Exploration not aimed at what the user has not met | [YouTube, Values of user exploration (RecSys 2021)](https://dl.acm.org/doi/fullHtml/10.1145/3460231.3474236): least-shown topics, not uniform | open |
-| 6 | Factors multiplied at weight 1 (3x over-spread) | weighted predicted actions: [X weights](https://github.com/xai-org/x-algorithm/blob/main/xai-value-model/weights.rs), [Twitter heavy ranker](https://github.com/twitter/the-algorithm-ml/blob/main/projects/home/recap/README.md) | built behind `feed.calibrate`, off |
+| 6 | Factors multiplied at weight 1 (3x over-spread) | weighted predicted actions: [X weights](https://github.com/xai-org/x-algorithm/blob/main/xai-value-model/weights.rs), [Twitter heavy ranker](https://github.com/twitter/the-algorithm-ml/blob/main/projects/home/recap/README.md) | fixed: fitted weights (`feed.calibrate`, on) |
 | 7 | Dwell and skip speed unused | [Hinge: a fast skip reads as not your type](https://hinge.co/how-we-connect-daters); [Yi et al. 2014](https://www.hongliangjie.com/publications/recsys2014.pdf) | logged (`dwell_ms`), not read |
 | 8 | Profile opens and video plays unused | [Instagram profile taps](https://about.instagram.com/blog/announcements/instagram-ranking-explained) | open |
 | 9 | No user leniency term | [Koren baseline predictors](https://www.cs.cornell.edu/courses/cs6241/2020sp/readings/Koren-2008-Factorization.pdf); [X debias](https://github.com/xai-org/x-algorithm); [Tinder's old Elo](https://fastcompany.com/3054871/whats-your-tinder-score-inside-the-apps-internal-ranking-system) | open (an audience O/E adjustment lost) |
@@ -412,7 +414,8 @@ Measured in `SIMULATION.md`. Status as of this branch.
 | 13 | No daily picks surface | [Hinge Most Compatible](https://techcrunch.com/2018/07/11/hinge-employs-new-algorithm-to-find-your-most-compatible-match-for-you); [Bumble Discover](https://support.bumble.com/hc/en-us/articles/28423668110621) | open (product) |
 | 14 | New users not shielded from untested personas | [X NewUserMinEngagementFilter](https://github.com/xai-org/x-algorithm) (exists, off by default) | partly: first decks keep no undersampled slot |
 | 15 | No position or session-fatigue model | [Pronk & Denissen 2020](https://dspace.library.uu.nl/items/054d1dc0-5473-43ab-9de8-83bc5bf64351): acceptance falls 27% first to last option | open |
-| 16 | Diversity spent on cards past the visible window; kernel saw art style | [X DPP](https://github.com/xai-org/x-algorithm/blob/main/vm-ranker/dpp.rs) re-sorts by score because its slate is consumed | kernel fixed; `feed.dppOrder: 'pick'` available |
+| 16 | Diversity spent on cards past the visible window; kernel saw art style | [X DPP](https://github.com/xai-org/x-algorithm/blob/main/vm-ranker/dpp.rs) re-sorts by score because its slate is consumed | fixed: kernel without art style, picks shown in pick order |
+| 23 | Fade could fire on a noisy score alone (no random-slot check until 3 personas had their sample) | - | fixed: the check fails closed |
 | 17 | No image or text embeddings for personas | [Tinder photo ranking](https://lifeattinder.com/blog/how-tinder-r-uses-ai-to-rank-profile-photos); X embedding kernel | open |
 | 18 | No time decay | [Discounted Thompson sampling](https://arxiv.org/abs/2305.10718) | open |
 | 19 | Objective stops at like plus deep chat | [Hinge two-tower p(like)p(match)](https://dl.acm.org/doi/10.1145/3774935.3807906); [TikTok's leaked retention objective](https://gizmodo.com/leaked-tiktok-doc-reveals-its-obvious-secret-to-an-addi-1848166901) | open |

@@ -14,6 +14,7 @@ import type { Ctx } from '../src/context.ts';
 import { assignArm, effectivePersona, promote, type ExperimentRow } from '../src/experiments/engine.ts';
 import { startExperiments } from '../src/experiments/start.ts';
 import { lordLevel } from '../src/stats/fdr.ts';
+import { makeRng } from '../src/stats/random.ts';
 import { buildFeed, combineScore } from '../src/feed/ranker.ts';
 import { getFeedModel } from '../src/feed/model.ts';
 import { planExplore, spawnGeneration } from '../src/lifecycle/evolve.ts';
@@ -207,8 +208,11 @@ test('A/B tests open only when the server writes the replies, each at its online
 
 test("a card's logged propensity matches how often the whole deck policy actually shows it", () => {
   const { ctx, clock } = scratch();
+  // Seeded: with 3 visible cards only a handful are shown often enough to measure, so an
+  // unseeded run sat near the bound by chance.
+  ctx.rng = makeRng(42);
   ingest(ctx, { type: 'swipe', user_id: 'p', persona_id: 'raven', props: { dir: 'like' }, ts: clock.t });
-  const N = 150;
+  const N = 300;
   const shown = new Map<string, number>();
   const logged = new Map<string, number>();
   // The app shows the first 3 cards of a page (cfg.feed.visible) before it re-ranks: a card in
@@ -225,7 +229,7 @@ test("a card's logged propensity matches how often the whole deck policy actuall
   // so compare P(shown) with E[pShown | shown] on the cards shown often enough to measure.
   const errs: number[] = [];
   for (const [id, n] of shown) {
-    if (n < 15) continue;
+    if (n < 30) continue;
     errs.push(Math.abs(n / N - logged.get(id)! / n));
   }
   assert.ok(errs.length >= 3, `${errs.length} frequently shown cards`);
@@ -351,8 +355,8 @@ test('tempered draws: at scale 0 the deck is the posterior-mean order, at 1 it v
   assert.ok(decks.size > 1, 'plain Thompson sampling varies the deck');
 });
 
-test('exploit cards come in score order, as X re-sorts its DPP picks', () => {
-  const { ctx } = scratch();
+test("with feed.dppOrder 'score' exploit cards come in score order, as X re-sorts its DPP picks", () => {
+  const { ctx } = scratch({ feed: { dppOrder: 'score' } });
   for (let i = 0; i < 20; i++) {
     const exploit = buildFeed(ctx, `o${i}`, { limit: 10, dryRun: true }).cards.filter((c) => c.slot === 'exploit');
     for (let j = 1; j < exploit.length; j++) assert.ok(exploit[j - 1].score >= exploit[j].score, `deck ${i}: card ${j} out of order`);
@@ -384,7 +388,7 @@ test('an impression from an earlier page keeps the propensity its own request lo
 });
 
 test("a brand-new user's first deck keeps its random slots but no undersampled ones", () => {
-  const { ctx, clock } = scratch();
+  const { ctx, clock } = scratch({ feed: { exploreEvery: 5 } });
   const slots = { random: 0, undersampled: 0 };
   for (let i = 0; i < 40; i++) for (const c of buildFeed(ctx, `n${i}`, { limit: 10, dryRun: true }).cards) if (c.slot !== 'exploit') slots[c.slot]++;
   assert.equal(slots.undersampled, 0, 'no undersampled card on a first deck');
@@ -397,7 +401,7 @@ test("a brand-new user's first deck keeps its random slots but no undersampled o
 });
 
 test('explore cards follow the user\'s card stream, so a deck re-ranked every 3 swipes still shows one in every 5 cards', () => {
-  const { ctx, clock } = scratch();
+  const { ctx, clock } = scratch({ feed: { exploreEvery: 5 } });
   const slots: string[] = [];
   for (let page = 0; page < 10; page++) {
     const { requestId, cards } = buildFeed(ctx, 'stream', { limit: 10, visible: 3 });
@@ -525,4 +529,59 @@ test('the events route caps each user per minute and admin routes are closed wit
   } finally {
     server.close();
   }
+});
+
+test('early on, before 3 personas have their random-slot sample, a low score alone fades nobody', () => {
+  const { ctx } = scratch();
+  const stats = computeAllStats(ctx, false);
+  const gate = computeGate(ctx, stats);
+  for (const st of stats) {
+    st.impressions = gate.nImpressions + 100;
+    st.score = { score: 3 + (st.personaId.length % 5) * 0.1, lower: 2.6, upper: 3.4, components: {} };
+    st.likeRateRandom = { x: 5, n: 20, rate: 0.25 }; // nobody has 30 random-slot swipes yet
+  }
+  // A strong persona whose score dipped (a noisy deep-chat or return rate) and the true dud, both
+  // short of their random sample: neither may fade on the score alone.
+  for (const id of ['sylvara', 'raven']) stats.find((x) => x.personaId === id)!.score = { score: 0, lower: -1, upper: 1, components: {} };
+  const faded: string[] = [];
+  for (let i = 0; i < ctx.cfg.lifecycle.fadeStreak + 1; i++) faded.push(...fadeTick(ctx, stats, gate).faded);
+  assert.equal(faded.length, 0, `faded ${faded.join(', ')}`); // (deepEqual with [] would narrow faded to never[])
+  // With its own 30 random-slot swipes confirming it (1 like in 30 against a pooled 25%), the dud fades.
+  stats.find((x) => x.personaId === 'raven')!.likeRateRandom = { x: 1, n: 30, rate: 1 / 30 };
+  for (let i = 0; i < ctx.cfg.lifecycle.fadeStreak; i++) faded.push(...fadeTick(ctx, stats, gate).faded);
+  assert.deepEqual(faded, ['raven']);
+});
+
+test('EASE as the persona-to-persona term lifts what the fans of a liked persona also liked', () => {
+  const { ctx, clock } = scratch({ feed: { cfMethod: 'ease', cfWeight: 1, tsScale: 0 } });
+  const insert = ctx.db.prepare('INSERT INTO impressions (ts, user_id, persona_id, slot, p_shown, outcome) VALUES (?, ?, ?, ?, ?, ?)');
+  // 60 users liked both vesper and luna; 60 others liked vesper and maya... no: only luna co-occurs.
+  for (let i = 0; i < 60; i++) {
+    insert.run(1, `e${i}`, 'vesper', 'exploit', 0.5, 'like');
+    insert.run(2, `e${i}`, 'luna', 'exploit', 0.5, 'like');
+    insert.run(3, `e${i}`, 'maya', 'exploit', 0.5, 'pass');
+  }
+  for (let i = 0; i < 60; i++) insert.run(4, `m${i}`, 'maya', 'exploit', 0.5, 'like');
+  served(ctx, 'fan', 'vesper', clock.t);
+  ingest(ctx, { type: 'swipe', user_id: 'fan', persona_id: 'vesper', props: { dir: 'like' }, ts: clock.t });
+  const cards = buildFeed(ctx, 'fan', { limit: 50, dryRun: true }).cards;
+  const cf = (id: string) => cards.find((c) => c.personaId === id)?.why.cf ?? 1;
+  assert.ok(cf('luna') > 1.5, `luna ${cf('luna')}`);
+  assert.ok(cf('luna') > cf('maya'), `luna ${cf('luna')} vs maya ${cf('maya')}`);
+});
+
+test("with feed.dppOrder 'pick' the first visible cards are less alike than the top of the score order", () => {
+  const { ctx } = scratch();
+  const model = getFeedModel(ctx);
+  const cos = (a: number[], b: number[]) => {
+    let d = 0, na = 0, nb = 0;
+    for (let i = 0; i < a.length; i++) { d += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+    return na && nb ? d / Math.sqrt(na * nb) : 0;
+  };
+  const windowSim = (ids: string[]) => (cos(model.vectors.get(ids[0])!, model.vectors.get(ids[1])!) + cos(model.vectors.get(ids[0])!, model.vectors.get(ids[2])!) + cos(model.vectors.get(ids[1])!, model.vectors.get(ids[2])!)) / 3;
+  const pickCtx = scratch({ feed: { tsScale: 0 } }).ctx;
+  const scoreCtx = scratch({ feed: { tsScale: 0, dppOrder: 'score' } }).ctx;
+  const pick = buildFeed(pickCtx, 'w', { limit: 10, dryRun: true }).cards.slice(0, 3).map((c) => c.personaId);
+  const byScore = buildFeed(scoreCtx, 'w', { limit: 10, dryRun: true }).cards.slice(0, 3).map((c) => c.personaId);
+  assert.ok(windowSim(pick) <= windowSim(byScore), `pick ${windowSim(pick).toFixed(3)} vs score ${windowSim(byScore).toFixed(3)}`);
 });
