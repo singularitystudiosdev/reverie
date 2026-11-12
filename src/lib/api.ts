@@ -154,10 +154,13 @@ async function getJson<T>(path: string, init?: RequestInit, timeoutMs = 8000): P
   }
 }
 
-export async function fetchFeed(opts: { limit?: number; includePassed?: boolean; exclude?: string[] } = {}): Promise<FeedResult | null> {
+export async function fetchFeed(opts: { limit?: number; visible?: number; includePassed?: boolean; exclude?: string[] } = {}): Promise<FeedResult | null> {
   // The swipes still in the queue are the freshest taste signal there is: deliver them first.
   await flush();
   const q = new URLSearchParams({ user_id: userId, limit: String(opts.limit ?? 10) });
+  // How many cards of this page the deck shows before it asks again: the server logs each card's
+  // chance of landing in that window, which is what the user actually sees.
+  if (opts.visible) q.set('visible', String(opts.visible));
   if (opts.includePassed) q.set('include_passed', '1');
   if (opts.exclude?.length) q.set('exclude', opts.exclude.join(','));
   const r = await getJson<{ request_id: string; cards: ApiPersonaCard[] }>(`/v1/feed?${q}`);

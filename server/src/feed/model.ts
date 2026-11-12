@@ -24,6 +24,9 @@ export interface FeedModel {
   category: Map<string, BetaParams>;
   colike: Map<string, Map<string, number>>;
   colikeRow: Map<string, number>;
+  /** Persona-to-persona residuals: cf[i][j] = likes of j (o) and the likes the ranker expected (e)
+   *  when it served j, among users who liked i. */
+  cf: Map<string, Map<string, { o: number; e: number }>>;
   vectors: Map<string, number[]>;
   impressions: Map<string, number>;
   conversations: Map<string, number>;
@@ -139,6 +142,8 @@ export function buildFeedModel(ctx: Ctx): FeedModel {
     colikeRow.set(r.cat_a, (colikeRow.get(r.cat_a) ?? 0) + r.n);
   }
 
+  const cf = cfg.feed.cfWeight > 0 ? buildCf(ctx) : new Map<string, Map<string, { o: number; e: number }>>();
+
   const categories = [...new Set(personas.flatMap((p) => feedTags(p)))].sort();
   const vectors = new Map<string, number[]>();
   for (const p of personas) vectors.set(p.meta.id, featureVector(p, categories));
@@ -156,6 +161,7 @@ export function buildFeedModel(ctx: Ctx): FeedModel {
     category,
     colike,
     colikeRow,
+    cf,
     vectors,
     impressions: new Map([...imp].map(([k, v]) => [k, v.n])),
     conversations,
@@ -252,6 +258,48 @@ function personaFeaturePrior(personas: Persona[], imp: Map<string, { n: number; 
   }
   const strength = k >= 10 ? Math.min(Math.max(spread / Math.max(excess, 1e-6) - 1, 5), 300) : 20;
   return new Map([...means].map(([id, mean]) => [id, { mean, strength }]));
+}
+
+/**
+ * The persona-to-persona residual table behind the ranker's collaborative term: for every user,
+ * every persona i they liked and every other card j they decided on, the like (o) and the ranker's
+ * prediction for j when it served it (e, the logged p_pred, which leaves this term out). O/E over
+ * those pairs is how much more i's fans like j than tags, traits and j's base rate explain.
+ * Cards the ranker did not serve (no p_pred) are left out.
+ */
+function buildCf(ctx: Ctx): Map<string, Map<string, { o: number; e: number }>> {
+  const cf = new Map<string, Map<string, { o: number; e: number }>>();
+  const flush = (liked: string[], decided: { id: string; like: number; p: number }[]) => {
+    for (const i of liked) {
+      let row = cf.get(i);
+      if (!row) cf.set(i, (row = new Map()));
+      for (const d of decided) {
+        if (d.id === i) continue;
+        const c = row.get(d.id) ?? { o: 0, e: 0 };
+        c.o += d.like;
+        c.e += d.p;
+        row.set(d.id, c);
+      }
+    }
+  };
+  let user: string | null = null;
+  let liked: string[] = [];
+  let decided: { id: string; like: number; p: number }[] = [];
+  for (const r of ctx.db
+    .prepare('SELECT user_id, persona_id, outcome, p_pred FROM impressions WHERE outcome IS NOT NULL ORDER BY user_id')
+    .all() as { user_id: string; persona_id: string; outcome: string; p_pred: number | null }[]) {
+    if (r.user_id !== user) {
+      flush(liked, decided);
+      user = r.user_id;
+      liked = [];
+      decided = [];
+    }
+    const like = r.outcome === 'like' ? 1 : 0;
+    if (like) liked.push(r.persona_id);
+    if (r.p_pred !== null) decided.push({ id: r.persona_id, like, p: r.p_pred });
+  }
+  flush(liked, decided);
+  return cf;
 }
 
 /** Solve A x = b for a symmetric positive-definite A (row-major), or null. */

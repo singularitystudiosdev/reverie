@@ -89,25 +89,33 @@ export function ingest(ctx: Ctx, e: IncomingEvent): void {
     case 'impression': {
       // The request the client names first; the deck re-ranks every few swipes, so a card it shows
       // may have come from an earlier page: then the latest request that served it to this user.
-      const latest = db.prepare('SELECT slot, p_shown FROM feed_serves WHERE user_id = ? AND persona_id = ? ORDER BY ts DESC LIMIT 1');
+      // The serve row also carries what the ranker predicted for this card (p_pred): the model's
+      // persona-to-persona term reads it back as the expected side of its O/E ratios.
+      const latest = db.prepare('SELECT slot, p_shown, p_pred FROM feed_serves WHERE user_id = ? AND persona_id = ? ORDER BY ts DESC LIMIT 1');
       const serve = ((typeof props.request_id === 'string'
-        ? db.prepare('SELECT slot, p_shown FROM feed_serves WHERE user_id = ? AND persona_id = ? AND request_id = ? LIMIT 1').get(e.user_id, pid, props.request_id)
-        : undefined) ?? latest.get(e.user_id, pid)) as { slot: string; p_shown: number } | undefined;
-      db.prepare('INSERT INTO impressions (ts, user_id, persona_id, slot, p_shown) VALUES (?, ?, ?, ?, ?)').run(
+        ? db.prepare('SELECT slot, p_shown, p_pred FROM feed_serves WHERE user_id = ? AND persona_id = ? AND request_id = ? LIMIT 1').get(e.user_id, pid, props.request_id)
+        : undefined) ?? latest.get(e.user_id, pid)) as { slot: string; p_shown: number; p_pred: number | null } | undefined;
+      db.prepare('INSERT INTO impressions (ts, user_id, persona_id, slot, p_shown, p_pred) VALUES (?, ?, ?, ?, ?, ?)').run(
         ts,
         e.user_id,
         pid,
         serve?.slot ?? 'unranked',
         serve?.p_shown ?? 1,
+        serve?.p_pred ?? null,
       );
       break;
     }
     case 'swipe': {
       const dir = props.dir === 'like' ? 'like' : 'pass';
       const open = db
-        .prepare('SELECT id FROM impressions WHERE user_id = ? AND persona_id = ? AND outcome IS NULL ORDER BY ts DESC LIMIT 1')
-        .get(e.user_id, pid) as { id: number } | undefined;
-      if (open) db.prepare('UPDATE impressions SET outcome = ? WHERE id = ?').run(dir, open.id);
+        .prepare('SELECT id, ts FROM impressions WHERE user_id = ? AND persona_id = ? AND outcome IS NULL ORDER BY ts DESC LIMIT 1')
+        .get(e.user_id, pid) as { id: number; ts: number } | undefined;
+      // Dwell (impression to swipe) is logged for every decided card: a quick pass and a long look
+      // before a pass say different things (Hinge reads a fast skip as "not your type"; X's ranker
+      // predicts dwell; Yi et al., RecSys 2014). The ranker does not read it yet: it needs real
+      // swipes to calibrate, and the simulator has no dwell to learn it from.
+      const dwell = open && ts >= open.ts && ts - open.ts < 10 * 60_000 ? ts - open.ts : null;
+      if (open) db.prepare('UPDATE impressions SET outcome = ?, dwell_ms = ? WHERE id = ?').run(dir, dwell, open.id);
       else
         db.prepare('INSERT INTO impressions (ts, user_id, persona_id, slot, p_shown, outcome) VALUES (?, ?, ?, ?, ?, ?)').run(
           ts,

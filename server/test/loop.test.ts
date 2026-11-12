@@ -200,8 +200,11 @@ test("a card's logged propensity matches how often the whole deck policy actuall
   const N = 150;
   const shown = new Map<string, number>();
   const logged = new Map<string, number>();
+  // The app shows the first 3 cards of a page (cfg.feed.visible) before it re-ranks: a card in
+  // that window logs its chance of landing in it.
   for (let i = 0; i < N; i++) {
-    for (const c of buildFeed(ctx, 'p', { limit: 10, dryRun: true }).cards) {
+    for (const c of buildFeed(ctx, 'p', { limit: 10, visible: 3, dryRun: true }).cards) {
+      if (c.position >= 3) continue;
       shown.set(c.personaId, (shown.get(c.personaId) ?? 0) + 1);
       logged.set(c.personaId, (logged.get(c.personaId) ?? 0) + c.pShown);
     }
@@ -214,7 +217,7 @@ test("a card's logged propensity matches how often the whole deck policy actuall
     if (n < 15) continue;
     errs.push(Math.abs(n / N - logged.get(id)! / n));
   }
-  assert.ok(errs.length >= 5, `${errs.length} frequently shown cards`);
+  assert.ok(errs.length >= 3, `${errs.length} frequently shown cards`);
   const mean = errs.reduce((a, b) => a + b, 0) / errs.length;
   // Sampling noise alone is about 0.02 at 150 decks; the old top-k estimate was off by the DPP's and the explore slots' share.
   assert.ok(mean < 0.05, `mean |empirical - logged| propensity ${mean.toFixed(3)} over ${errs.length} cards`);
@@ -379,4 +382,38 @@ test("a brand-new user's first deck keeps its random slots but no undersampled o
   let later = 0;
   for (let i = 0; i < 20; i++) later += buildFeed(ctx, 'n', { limit: 10, dryRun: true }).cards.filter((c) => c.slot === 'undersampled').length;
   assert.ok(later > 5, `undersampled slots return once the user has swiped: ${later} in 20 decks`);
+});
+
+test('explore cards follow the user\'s card stream, so a deck re-ranked every 3 swipes still shows one in every 5 cards', () => {
+  const { ctx, clock } = scratch();
+  const slots: string[] = [];
+  for (let page = 0; page < 10; page++) {
+    const { requestId, cards } = buildFeed(ctx, 'stream', { limit: 10, visible: 3 });
+    for (const c of cards.slice(0, 3)) {
+      clock.t += 4000;
+      ingest(ctx, { type: 'impression', user_id: 'stream', persona_id: c.personaId, props: { request_id: requestId }, ts: clock.t });
+      ingest(ctx, { type: 'swipe', user_id: 'stream', persona_id: c.personaId, props: { dir: slots.length % 4 === 0 ? 'like' : 'pass' }, ts: clock.t });
+      slots.push(c.slot);
+    }
+  }
+  // Cards 5, 10, 15... (index 4, 9, 14...) are the explore turns; a first deck gives its gate
+  // slot back to an exploit card, so card 5 may be exploit, the later ones never are.
+  const explore = slots.map((s, i) => (s !== 'exploit' ? i : -1)).filter((i) => i >= 0);
+  assert.deepEqual(explore.filter((i) => i > 4), [9, 14, 19, 24, 29].filter((i) => i < slots.length), `explore at ${explore}`);
+  // Under fixed page positions 4 and 9 none of these would have been on screen.
+});
+
+test('people who liked one persona and liked another more than the ranker predicted lift it for the next fan', () => {
+  const { ctx, clock } = scratch({ feed: { cfWeight: 1, tsScale: 0 } });
+  const insert = ctx.db.prepare('INSERT INTO impressions (ts, user_id, persona_id, slot, p_shown, outcome, p_pred) VALUES (?, ?, ?, ?, ?, ?, ?)');
+  // 40 users liked 'vesper'; 32 of them also liked 'luna', which the ranker expected 20% of them to.
+  for (let i = 0; i < 40; i++) {
+    insert.run(1, `c${i}`, 'vesper', 'exploit', 0.5, 'like', 0.3);
+    insert.run(2, `c${i}`, 'luna', 'exploit', 0.5, i < 32 ? 'like' : 'pass', 0.2);
+  }
+  ingest(ctx, { type: 'swipe', user_id: 'fan', persona_id: 'vesper', props: { dir: 'like' }, ts: clock.t });
+  const card = (u: string) => buildFeed(ctx, u, { limit: 50, dryRun: true }).cards.find((c) => c.personaId === 'luna');
+  const fan = card('fan');
+  assert.ok(fan && fan.why.cf > 2, `cf for a vesper fan: ${fan?.why.cf}`);
+  assert.equal(card('stranger')?.why.cf ?? 1, 1, 'no likes, no collaborative term');
 });

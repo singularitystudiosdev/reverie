@@ -304,23 +304,39 @@ factor is under 0.5.
   default), the chosen cards then shown in score order. The kernel is theme
   categories only: gender, age and style in it made the wrong gender look like
   "variety".
-- **Exploration.** Every 5th card is an exploration slot: half uniformly random
-  (the unbiased sample the fade check reads), half the user's best-scoring
-  persona among the least-shown quarter (traffic for the gate). A brand-new
-  user's first deck keeps the random slots (first decks are a large share of all
-  decks, and the fade check needs that unbiased sample) but gives the
-  undersampled ones back to exploit cards; X shields new accounts the same way.
+- **Exploration.** Every 5th card the user decides on is an exploration card:
+  half uniformly random (the unbiased sample the fade check reads), half the
+  user's best-scoring persona among the least-shown quarter (traffic for the
+  gate). The slots follow the user's card stream, not fixed page positions:
+  the app shows 3 cards of each page before it re-ranks, so slots at positions
+  4 and 9 were never on screen and no explore traffic arrived (SIMULATION.md).
+  A brand-new user's first deck keeps the random slots (first decks are a large
+  share of all decks, and the fade check needs that unbiased sample) but gives
+  the undersampled ones back to exploit cards; X shields new accounts the same
+  way.
+- **Persona-to-persona term.** P(like) is multiplied by how much more the
+  user's fellow fans liked the candidate than the ranker predicted for them:
+  among users who liked persona i, the likes of j over the ranker's logged mean
+  prediction (`p_pred`, without this term), shrunk by `feed.cfShrink`
+  pseudo-likes, geometric mean over the user's likes, to the power
+  `feed.cfWeight` (0.5). Item-based CF on the model's residuals, so it adds
+  the taste no tag carries (a look, a drawing style) instead of recounting tags.
 - **Recycling.** When the unseen roster cannot fill the deck, personas passed
   more than `feed.recycleAfterMs` (3 days) ago compete again, ranked by the
   model (Tinder's "dynamic recycling").
 - **Propensities.** Each card logs its selection propensity for the IPW
   rollups: the share of 32 fresh replays of the whole policy (draws, DPP, explore
-  slots) that put it in the deck. An impression from an earlier page keeps the
-  propensity of the request that served it.
+  slots) that put it where the user sees it: in the first `visible` cards (the
+  client sends 3, `feed.visible`) for a card in that window, anywhere in the page
+  for one past it. An impression from an earlier page keeps the propensity of
+  the request that served it.
+- **Dwell.** Every decided card logs `dwell_ms` (impression to swipe). The
+  ranker does not read it yet; it needs real swipes to calibrate.
 
 The app re-ranks after every 3 swipes and sends its queued events before it
 asks for the next page, so the server ranks with the swipes the user just made;
-passed and blocked ids go in `exclude`.
+passed and blocked ids go in `exclude`, and `visible=3` says how many cards of
+the page it will show.
 
 ## Simulation
 
@@ -346,7 +362,7 @@ value, so ranker settings compare in minutes.
 | Route | |
 |---|---|
 | `GET /v1/personas`, `GET /v1/personas/:id` | servable persona cards |
-| `GET /v1/feed?user_id=&limit=&include_passed=1&exclude=` | the ranked deck |
+| `GET /v1/feed?user_id=&limit=&visible=&include_passed=1&exclude=` | the ranked deck |
 | `POST /v1/events` | `{ events: [...] }`, up to 500 |
 | `POST /v1/chat` | `{ user_id, persona_id, text }` -> `{ messages, source }` |
 | `GET /admin/stats[/:id]`, `/admin/experiments`, `/admin/gate`, `/admin/archive`, `/admin/lifecycle`, `/admin/safety`, `/admin/art-queue`, `/admin/report`, `/admin/personas/:id/md`, `/admin/personas/:id/versions` | inspection |
@@ -369,6 +385,9 @@ variable is set. `REVERIE_CORS_ORIGINS` (comma list, default `*`).
 | [Thompson sampling tutorial](https://arxiv.org/abs/1707.02038); [LinUCB](https://arxiv.org/abs/1003.0146) | exploration in the feed |
 | [Chapelle & Li, An Empirical Evaluation of Thompson Sampling](https://papers.nips.cc/paper/2011/hash/e53a0a2978c28872a4505bdb51db06dc-Abstract.html); [Bastani et al., Mostly Exploration-Free Algorithms](https://arxiv.org/abs/1704.09011) | tempered draws (a shrunk posterior; little forced exploration when users vary) |
 | [Tinder: keep recommendations fresh](https://lifeattinder.com/blog/how-to-keep-recommendations-fresh) | recycling old passes when the unseen supply runs out, ranked by the model |
+| [Koren, Factorization meets the neighborhood (KDD 2008)](https://www.cs.cornell.edu/courses/cs6241/2020sp/readings/Koren-2008-Factorization.pdf) | item neighbours fitted to a baseline's residuals, shrunk by support: the persona-to-persona term on the ranker's logged predictions |
+| [Li et al., LinUCB (Yahoo random bucket)](https://arxiv.org/abs/1003.0146); [KuaiRand](https://arxiv.org/abs/2208.08696) | a uniformly random slot kept as the unbiased sample, at a share of traffic (KuaiRand: one slot per request at a fixed probability) |
+| [Hinge: how we connect daters](https://hinge.co/how-we-connect-daters); [Yi et al., Beyond Clicks (RecSys 2014)](https://www.hongliangjie.com/publications/recsys2014.pdf) | dwell and skip speed as signals: logged per card |
 | [Personalized re-ranking for diversity (Huawei, arXiv 2004.06390)](https://arxiv.org/abs/2004.06390) | a diversity kernel must match what users perceive as variety (here: themes, not gender or age) |
 | [MAP-Elites](https://arxiv.org/abs/1504.04909); [PromptBreeder](https://arxiv.org/abs/2309.16797); [EvoPrompt](https://arxiv.org/abs/2309.08532) | niche archive; LLM as mutation operator; edit reuse |
 | [Emotional Manipulation by AI Companions](https://arxiv.org/abs/2508.19258) | the manipulation lint, post-goodbye exclusion |

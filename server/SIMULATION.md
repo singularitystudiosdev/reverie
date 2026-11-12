@@ -199,6 +199,69 @@ variances, estimated by EM from Laplace posteriors, collapsed to the floor (the
 penalized-quasi-likelihood bias on binary data); tuning them on held-out swipes
 fixed that but not the gap.
 
+## State-of-the-art audit: the app's paging hid every explore card; a persona-to-persona term (2026-11-12, later)
+
+The feed bench swiped whole decks; the app does not. It asks for 10 cards, shows the first
+3, re-ranks after 3 swipes and puts the new page first (`src/state/store.tsx`,
+`REFRESH_AFTER`). The explore slots sat at page positions 4 and 9, so in the app they were
+almost never on screen: the bench's new `--page 3` mode plays the app's paging, and with the
+old ranker **0% of the cards seen were explore cards and no persona ever reached the 30
+random-slot impressions the fade check needs**. Without that traffic the persona estimates
+also drift (correlation of the model's persona like rates with the truth 0.59 / 0.62 / 0.38 /
+0.30 below, against 0.78 to 0.86 with exploration).
+
+- **Explore slots on the card stream.** Every 5th card the user decides on is an explore card;
+  each page places the next one where that card falls, `(k - 1 - decided mod k) mod k`. The
+  propensity a card logs is now its chance of landing in the window the app shows (the client
+  sends `visible=3`), not in the whole page of 10.
+- **Persona-to-persona term (`feed.cfWeight` 0.5).** Each serve logs the ranker's mean
+  P(like) without this term (`p_pred`); among users who liked persona i, the likes of persona j
+  over what the ranker predicted for them (an O/E ratio shrunk by 3 pseudo-likes) is how much
+  i's fans like j beyond tags, traits and j's base rate. Item-based CF on the model's
+  residuals, the family of Koren's global neighbourhood model on baseline residuals (KDD 2008)
+  and of Tinder's TinVec co-swipe embeddings at persona level.
+- **Dwell** (impression to swipe) is logged on every decided card. The ranker does not read it
+  yet: the simulator has no dwell to calibrate it against.
+
+Feed bench under the app's paging (`--page 3`), mean true like probability per card (first
+deck in brackets), SE about 0.001; explore = share of seen cards that were explore cards,
+fade sample = personas with 30+ random-slot impressions:
+
+| | seed 7 | seed 11 | latent look, seed 7 | latent look, seed 11 | explore | fade sample |
+|---|---|---|---|---|---|---|
+| old ranker | 0.2127 (0.262) | 0.2060 (0.239) | 0.2346 (0.281) | 0.2334 (0.258) | 0% | 0 |
+| explore on the card stream | 0.2071 (0.245) | 0.2084 (0.228) | 0.2332 (0.277) | 0.2320 (0.263) | 18.6% | 44 to 50 |
+| **+ persona-to-persona term 0.5 (current)** | **0.2110 (0.242)** | **0.2064 (0.225)** | **0.2422 (0.282)** | **0.2337 (0.254)** | 18.6% | 44 to 51 |
+| same, term at 1.0 | 0.2105 | 0.2013 | 0.2451 | 0.2388 | 18.6% | 45 to 51 |
+| same at 1.0, explore every 8th card | 0.2175 | 0.2110 | 0.2526 | - | 9.3% | 0 |
+| static popularity deck (true means) | 0.2242 | 0.2180 | 0.2508 | 0.2461 | | |
+| oracle | 0.2974 | 0.2943 | 0.4178 | 0.4190 | | |
+
+The old bench mode (one deck of 6, every card swiped), old ranker -> current: 0.2147 -> 0.2123
+(seed 7), 0.2093 -> 0.2070 (seed 11), 0.2373 -> 0.2428 (latent look). The term pays where taste
+lives outside the tags (a look, a drawing style), which is the case it exists for, and costs
+up to 0.002 where tags explain everything; at weight 1.0 it gained more with a latent look
+(+0.012 and +0.007) but lost 0.007 at seed 11.
+
+What is left between the ranker and the true-popularity deck is mostly the exploration
+itself: the explore cards (18.6% of what users see) are worth about 0.13 against about 0.23
+for an exploit card. Halving them wins 0.007 to 0.010 but then no persona reaches its fade
+sample in the bench's 42,000 cards. The rate is the lifecycle's to trade: every halving
+doubles the traffic before a dud can be faded.
+
+Closed loop, 25 days, 220 users a day, all 154 personas, `--no-premium`, seed 7 (whole decks
+of 6, so the paging bug does not show here): like rate 23.1% -> 23.2%, deep chats per user
+0.43 -> 0.42; the hidden dud `isolde` is now faded and retired (before: nothing faded), with
+27 personas at their random-slot sample against 21. A/B tests: 2 against 0 promotions, both
+runs with 31 to 32 of 33 tests still running at day 25 (chat traffic differs between runs).
+
+Tried and dropped: judging each persona against the audience the feed chose for it (observed
+likes over the sum of the multiplicative user lifts logged at serve time, an O/E standardised
+rate). It lost everywhere (0.2038 / 0.2029 / 0.2313; first decks 0.217 against 0.245): a
+multiplicative lift overshoots where probabilities saturate, so the expected side is wrong for
+exactly the fans it should correct for. The bias it targets (a persona's fans inflate its
+raw rate) is real; correcting it needs a calibrated model in logit space.
+
 ## Settings
 
 The 45-day runs use relaxed thresholds so a run finishes in minutes (gate: a

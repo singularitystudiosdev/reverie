@@ -29,16 +29,23 @@
  *             the top cfg.feed.dppPool x k candidates by score only, theta
  *             cfg.feed.dppTheta (X ships 0.65), the chosen cards then shown in
  *             score order; the kernel is theme categories only (model.ts).
- *   explore   every k-th card is an exploration slot: half go to the user's
- *             best-scoring persona among the least-shown quarter (traffic for
- *             the significance gate, spent where this user is likeliest to like
- *             it), half uniformly at random (the unbiased sample the fade check
- *             reads).
+ *             A persona-to-persona term multiplies P(like): how much more the
+ *             users who liked what this user liked liked the candidate than the
+ *             ranker predicted (O/E on its logged predictions; item-based CF on
+ *             the model's residuals, Koren KDD 2008; TinVec at persona level).
+ *   explore   every k-th card the user decides on is an exploration slot (placed
+ *             on their card stream: the app shows 3 cards a page): half go to
+ *             the user's best-scoring persona among the least-shown quarter
+ *             (traffic for the significance gate, spent where this user is
+ *             likeliest to like it), half uniformly at random (the unbiased
+ *             sample the fade check reads).
  *   recycle   when the unseen roster cannot fill the deck, personas passed more
  *             than cfg.feed.recycleAfterMs ago compete again (Tinder's "dynamic
  *             recycling"); their passes already lower their score.
- *   log       every card's slot and selection propensity (Monte Carlo replays
- *             the Thompson draws), for inverse-propensity-weighted metrics.
+ *   log       every card's slot, its propensity of landing in the window the app
+ *             shows (Monte Carlo replays of the whole policy), for inverse-
+ *             propensity-weighted metrics, and its mean prediction (p_pred) for
+ *             the persona-to-persona term.
  *
  * In the proxy simulation (600 users, correlated tastes) a 10-card deck got
  * 3.19 likes per user from a static order, 3.36 from per-user Thompson
@@ -60,13 +67,15 @@ export interface FeedCard {
   slot: 'exploit' | 'random' | 'undersampled';
   pShown: number;
   score: number;
-  why: { pLike: number; pDeep: number; pNeg: number; affinity: number; quality: number; traits: number; isNew: boolean; fade: number };
+  why: { pLike: number; pDeep: number; pNeg: number; affinity: number; quality: number; traits: number; cf: number; pBase: number; isNew: boolean; fade: number };
 }
 
 export interface FeedRequest {
   limit?: number;
   exclude?: string[];
   includePassed?: boolean;
+  /** Cards the client will show from this page before it asks again (default cfg.feed.visible). */
+  visible?: number;
   /** For the simulation: skip writing feed_serves rows. */
   dryRun?: boolean;
 }
@@ -90,6 +99,8 @@ interface UserState {
   passedAt: Map<string, number>;
   likedCategories: string[];
   traits: TraitModel;
+  /** Cards this user has decided on so far: where the next page starts in their card stream. */
+  decided: number;
 }
 
 /**
@@ -172,9 +183,11 @@ function hydrate(ctx: Ctx, userId: string): UserState {
   const liked = new Set<string>();
   const passed = new Set<string>();
   const passedAt = new Map<string, number>();
+  let decided = 0;
   for (const r of ctx.db
     .prepare('SELECT persona_id, outcome, ts FROM impressions WHERE user_id = ? AND outcome IS NOT NULL ORDER BY ts')
     .all(userId) as { persona_id: string; outcome: string; ts: number }[]) {
+    decided++;
     if (r.outcome === 'like') liked.add(r.persona_id);
     else {
       passed.add(r.persona_id);
@@ -187,7 +200,7 @@ function hydrate(ctx: Ctx, userId: string): UserState {
     const p = ctx.personas.get(id);
     return p ? feedTags(p) : [];
   });
-  return { affinity, liked, passed, passedAt, likedCategories, traits: buildTraits(ctx, liked, passed) };
+  return { affinity, liked, passed, passedAt, likedCategories, traits: buildTraits(ctx, liked, passed), decided };
 }
 
 /**
@@ -203,12 +216,31 @@ function tempered(rng: Rng, a: number, b: number, scale: number): number {
   return scale > 0 ? mean + scale * (rng.beta(a, b) - mean) : mean;
 }
 
-/** One tempered Thompson draw of a candidate's score for this user. */
-function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink: number, fade: number, scale: number): FeedCard['why'] & { score: number } {
+/**
+ * Persona-to-persona collaborative term: among users who liked what this user liked, how much more
+ * often this candidate was liked than the ranker (without this term) predicted when it served it
+ * (an O/E ratio per liked persona, shrunk toward 1 by cfShrink pseudo-likes, geometric mean over the
+ * user's likes). Item-based CF (Sarwar et al., WWW 2001; Tinder's TinVec learns the same co-swipe
+ * signal as embeddings) fitted to the model's residuals, so it adds the taste no tag or trait
+ * carries (a face, a drawing style) instead of counting the tags a second time.
+ */
+function cfFactor(model: FeedModel, u: UserState, id: string, weight: number, shrink: number): number {
+  if (!weight || !u.liked.size) return 1;
+  let s = 0;
+  for (const i of u.liked) {
+    const c = model.cf.get(i)?.get(id);
+    if (c) s += Math.log((c.o + shrink) / (c.e + shrink));
+  }
+  return Math.min(Math.max(Math.exp((weight * s) / u.liked.size), 0.2), 5);
+}
+
+/** One tempered Thompson draw of a candidate's score for this user (`cf`: its cfFactor, which takes no draw). */
+function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink: number, fade: number, scale: number, cf = 1): FeedCard['why'] & { score: number } {
   const post = model.persona.get(p.meta.id)!;
   // Co-like boost: how much more often this persona's categories are liked by people who liked what this user liked.
   const nCats = Math.max(model.categories.length, 1);
   let affSum = 0;
+  let affMeanSum = 0; // the same affinity at its posterior mean, for the logged prediction
   let catMeanSum = 0;
   const tags = feedTags(p);
   for (const c of tags) {
@@ -222,7 +254,10 @@ function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink:
       m = Math.min(0.95, m * (0.6 + 0.4 * Math.min(lift, 4)));
     }
     const ua = u.affinity.get(c) ?? { a: 0, b: 0 };
-    affSum += tempered(rng, ua.a + shrink * m + 1e-3, ua.b + shrink * (1 - m) + 1e-3, ua.a + ua.b > 0 ? scale : 0);
+    const a0 = ua.a + shrink * m + 1e-3;
+    const b0 = ua.b + shrink * (1 - m) + 1e-3;
+    affSum += tempered(rng, a0, b0, ua.a + ua.b > 0 ? scale : 0);
+    affMeanSum += a0 / (a0 + b0);
     catMeanSum += g.a / (g.a + g.b);
   }
   const k = Math.max(tags.length, 1);
@@ -231,12 +266,16 @@ function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink:
   const qualityDraw = tempered(rng, post.like.a, post.like.b, scale);
   const quality = Math.min(qualityDraw / catMean, 3);
   const traits = traitFactor(u.traits, p);
-  const pLike = Math.min(affinity * quality * traits, 0.99);
+  const pLike = Math.min(affinity * quality * traits * cf, 0.99);
+  // The mean prediction without the collaborative term (no draw), logged with the serve: the
+  // expected side of the persona-to-persona O/E ratios, so that term learns only what the rest of
+  // the model misses.
+  const pBase = Math.min(((affMeanSum / k) / catMean) * traits * (post.like.a / (post.like.a + post.like.b)), 0.99);
   const pDeep = post.deep.a / (post.deep.a + post.deep.b);
   const pNeg = post.negative.a / (post.negative.a + post.negative.b);
   const w = weights(model);
   const score = pLike * (w.like + w.deep * pDeep - w.neg * pNeg) * fade;
-  return { score, pLike, pDeep, pNeg, affinity, quality, traits, isNew: post.isNew, fade };
+  return { score, pLike, pDeep, pNeg, affinity, quality, traits, cf, pBase, isNew: post.isNew, fade };
 }
 
 export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { requestId: string; cards: FeedCard[] } {
@@ -263,7 +302,9 @@ export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { re
   if (!candidates.length) return { requestId, cards: [] };
 
   const fades = new Map(candidates.map((p) => [p.meta.id, fadeMultiplier(ctx, p.meta.id)]));
-  const draws = candidates.map((p) => drawScore(model, p, u, ctx.rng, cfg.userShrink, fades.get(p.meta.id)!, cfg.tsScale));
+  const cfs = new Map(candidates.map((p) => [p.meta.id, cfFactor(model, u, p.meta.id, cfg.cfWeight, cfg.cfShrink)]));
+  const score = (p: Persona) => drawScore(model, p, u, ctx.rng, cfg.userShrink, fades.get(p.meta.id)!, cfg.tsScale, cfs.get(p.meta.id));
+  const draws = candidates.map(score);
 
   // Selection: DPP over the scored pool, then every k-th card becomes an exploration slot.
   const vectors = candidates.map((p) => model.vectors.get(p.meta.id) ?? [1]);
@@ -295,7 +336,14 @@ export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { re
     // exploit card (feed bench), and the first deck decides whether they stay. X shields new
     // accounts too (home-mixer NewUserMinEngagementFilter). Dropping both slots cost the closed
     // loop every persona's 30 random-slot impressions, and with them the fade's cross-check.
-    for (let pos = cfg.exploreEvery - 1; pos < picked.length; pos += cfg.exploreEvery) {
+    //
+    // The slots sit on the user's CARD STREAM, not at fixed page positions: the app shows the first
+    // `visible` cards of a page and then asks again (it re-ranks every 3 swipes), so fixed positions
+    // 4 and 9 were almost never on screen and the explore traffic the gate and the fade check count
+    // on never arrived. Every exploreEvery-th card the user decides on is an explore card; this page
+    // places the next one where that card falls.
+    const first = (cfg.exploreEvery - 1 - (u.decided % cfg.exploreEvery)) % cfg.exploreEvery;
+    for (let pos = first; pos < picked.length; pos += cfg.exploreEvery) {
       const open = candidates.map((_, i) => i).filter((i) => !used.has(i));
       const preferred = open.filter((i) => explorable[i]);
       const pool = preferred.length ? preferred : open;
@@ -325,26 +373,37 @@ export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { re
   const picked = select(draws.map((d) => d.score));
 
   // Propensity: the share of fresh replays of the WHOLE policy (Thompson draws, DPP rerank and
-  // the explore slots) that put each candidate in the deck. Estimating it from the scores' top-k
-  // alone would mis-weight the DPP's diversity picks and every explore slot.
+  // the explore slots) that put each candidate where the user will see it: in the first `visible`
+  // cards for a card in that window (what the app shows before it re-ranks), anywhere in the page
+  // for a card past it. Estimating it from the scores' top-k alone would mis-weight the DPP's
+  // diversity picks and every explore slot; from the whole page, every card in the window.
+  const W = Math.max(1, Math.min(Math.round(req.visible ?? cfg.visible), k));
   const M = cfg.propensityDraws;
   const freq = new Array(candidates.length).fill(0);
+  const freqTop = new Array(candidates.length).fill(0);
   for (let m = 0; m < M; m++) {
-    const scores = candidates.map((p) => drawScore(model, p, u, ctx.rng, cfg.userShrink, fades.get(p.meta.id)!, cfg.tsScale).score);
-    for (const { idx } of select(scores)) freq[idx]++;
+    const replay = select(candidates.map((p) => score(p).score));
+    replay.forEach(({ idx }, pos) => {
+      freq[idx]++;
+      if (pos < W) freqTop[idx]++;
+    });
   }
 
   const cards: FeedCard[] = picked.map(({ idx, slot }, position) => {
     const p = candidates[idx];
     const d = draws[idx];
-    const pShown = Math.min(1, Math.max(freq[idx] / M, 1 / (2 * M)));
-    return { personaId: p.meta.id, position, slot, pShown, score: d.score, why: { pLike: d.pLike, pDeep: d.pDeep, pNeg: d.pNeg, affinity: d.affinity, quality: d.quality, traits: d.traits, isNew: d.isNew, fade: d.fade } };
+    const f = position < W ? freqTop[idx] : freq[idx];
+    const pShown = Math.min(1, Math.max(f / M, 1 / (2 * M)));
+    const { score: s, ...why } = d;
+    return { personaId: p.meta.id, position, slot, pShown, score: s, why };
   });
 
   if (!req.dryRun) {
-    const ins = ctx.db.prepare('INSERT INTO feed_serves (request_id, position, ts, user_id, persona_id, slot, p_shown, score) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+    const ins = ctx.db.prepare(
+      'INSERT INTO feed_serves (request_id, position, ts, user_id, persona_id, slot, p_shown, score, p_pred) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    );
     const now = ctx.now();
-    for (const c of cards) ins.run(requestId, c.position, now, userId, c.personaId, c.slot, c.pShown, c.score);
+    for (const c of cards) ins.run(requestId, c.position, now, userId, c.personaId, c.slot, c.pShown, c.score, c.why.pBase);
   }
   return { requestId, cards };
 }

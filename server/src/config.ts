@@ -129,6 +129,16 @@ export interface Config {
     newPriorStrength: number;
     /** Monte Carlo draws used to estimate each card's selection propensity. */
     propensityDraws: number;
+    /** Cards the app shows from a page before it asks for a new one (src/state/store.tsx
+     *  REFRESH_AFTER): the window the propensities are logged for. The client may send its own. */
+    visible: number;
+    /** Persona-to-persona collaborative term (item-based CF on the model's residuals): weight of
+     *  the log O/E lift of a candidate among users who liked what this user liked; 0 turns it off.
+     *  0.5 from the feed bench under the app's paging (SIMULATION.md): +0.009 mean true like
+     *  probability per card with a hidden "look" taste, +0.004 / -0.002 (within noise) without. */
+    cfWeight: number;
+    /** Pseudo-likes pulling each persona-pair O/E lift toward 1. */
+    cfShrink: number;
   };
 
   /**
@@ -233,6 +243,9 @@ export function loadConfig(overrides: DeepPartial<Config> = {}): Config {
       newEps: 0.1,
       newPriorStrength: 30,
       propensityDraws: 32,
+      visible: 3,
+      cfWeight: 0.5,
+      cfShrink: 3,
     },
     art: {
       enabled: env('REVERIE_AUTO_ART') === '1',

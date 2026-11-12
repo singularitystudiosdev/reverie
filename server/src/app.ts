@@ -6,7 +6,7 @@
  *   GET  /health
  *   GET  /v1/personas                     servable persona cards
  *   GET  /v1/personas/:id                 one card
- *   GET  /v1/feed?user_id=&limit=&include_passed=1&exclude=a,b
+ *   GET  /v1/feed?user_id=&limit=&visible=&include_passed=1&exclude=a,b
  *   POST /v1/events   { events: IncomingEvent[] }   (also accepts text/plain for sendBeacon)
  *   POST /v1/chat     { user_id, persona_id, text }
  *
@@ -98,6 +98,7 @@ route('GET', /^\/v1\/feed$/, (ctx, _r, url) => {
   const { requestId, cards } = buildFeed(ctx, userId, {
     limit: Number(url.searchParams.get('limit')) || undefined,
     includePassed: url.searchParams.get('include_passed') === '1',
+    visible: Number(url.searchParams.get('visible')) || undefined,
     exclude: (url.searchParams.get('exclude') ?? '').split(',').filter(Boolean),
   });
   return {

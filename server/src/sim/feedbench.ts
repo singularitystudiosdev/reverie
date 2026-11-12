@@ -8,7 +8,10 @@
  * Yardsticks: each user's oracle (their own best personas, in order) and a static deck in the
  * order of the population's true mean like rate. No lifecycle, no chats.
  *
- *   node src/sim/feedbench.ts [--seed 7] [--latent 0] [--warm 1000] [--test 300] [--sessions 5] [--deck 6] [--cfg '{"feed":{"tsScale":0}}']
+ *   node src/sim/feedbench.ts [--seed 7] [--latent 0] [--warm 1000] [--test 300] [--sessions 5] [--deck 6] [--page 0] [--cfg '{"feed":{"tsScale":0}}']
+ *
+ * --page 3 plays the app's own paging (src/state/store.tsx): ask for 10 cards, swipe the first 3,
+ * ask again, until the session's --deck cards are swiped. --page 0 swipes one page of --deck.
  *
  * Prints one JSON line: meanP (mean true like probability per card) and its SE, per-session
  * means, the yardsticks, the share of cards outside the user's preferred gender, and how well
@@ -43,6 +46,7 @@ const WARM = arg('warm', 1500);
 const TEST = arg('test', 800);
 const SESSIONS = arg('sessions', 5);
 const DECK = arg('deck', 6);
+const PAGE = arg('page', 0);
 const CFG = JSON.parse(sarg('cfg') ?? '{}');
 
 const CLUSTERS: Record<string, string[]> = {
@@ -122,11 +126,30 @@ function likeP(u: U, pid: string): number {
 }
 
 const ms: number[] = [];
-function session(u: U, rec?: { p: number[][]; s: number; wrongGender: number[]; bad: number[] }) {
+const slots: Record<string, number> = {};
+const randomByPersona = new Map<string, number>();
+function page(u: U, n: number) {
   const t0 = performance.now();
-  const cards = buildFeed(ctx, u.id, { limit: DECK }).cards;
+  const cards = PAGE ? buildFeed(ctx, u.id, { limit: 10, visible: PAGE }).cards.slice(0, Math.min(PAGE, n)) : buildFeed(ctx, u.id, { limit: n }).cards;
   ms.push(performance.now() - t0);
+  return cards;
+}
+function session(u: U, rec?: { p: number[][]; s: number; wrongGender: number[]; bad: number[] }) {
+  const cards = [];
+  while (cards.length < DECK) {
+    const got = page(u, DECK - cards.length);
+    if (!got.length) break;
+    cards.push(...got);
+    if (PAGE) swipe(u, got, rec);
+    if (!PAGE) break;
+  }
+  if (!PAGE) swipe(u, cards, rec);
+  now += 60_000;
+}
+function swipe(u: U, cards: { personaId: string; slot: string }[], rec?: { p: number[][]; s: number; wrongGender: number[]; bad: number[] }) {
   for (const c of cards) {
+    slots[c.slot] = (slots[c.slot] ?? 0) + 1;
+    if (c.slot === 'random') randomByPersona.set(c.personaId, (randomByPersona.get(c.personaId) ?? 0) + 1);
     now += 4000;
     ingest(ctx, { type: 'impression', user_id: u.id, persona_id: c.personaId, ts: now });
     const p = likeP(u, c.personaId);
@@ -140,7 +163,6 @@ function session(u: U, rec?: { p: number[][]; s: number; wrongGender: number[]; 
     ingest(ctx, { type: 'swipe', user_id: u.id, persona_id: c.personaId, props: { dir: like ? 'like' : 'pass' }, ts: now });
     if (like) ingest(ctx, { type: 'match', user_id: u.id, persona_id: c.personaId, ts: now });
   }
-  now += 60_000;
 }
 
 for (let i = 0; i < WARM; i++) {
@@ -211,6 +233,9 @@ const out = {
   popularity: +(popBy.reduce((a, b) => a + b, 0) / SESSIONS).toFixed(4),
   popularityBySession: popBy.map((x) => +x.toFixed(4)),
   msPerDeck: +mean(ms).toFixed(2),
+  page: PAGE,
+  slotShare: Object.fromEntries(Object.entries(slots).map(([k, v]) => [k, +(v / Object.values(slots).reduce((a, b) => a + b, 0)).toFixed(4)])),
+  personasWith30Random: [...randomByPersona.values()].filter((v) => v >= 30).length,
   ...est,
 };
 console.log(JSON.stringify(out));

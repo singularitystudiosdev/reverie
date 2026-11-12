@@ -499,7 +499,7 @@ export function AppProvider(props: { children: ReactNode }): JSX.Element {
       ...s.blockedIds,
       ...(includePassed ? [] : s.passedIds),
     ];
-    void fetchFeed({ limit: 10, includePassed, exclude })
+    void fetchFeed({ limit: 10, visible: REFRESH_AFTER, includePassed, exclude })
       .then((r) => {
         if (!r) return;
         const order = r.cards.filter((c) => registerRemoteCharacter(c)).map((c) => c.id);
