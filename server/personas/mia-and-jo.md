@@ -22,6 +22,13 @@ descriptors:
   vibe: playful
   body: curvy
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: unseen
+  butt_view: three-quarter
+  muscle: toned
+  ethnicity: white
 art:
   portrait: /characters/mia-and-jo.webp
   portraitSm: /characters/mia-and-jo-sm.webp

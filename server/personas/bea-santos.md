@@ -22,6 +22,13 @@ descriptors:
   vibe: playful
   body: petite
   age_group: young-adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: medium
+  butt_view: three-quarter
+  muscle: soft
+  ethnicity: southeast-asian
 art:
   portrait: /characters/bea-santos.webp
   portraitSm: /characters/bea-santos-sm.webp

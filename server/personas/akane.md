@@ -22,6 +22,13 @@ descriptors:
   vibe: bold
   body: athletic
   age_group: adult
+look:
+  chest_size: small
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: three-quarter
+  muscle: toned
+  ethnicity: east-asian
 art:
   portrait: /characters/akane.webp
   portraitSm: /characters/akane-sm.webp

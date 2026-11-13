@@ -22,6 +22,13 @@ descriptors:
   vibe: playful
   body: slender
   age_group: young-adult
+look:
+  chest_size: medium
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: east-asian
 art:
   portrait: /characters/sunflower-trio.webp
   portraitSm: /characters/sunflower-trio-sm.webp

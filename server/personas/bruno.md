@@ -22,6 +22,13 @@ descriptors:
   vibe: wholesome
   body: muscular
   age_group: adult
+look:
+  chest_size: none
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: very-muscular
+  ethnicity: non-human
 art:
   portrait: /characters/bruno.webp
   portraitSm: /characters/bruno-sm.webp

@@ -22,6 +22,13 @@ descriptors:
   vibe: nurturing
   body: athletic
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: unseen
+  butt_view: front
+  muscle: toned
+  ethnicity: south-asian
 art:
   portrait: /characters/priya.webp
   portraitSm: /characters/priya-sm.webp

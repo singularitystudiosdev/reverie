@@ -22,6 +22,13 @@ descriptors:
   vibe: mysterious
   body: athletic
   age_group: adult
+look:
+  chest_size: none
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: toned
+  ethnicity: east-asian
 art:
   portrait: /characters/kenshin.webp
   portraitSm: /characters/kenshin-sm.webp

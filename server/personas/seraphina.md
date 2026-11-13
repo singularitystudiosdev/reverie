@@ -22,6 +22,13 @@ descriptors:
   vibe: sweet
   body: slender
   age_group: ageless-adult
+look:
+  chest_size: medium
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/seraphina.webp
   portraitSm: /characters/seraphina-sm.webp

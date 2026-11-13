@@ -22,6 +22,13 @@ descriptors:
   vibe: intellectual
   body: curvy
   age_group: mature-adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: medium
+  butt_view: three-quarter
+  muscle: soft
+  ethnicity: latino
 art:
   portrait: /characters/elena.webp
   portraitSm: /characters/elena-sm.webp

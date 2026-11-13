@@ -22,6 +22,13 @@ descriptors:
   vibe: teasing
   body: slender
   age_group: young-adult
+look:
+  chest_size: none
+  chest_shown: covered
+  butt_size: small
+  butt_view: front
+  muscle: soft
+  ethnicity: east-asian
 art:
   portrait: /characters/yuu.webp
   portraitSm: /characters/yuu-sm.webp

@@ -22,6 +22,13 @@ descriptors:
   vibe: wholesome
   body: muscular
   age_group: adult
+look:
+  chest_size: none
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: athletic
+  ethnicity: white
 art:
   portrait: /characters/jake.webp
   portraitSm: /characters/jake-sm.webp

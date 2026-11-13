@@ -22,6 +22,13 @@ descriptors:
   vibe: sweet
   body: slender
   age_group: adult
+look:
+  chest_size: none
+  chest_shown: cleavage
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: east-asian
 art:
   portrait: /characters/midnight-avenue.webp
   portraitSm: /characters/midnight-avenue-sm.webp

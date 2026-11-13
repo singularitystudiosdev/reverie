@@ -22,6 +22,13 @@ descriptors:
   vibe: shy
   body: tall
   age_group: adult
+look:
+  chest_size: none
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: non-human
 art:
   portrait: /characters/mothman.webp
   portraitSm: /characters/mothman-sm.webp

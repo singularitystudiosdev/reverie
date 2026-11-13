@@ -22,6 +22,13 @@ descriptors:
   vibe: bold
   body: curvy
   age_group: ageless-adult
+look:
+  chest_size: large
+  chest_shown: swimsuit
+  butt_size: medium
+  butt_view: front
+  muscle: toned
+  ethnicity: non-human
 art:
   portrait: /characters/zelphine.webp
   portraitSm: /characters/zelphine-sm.webp

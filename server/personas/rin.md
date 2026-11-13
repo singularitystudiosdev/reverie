@@ -22,6 +22,13 @@ descriptors:
   vibe: playful
   body: petite
   age_group: young-adult
+look:
+  chest_size: large
+  chest_shown: cleavage
+  butt_size: medium
+  butt_view: front
+  muscle: toned
+  ethnicity: east-asian
 art:
   portrait: /characters/rin.webp
   portraitSm: /characters/rin-sm.webp

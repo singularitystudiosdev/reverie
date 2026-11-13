@@ -22,6 +22,13 @@ descriptors:
   vibe: mysterious
   body: curvy
   age_group: ageless-adult
+look:
+  chest_size: medium
+  chest_shown: cleavage
+  butt_size: unseen
+  butt_view: three-quarter
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/vesper.webp
   portraitSm: /characters/vesper-sm.webp

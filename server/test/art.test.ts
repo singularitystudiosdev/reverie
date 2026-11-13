@@ -310,7 +310,12 @@ test('the Gemini and xAI requests follow the documented shapes and failures map 
 test('POST /admin/art/run and GET /admin/art-queue expose the job and the spend', async () => {
   const { ctx, fake } = scratch({ dailyBudgetUsd: 0.6 });
   await spawnDrafts(ctx);
+  // Admin routes fail closed without a token; this test reads them as local dev does.
+  const wasOpen = process.env.REVERIE_ADMIN_OPEN;
+  process.env.REVERIE_ADMIN_OPEN = '1';
   const server: http.Server = createServer(ctx);
+  if (wasOpen === undefined) delete process.env.REVERIE_ADMIN_OPEN;
+  else process.env.REVERIE_ADMIN_OPEN = wasOpen;
   await new Promise<void>((r) => server.listen(0, r));
   try {
     const base = `http://localhost:${(server.address() as { port: number }).port}`;

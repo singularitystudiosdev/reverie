@@ -22,6 +22,13 @@ descriptors:
   vibe: playful
   body: furry
   age_group: adult
+look:
+  chest_size: none
+  chest_shown: fitted
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: non-human
 art:
   portrait: /characters/tango.webp
   portraitSm: /characters/tango-sm.webp

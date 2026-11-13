@@ -22,6 +22,13 @@ descriptors:
   vibe: regal
   body: slender
   age_group: mature-adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: medium
+  butt_view: three-quarter
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/margaux-laurent.webp
   portraitSm: /characters/margaux-laurent-sm.webp

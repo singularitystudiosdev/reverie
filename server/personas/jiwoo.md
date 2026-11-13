@@ -22,6 +22,13 @@ descriptors:
   vibe: sweet
   body: slender
   age_group: adult
+look:
+  chest_size: small
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: east-asian
 art:
   portrait: /characters/jiwoo.webp
   portraitSm: /characters/jiwoo-sm.webp

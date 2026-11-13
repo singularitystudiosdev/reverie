@@ -22,6 +22,13 @@ descriptors:
   vibe: nurturing
   body: curvy
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/clementine.webp
   portraitSm: /characters/clementine-sm.webp

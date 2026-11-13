@@ -25,6 +25,9 @@
  *             for the persona's gender, age band and art style (every swipe
  *             counts in full, nearby age bands share evidence) relative to
  *             their overall like rate. New personas draw from a dynamic prior.
+ *             The tags include what the persona's portrait shows (chest:, shown:,
+ *             butt:, view:, muscle:, ethnicity:; schema.ts PersonaLook), each at
+ *             cfg.feed.lookWeight of a theme tag and outside the co-like boost.
  *   diversity DPP as X's vm-ranker runs it (vm-ranker/dpp.rs, params.rs): over
  *             the top cfg.feed.dppPool x k candidates by score only, theta
  *             cfg.feed.dppTheta (X ships 0.65), the chosen cards then shown in
@@ -60,7 +63,7 @@
 import type { Ctx } from '../context.ts';
 import { makeId } from '../util.ts';
 import { fadeMultiplier } from '../lifecycle/fade.ts';
-import { feedTags, type Persona } from '../personas/schema.ts';
+import { feedTags, isLookTag, type Persona } from '../personas/schema.ts';
 import type { Rng } from '../stats/random.ts';
 import { cosineCache, dppSelect } from './dpp.ts';
 import { feedArm, fitKey } from './experiment.ts';
@@ -102,7 +105,8 @@ interface UserState {
   passed: Set<string>;
   /** When each passed persona was last passed (recycling). */
   passedAt: Map<string, number>;
-  likedCategories: string[];
+  /** The theme and gender tags of what the user liked (the co-like boost's rows; no look tags). */
+  likedThemes: string[];
   traits: TraitModel;
   /** Cards this user has decided on so far: where the next page starts in their card stream. */
   decided: number;
@@ -201,11 +205,11 @@ function hydrate(ctx: Ctx, userId: string): UserState {
   }
   for (const r of ctx.db.prepare('SELECT persona_id FROM matches WHERE user_id = ?').all(userId) as { persona_id: string }[]) liked.add(r.persona_id);
   for (const id of liked) passed.delete(id);
-  const likedCategories = [...liked].flatMap((id) => {
+  const likedThemes = [...liked].flatMap((id) => {
     const p = ctx.personas.get(id);
-    return p ? feedTags(p) : [];
+    return p ? feedTags(p).filter((t) => !isLookTag(t)) : [];
   });
-  return { affinity, liked, passed, passedAt, likedCategories, traits: buildTraits(ctx, liked, passed), decided };
+  return { affinity, liked, passed, passedAt, likedThemes, traits: buildTraits(ctx, liked, passed), decided };
 }
 
 /**
@@ -257,32 +261,40 @@ export function combineScore(pLike: number, chatTerm: number, fade: number, cali
 }
 
 /** One tempered Thompson draw of a candidate's score for this user (`cf`: its cfFactor, which takes no draw). */
-function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink: number, fade: number, scale: number, cf = 1, chatExponent = 1, fit: Calibration = model): FeedCard['why'] & { score: number } {
+function drawScore(model: FeedModel, p: Persona, u: UserState, rng: Rng, shrink: number, fade: number, scale: number, cf = 1, chatExponent = 1, fit: Calibration = model, lookWeight = 1): FeedCard['why'] & { score: number } {
   const post = model.persona.get(p.meta.id)!;
   // Co-like boost: how much more often this persona's categories are liked by people who liked what this user liked.
-  const nCats = Math.max(model.categories.length, 1);
+  // Themes and gender only (the look tags stay out of the co-like table and the count).
+  const nCats = Math.max(model.liftCategories, 1);
   let affSum = 0;
   let affMeanSum = 0; // the same affinity at its posterior mean, for the logged prediction
   let catMeanSum = 0;
+  let k = 0;
   const tags = feedTags(p);
   for (const c of tags) {
+    const look = isLookTag(c);
+    // A look tag weighs lookWeight of a theme tag in the average: six of them at full weight halved
+    // what the themes say (feed bench, SIMULATION.md "Look tags").
+    const wt = look ? lookWeight : 1;
+    if (!wt) continue;
     const g = model.category.get(c) ?? { a: 1, b: 2 };
     let m = g.a / (g.a + g.b);
-    if (u.likedCategories.length) {
+    if (!look && u.likedThemes.length) {
       let rel = 0;
-      for (const l of u.likedCategories) rel += (model.colike.get(l)?.get(c) ?? 0) / Math.max(model.colikeRow.get(l) ?? 0, 1);
-      rel /= u.likedCategories.length;
+      for (const l of u.likedThemes) rel += (model.colike.get(l)?.get(c) ?? 0) / Math.max(model.colikeRow.get(l) ?? 0, 1);
+      rel /= u.likedThemes.length;
       const lift = rel * nCats;
       m = Math.min(0.95, m * (0.6 + 0.4 * Math.min(lift, 4)));
     }
     const ua = u.affinity.get(c) ?? { a: 0, b: 0 };
     const a0 = ua.a + shrink * m + 1e-3;
     const b0 = ua.b + shrink * (1 - m) + 1e-3;
-    affSum += tempered(rng, a0, b0, ua.a + ua.b > 0 ? scale : 0);
-    affMeanSum += a0 / (a0 + b0);
-    catMeanSum += g.a / (g.a + g.b);
+    affSum += wt * tempered(rng, a0, b0, ua.a + ua.b > 0 ? scale : 0);
+    affMeanSum += wt * (a0 / (a0 + b0));
+    catMeanSum += wt * (g.a / (g.a + g.b));
+    k += wt;
   }
-  const k = Math.max(tags.length, 1);
+  k = Math.max(k, 1e-9);
   const affinity = affSum / k;
   const catMean = Math.max(catMeanSum / k, 1e-3);
   const qualityDraw = tempered(rng, post.like.a, post.like.b, scale);
@@ -348,7 +360,7 @@ export function buildFeed(ctx: Ctx, userId: string, req: FeedRequest = {}): { re
 
   const fades = new Map(candidates.map((p) => [p.meta.id, fadeMultiplier(ctx, p.meta.id)]));
   const cfs = new Map(candidates.map((p) => [p.meta.id, cfFactor(model, u, p.meta.id, cfg.cfWeight, cfg.cfShrink)]));
-  const score = (p: Persona) => drawScore(model, p, u, ctx.rng, cfg.userShrink, fades.get(p.meta.id)!, cfg.tsScale, cfs.get(p.meta.id), cfg.calibratedChatExponent, model.fits.get(fitKey(cfg)) ?? model);
+  const score = (p: Persona) => drawScore(model, p, u, ctx.rng, cfg.userShrink, fades.get(p.meta.id)!, cfg.tsScale, cfs.get(p.meta.id), cfg.calibratedChatExponent, model.fits.get(fitKey(cfg)) ?? model, cfg.lookWeight);
   const draws = candidates.map(score);
 
   // Selection: DPP over the scored pool, then every k-th card becomes an exploration slot.

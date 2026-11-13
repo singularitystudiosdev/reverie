@@ -22,6 +22,13 @@ descriptors:
   vibe: chaotic
   body: slender
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: unseen
+  butt_view: three-quarter
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/charlotte.webp
   portraitSm: /characters/charlotte-sm.webp

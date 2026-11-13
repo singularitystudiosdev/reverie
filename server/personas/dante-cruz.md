@@ -22,6 +22,13 @@ descriptors:
   vibe: mysterious
   body: muscular
   age_group: adult
+look:
+  chest_size: none
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: athletic
+  ethnicity: latino
 art:
   portrait: /characters/dante-cruz.webp
   portraitSm: /characters/dante-cruz-sm.webp

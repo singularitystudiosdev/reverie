@@ -22,6 +22,13 @@ descriptors:
   vibe: teasing
   body: curvy
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: medium
+  butt_view: front
+  muscle: soft
+  ethnicity: east-asian
 art:
   portrait: /characters/haruka.webp
   portraitSm: /characters/haruka-sm.webp

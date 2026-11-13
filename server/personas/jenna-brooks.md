@@ -22,6 +22,13 @@ descriptors:
   vibe: teasing
   body: curvy
   age_group: mature-adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: medium
+  butt_view: front
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/jenna-brooks.webp
   portraitSm: /characters/jenna-brooks-sm.webp

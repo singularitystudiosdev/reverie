@@ -22,6 +22,13 @@ descriptors:
   vibe: nurturing
   body: very-curvy
   age_group: adult
+look:
+  chest_size: very-large
+  chest_shown: fitted
+  butt_size: very-large
+  butt_view: three-quarter
+  muscle: soft
+  ethnicity: east-asian
 art:
   portrait: /characters/megumi.webp
   portraitSm: /characters/megumi-sm.webp

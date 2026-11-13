@@ -22,6 +22,13 @@ descriptors:
   vibe: teasing
   body: curvy
   age_group: mature-adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/diane.webp
   portraitSm: /characters/diane-sm.webp

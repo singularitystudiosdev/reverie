@@ -22,6 +22,13 @@ descriptors:
   vibe: mysterious
   body: slender
   age_group: ageless-adult
+look:
+  chest_size: medium
+  chest_shown: cleavage
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: ambiguous
 art:
   portrait: /characters/nerissa.webp
   portraitSm: /characters/nerissa-sm.webp

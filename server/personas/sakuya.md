@@ -22,6 +22,13 @@ descriptors:
   vibe: teasing
   body: slender
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: east-asian
 art:
   portrait: /characters/sakuya.webp
   portraitSm: /characters/sakuya-sm.webp

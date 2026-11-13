@@ -22,6 +22,13 @@ descriptors:
   vibe: teasing
   body: petite
   age_group: young-adult
+look:
+  chest_size: medium
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: east-asian
 art:
   portrait: /characters/aiko.webp
   portraitSm: /characters/aiko-sm.webp

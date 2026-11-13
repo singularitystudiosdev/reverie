@@ -22,6 +22,13 @@ descriptors:
   vibe: playful
   body: athletic
   age_group: young-adult
+look:
+  chest_size: medium
+  chest_shown: swimsuit
+  butt_size: unseen
+  butt_view: front
+  muscle: athletic
+  ethnicity: white
 art:
   portrait: /characters/sun-and-sea.webp
   portraitSm: /characters/sun-and-sea-sm.webp

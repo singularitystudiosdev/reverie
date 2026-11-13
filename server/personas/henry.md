@@ -22,6 +22,13 @@ descriptors:
   vibe: wholesome
   body: athletic
   age_group: senior-adult
+look:
+  chest_size: none
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: toned
+  ethnicity: white
 art:
   portrait: /characters/henry.webp
   portraitSm: /characters/henry-sm.webp

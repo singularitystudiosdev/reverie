@@ -22,6 +22,13 @@ descriptors:
   vibe: teasing
   body: athletic
   age_group: adult
+look:
+  chest_size: small
+  chest_shown: fitted
+  butt_size: unseen
+  butt_view: front
+  muscle: toned
+  ethnicity: white
 art:
   portrait: /characters/toni-marsh.webp
   portraitSm: /characters/toni-marsh-sm.webp

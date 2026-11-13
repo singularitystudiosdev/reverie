@@ -22,6 +22,13 @@ descriptors:
   vibe: teasing
   body: muscular
   age_group: adult
+look:
+  chest_size: none
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: toned
+  ethnicity: white
 art:
   portrait: /characters/lucas-bell.webp
   portraitSm: /characters/lucas-bell-sm.webp

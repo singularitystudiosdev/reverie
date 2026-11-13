@@ -22,6 +22,13 @@ descriptors:
   vibe: playful
   body: slender
   age_group: young-adult
+look:
+  chest_size: small
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/sophie.webp
   portraitSm: /characters/sophie-sm.webp

@@ -22,6 +22,13 @@ descriptors:
   vibe: teasing
   body: athletic
   age_group: adult
+look:
+  chest_size: small
+  chest_shown: fitted
+  butt_size: small
+  butt_view: front
+  muscle: athletic
+  ethnicity: white
 art:
   portrait: /characters/sloane-whitaker.webp
   portraitSm: /characters/sloane-whitaker-sm.webp

@@ -22,6 +22,13 @@ descriptors:
   vibe: teasing
   body: curvy
   age_group: young-adult
+look:
+  chest_size: small
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: latino
 art:
   portrait: /characters/roxy.webp
   portraitSm: /characters/roxy-sm.webp

@@ -9,7 +9,7 @@ import path from 'node:path';
 import type { DB } from '../db.ts';
 import { bumpVersion, ensureBoundaries, parsePersona, serializePersona } from './markdown.ts';
 import { ageIsAdult, lintPersonaText } from './safety.ts';
-import type { Persona, PersonaStatus } from './schema.ts';
+import { lookProblems, type Persona, type PersonaStatus } from './schema.ts';
 
 export class PersonaRegistry {
   private byId = new Map<string, Persona>();
@@ -113,6 +113,7 @@ export function validate(p: Persona): string[] {
   if (!p.meta.name) out.push('missing name');
   if (!ageIsAdult(p.meta.age)) out.push(`age "${p.meta.age}" does not read as an adult`);
   if (!p.meta.categories.length) out.push('no categories');
+  out.push(...lookProblems(p.meta.look));
   const issues = lintPersonaText(serializePersona(p));
   for (const i of issues) out.push(`lint ${i.rule}: "${i.match}"`);
   return out;

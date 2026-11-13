@@ -22,6 +22,13 @@ descriptors:
   vibe: bold
   body: athletic
   age_group: ageless-adult
+look:
+  chest_size: small
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: toned
+  ethnicity: white
 art:
   portrait: /characters/elowen.webp
   portraitSm: /characters/elowen-sm.webp

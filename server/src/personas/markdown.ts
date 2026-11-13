@@ -6,8 +6,10 @@
 import {
   DESCRIPTOR_KEYS,
   GENDERS,
+  LOOK_KEYS,
   lockedBoundaries,
   type PersonaGender,
+  type PersonaLook,
   type Descriptors,
   type Persona,
   type PersonaArt,
@@ -126,6 +128,8 @@ const str = (v: unknown, d = ''): string => (v === null || v === undefined ? d :
 export function metaFromFront(f: Record<string, FrontValue>): PersonaMeta {
   const d = (f.descriptors ?? {}) as Record<string, Scalar>;
   const descriptors = Object.fromEntries(DESCRIPTOR_KEYS.map((k) => [k, str(d[k], 'unknown')])) as unknown as Descriptors;
+  const l = (f.look ?? {}) as Record<string, Scalar>;
+  const look = Object.fromEntries(LOOK_KEYS.map((k) => [k, str(l[k], 'unknown')])) as unknown as PersonaLook;
   const artRaw = (f.art ?? {}) as Record<string, Scalar>;
   const art: PersonaArt = {};
   for (const [k, v] of Object.entries(artRaw)) if (v) (art as Record<string, string>)[k] = String(v);
@@ -147,6 +151,7 @@ export function metaFromFront(f: Record<string, FrontValue>): PersonaMeta {
     tagline: str(f.tagline),
     categories: cats,
     descriptors,
+    look,
     art,
   };
 }
@@ -171,6 +176,8 @@ export function frontFromMeta(m: PersonaMeta): Record<string, FrontValue> {
     tagline: m.tagline,
     categories: m.categories,
     descriptors: { ...m.descriptors } as unknown as Record<string, Scalar>,
+    // Written only once something is tagged, so an untagged persona's file stays as it was.
+    ...(m.look && LOOK_KEYS.some((k) => m.look[k] && m.look[k] !== 'unknown') ? { look: { ...m.look } as unknown as Record<string, Scalar> } : {}),
     art,
   };
 }

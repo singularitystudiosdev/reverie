@@ -198,6 +198,13 @@ export interface Config {
     /** With fitted weights, the persona-level chat term (1 + w_deep P(deep) - w_neg P(report)) is
      *  raised to this power: the fit halves P(like)'s spread, so the term's say is halved too. */
     calibratedChatExponent: number;
+    /** Weight of each look tag (chest:, shown:, butt:, view:, muscle:, ethnicity:) in the tag
+     *  affinity average, against 1 for a theme tag; 0 leaves the look out of the affinity (the
+     *  roster prior still reads it). A persona carries up to six look tags next to its five or six
+     *  themes, so at 1 the look outweighed what the themes say. 0.5 from the feed bench (3 ranker
+     *  seeds, SIMULATION.md "Look tags"): +0.25 points of like probability for users who swipe on
+     *  bust or ethnicity, -0.1 to -0.25 for users who do not; a live experiment arm can try 0. */
+    lookWeight: number;
   };
 
   /**
@@ -317,6 +324,7 @@ export function loadConfig(overrides: DeepPartial<Config> = {}): Config {
       calibRows: 20_000,
       personaEffects: false,
       calibratedChatExponent: 0.5,
+      lookWeight: 0.5,
       experiment: feedExperimentFromEnv(),
     },
     art: {

@@ -22,6 +22,13 @@ descriptors:
   vibe: confident
   body: tall
   age_group: young-adult
+look:
+  chest_size: medium
+  chest_shown: cleavage
+  butt_size: medium
+  butt_view: front
+  muscle: soft
+  ethnicity: east-asian
 art:
   portrait: /characters/erika.webp
   portraitSm: /characters/erika-sm.webp

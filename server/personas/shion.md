@@ -22,6 +22,13 @@ descriptors:
   vibe: bold
   body: curvy
   age_group: ageless-adult
+look:
+  chest_size: large
+  chest_shown: cleavage
+  butt_size: unseen
+  butt_view: front
+  muscle: toned
+  ethnicity: east-asian
 art:
   portrait: /characters/shion.webp
   portraitSm: /characters/shion-sm.webp

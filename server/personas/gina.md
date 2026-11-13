@@ -22,6 +22,13 @@ descriptors:
   vibe: nurturing
   body: curvy
   age_group: mature-adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/gina.webp
   portraitSm: /characters/gina-sm.webp

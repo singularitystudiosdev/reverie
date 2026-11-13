@@ -22,6 +22,13 @@ descriptors:
   vibe: regal
   body: tall
   age_group: mature-adult
+look:
+  chest_size: medium
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/isolde.webp
   portraitSm: /characters/isolde-sm.webp

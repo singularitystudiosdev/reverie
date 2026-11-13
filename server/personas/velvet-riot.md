@@ -22,6 +22,13 @@ descriptors:
   vibe: bold
   body: slender
   age_group: adult
+look:
+  chest_size: small
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/velvet-riot.webp
   portraitSm: /characters/velvet-riot-sm.webp

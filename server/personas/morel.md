@@ -22,6 +22,13 @@ descriptors:
   vibe: mysterious
   body: slender
   age_group: ageless-adult
+look:
+  chest_size: small
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/morel.webp
   portraitSm: /characters/morel-sm.webp

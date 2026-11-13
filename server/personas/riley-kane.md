@@ -22,6 +22,13 @@ descriptors:
   vibe: bold
   body: athletic
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: medium
+  butt_view: three-quarter
+  muscle: toned
+  ethnicity: white
 art:
   portrait: /characters/riley-kane.webp
   portraitSm: /characters/riley-kane-sm.webp

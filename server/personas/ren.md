@@ -22,6 +22,13 @@ descriptors:
   vibe: teasing
   body: slender
   age_group: adult
+look:
+  chest_size: none
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: toned
+  ethnicity: east-asian
 art:
   portrait: /characters/ren.webp
   portraitSm: /characters/ren-sm.webp

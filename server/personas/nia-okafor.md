@@ -22,6 +22,13 @@ descriptors:
   vibe: teasing
   body: tall
   age_group: adult
+look:
+  chest_size: small
+  chest_shown: fitted
+  butt_size: medium
+  butt_view: front
+  muscle: toned
+  ethnicity: black
 art:
   portrait: /characters/nia-okafor.webp
   portraitSm: /characters/nia-okafor-sm.webp

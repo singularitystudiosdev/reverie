@@ -22,6 +22,13 @@ descriptors:
   vibe: confident
   body: athletic
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: toned
+  ethnicity: white
 art:
   portrait: /characters/tess-harlow.webp
   portraitSm: /characters/tess-harlow-sm.webp

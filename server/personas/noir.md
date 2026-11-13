@@ -22,6 +22,13 @@ descriptors:
   vibe: regal
   body: slender
   age_group: ageless-adult
+look:
+  chest_size: large
+  chest_shown: cleavage
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/noir.webp
   portraitSm: /characters/noir-sm.webp

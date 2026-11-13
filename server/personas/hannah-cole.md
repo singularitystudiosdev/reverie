@@ -22,6 +22,13 @@ descriptors:
   vibe: playful
   body: curvy
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: medium
+  butt_view: front
+  muscle: toned
+  ethnicity: white
 art:
   portrait: /characters/hannah-cole.webp
   portraitSm: /characters/hannah-cole-sm.webp

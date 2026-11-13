@@ -527,6 +527,60 @@ for categories the launch roster lacks (18% of users), which the explore branch 
 The roster grows to 168-178 by day 25 and reaches `maxActive` (200) a few weeks later, after which
 a generation only fills the room fading makes.
 
+## Look tags (2026-11-13)
+
+Every persona now carries what its portrait shows (README, "Persona markdown": bust size and how
+much the outfit shows, butt size and whether it faces the camera, muscle, ethnicity), tagged from
+the 154 portraits. The values are feed tags (`chest:large`, `ethnicity:latino`...) and features of
+the roster prior. The roster they describe: 67 white, 43 East Asian, 19 non-human, 6 Latina/Latino,
+6 ambiguous, 4 Black, 3 mixed, 2 Southeast Asian, 2 Middle Eastern, 1 South Asian, 1 Pacific
+Islander; 2 muscular characters; the butt out of frame on 112 of 154 (the portraits are framed
+from the waist or mid-thigh up).
+
+Feed bench, `--page 3 --warm 1000 --test 300`. `--look 1.5` gives 35% of users a bust taste (large
+and up, or small) and 45% an ethnicity taste (white, East Asian, Black or Latino): +1.5 log-odds
+toward a match, -0.75 away from a miss, drawn from their own stream so every arm meets the same
+users. `--nolook 1` is the control (personas without their look blocks); it reproduces the old
+bench exactly (0.2121 / 0.2144).
+
+First pass, look tags at full weight and inside the co-like boost (one ranker seed):
+
+| | no look taste, seed 7 / 11 | look taste, seed 7 / 11 |
+|---|---|---|
+| control | 0.2121 / 0.2144 | 0.2028 / 0.2174 |
+| look tags | 0.2099 / 0.2045 | 0.2145 / 0.2220 |
+
+Six look tags next to five or six themes halved what the themes say in the affinity average, and
+in the co-like boost the near-universal values (`view:front` on 124 personas, `muscle:soft` on 104)
+took most of every row. The look tags now stay out of the co-like table and count, and each weighs
+`feed.lookWeight` of a theme tag:
+
+| look weight | no look taste, seed 7 / 11 | look taste, seed 7 / 11 |
+|---|---|---|
+| 1 | 0.2023 / 0.2111 | 0.2095 / 0.2284 |
+| **0.5** | 0.2070 / 0.2146 | 0.2133 / 0.2255 |
+| 0.25 | 0.2068 / 0.2203 | 0.2014 / 0.2145 |
+
+Single runs move by about 0.005 on the ranker's draws alone, so 0.5 against the control on three
+ranker seeds (101 / 202 / 303), mean +/- sd:
+
+| | control | look tags at 0.5 | difference per ranker seed |
+|---|---|---|---|
+| no look taste, seed 7 | 0.2122 +/- 0.0007 | 0.2112 +/- 0.0004 | -0.0007, -0.0005, -0.0018 |
+| no look taste, seed 11 | 0.2139 +/- 0.0024 | 0.2114 +/- 0.0011 | -0.0008, -0.0054, -0.0014 |
+| look taste, seed 7 | 0.2040 +/- 0.0043 | 0.2064 +/- 0.0029 | +0.0014, -0.0018, +0.0076 |
+| look taste, seed 11 | 0.2163 +/- 0.0030 | 0.2189 +/- 0.0015 | +0.0015, +0.0015, +0.0047 |
+
+Cards matching a user's taste, among users with one (same runs): bust 36.8% -> 37.6% and 37.8% ->
+38.8% (the roster: 13.5% / 14.2%), ethnicity 26.4% -> 28.9% and 26.5% -> 26.6% (21.9% / 21.0%).
+
+Small both ways: about +0.25 points of like probability when users swipe on looks, -0.1 to -0.25
+when they do not. The feed already finds most of a bust taste without the tags (bust size goes with
+art style, theme tags and the spicy starters), so the tags add about a point of matches; ethnicity
+gains more where the roster has the supply. Shipped at 0.5. The bench's look tastes are invented:
+how much real users swipe on these is unknown, and a live ranker experiment
+(`REVERIE_FEED_EXPERIMENT`, arms with `lookWeight` 0 and 0.5) answers it on real swipes.
+
 ## Settings
 
 The 45-day runs use relaxed thresholds so a run finishes in minutes (gate: a

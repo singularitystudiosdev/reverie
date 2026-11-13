@@ -22,6 +22,13 @@ descriptors:
   vibe: confident
   body: muscular
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: medium
+  butt_view: three-quarter
+  muscle: athletic
+  ethnicity: latino
 art:
   portrait: /characters/marisol-vega.webp
   portraitSm: /characters/marisol-vega-sm.webp

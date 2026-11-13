@@ -22,6 +22,13 @@ descriptors:
   vibe: confident
   body: slender
   age_group: senior-adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: medium
+  butt_view: three-quarter
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/lorraine-belle.webp
   portraitSm: /characters/lorraine-belle-sm.webp

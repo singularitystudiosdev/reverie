@@ -22,6 +22,13 @@ descriptors:
   vibe: confident
   body: slender
   age_group: mature-adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/victoria.webp
   portraitSm: /characters/victoria-sm.webp

@@ -22,6 +22,13 @@ descriptors:
   vibe: regal
   body: tall
   age_group: ageless-adult
+look:
+  chest_size: none
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/azazel.webp
   portraitSm: /characters/azazel-sm.webp

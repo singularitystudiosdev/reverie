@@ -22,6 +22,13 @@ descriptors:
   vibe: confident
   body: plus-size
   age_group: adult
+look:
+  chest_size: large
+  chest_shown: cleavage
+  butt_size: large
+  butt_view: front
+  muscle: soft
+  ethnicity: black
 art:
   portrait: /characters/amara.webp
   portraitSm: /characters/amara-sm.webp

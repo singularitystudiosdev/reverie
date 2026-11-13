@@ -22,6 +22,13 @@ descriptors:
   vibe: adventurous
   body: athletic
   age_group: ageless-adult
+look:
+  chest_size: medium
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: three-quarter
+  muscle: toned
+  ethnicity: non-human
 art:
   portrait: /characters/fenna.webp
   portraitSm: /characters/fenna-sm.webp

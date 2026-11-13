@@ -23,14 +23,16 @@
  */
 import type { Ctx } from '../context.ts';
 import { serializePersona } from '../personas/markdown.ts';
-import { lockedBoundaries, type Descriptors, type Persona, type PersonaBranch, type PersonaGender } from '../personas/schema.ts';
+import { lockedBoundaries, type Descriptors, type Persona, type PersonaBranch, type PersonaGender, type PersonaLook } from '../personas/schema.ts';
 import type { PersonaStats } from '../telemetry/rollups.ts';
-import { axisMarginals, categoriesFor, descriptorSpace, DESCRIPTOR_SPACE, EXPLOIT_AXES, growVocabulary, nicheKey, NICHE_AXES, occupiedOrTried, rebuildArchive, styleFor } from './niches.ts';
+import { axisMarginals, categoriesFor, descriptorSpace, DESCRIPTOR_SPACE, EXPLOIT_AXES, growVocabulary, lookFor, lookPhrase, nicheKey, NICHE_AXES, occupiedOrTried, rebuildArchive, styleFor } from './niches.ts';
 
 export interface SpawnPlan {
   branch: Exclude<PersonaBranch, 'seed'>;
   gender: PersonaGender;
   descriptors: Descriptors;
+  /** How the portrait will be drawn (niches.ts lookFor); the art prompt and the persona's look tags both read it. */
+  look: PersonaLook;
   parent: Persona | null;
   changed: (keyof Descriptors)[];
 }
@@ -78,7 +80,8 @@ export function planExplore(ctx: Ctx, stats: PersonaStats[], count: number, take
     }
     if (!best) break;
     taken.add(nicheKey(best.d));
-    plans.push({ branch: 'explore', gender: pickGender(ctx, personas, stats, globalMean), descriptors: best.d, parent: null, changed: [...NICHE_AXES] });
+    const gender = pickGender(ctx, personas, stats, globalMean);
+    plans.push({ branch: 'explore', gender, descriptors: best.d, look: lookFor(gender, best.d, ctx.rng), parent: null, changed: [...NICHE_AXES] });
   }
   return plans;
 }
@@ -121,7 +124,7 @@ export function planExploit(ctx: Ctx, stats: PersonaStats[], count: number, take
       if (taken.has(full) || (!changedNiche && !changedStyleOnly)) continue;
       taken.add(full);
       taken.add(nicheKey(d));
-      plan = { branch: 'exploit', gender: parent.meta.gender, descriptors: d, parent, changed: axes };
+      plan = { branch: 'exploit', gender: parent.meta.gender, descriptors: d, look: lookFor(parent.meta.gender, d, ctx.rng, parent), parent, changed: axes };
     }
     if (plan) plans.push(plan);
   }
@@ -268,6 +271,7 @@ function render(ctx: Ctx, plan: SpawnPlan, w: Written): Persona {
       tagline: w.tagline.trim(),
       categories: categoriesFor(d),
       descriptors: d,
+      look: plan.look,
       art: {},
     },
     intro: w.intro.trim(),
@@ -302,7 +306,9 @@ async function writeWithLlm(ctx: Ctx, plan: SpawnPlan): Promise<Written | null> 
         : plan.gender === 'nonbinary'
           ? 'a nonbinary character (use they/them)'
           : 'a woman (use she/her)';
-  const prompt = `${brief}\n\nThe character is ${who}.\n\nDescriptors:\n${Object.entries(d).map(([k, v]) => `- ${k}: ${v}`).join('\n')}\n\nThe "body" descriptor sets the character's physique as it would be drawn; mention it tastefully at most once. The "age_group" descriptor must be reflected in an adult stated age (senior-adult means 60+). Return every field.`;
+  const look = lookPhrase(plan.look, plan.gender);
+  const lookLine = look ? `\n\nThe portrait will be drawn as: ${look}. Keep the name and backstory consistent with it; do not describe the body beyond the one mention below.` : '';
+  const prompt = `${brief}\n\nThe character is ${who}.\n\nDescriptors:\n${Object.entries(d).map(([k, v]) => `- ${k}: ${v}`).join('\n')}${lookLine}\n\nThe "body" descriptor sets the character's physique as it would be drawn; mention it tastefully at most once. The "age_group" descriptor must be reflected in an adult stated age (senior-adult means 60+). Return every field.`;
   return ctx.llm.json<Written>(WRITER_SYSTEM, prompt, WRITTEN_SCHEMA);
 }
 
@@ -423,5 +429,6 @@ export async function spawnGeneration(ctx: Ctx, stats: PersonaStats[], eligible:
 /** A prompt an image pipeline can turn into the persona's portrait and scene. */
 export function artBrief(p: Persona): string {
   const d = p.meta.descriptors;
-  return `${p.meta.style} style portrait, 9:16, of ${p.meta.name}, ${p.meta.kind}. Adult (${p.meta.age}). Form: ${d.form}; body: ${d.body}; vibe: ${d.vibe}; setting: ${d.setting}, ${d.era} era. Tasteful, non-explicit, fully clothed, flattering soft light, matching scene plate without the character.`;
+  const look = lookPhrase(p.meta.look, p.meta.gender);
+  return `${p.meta.style} style portrait, 9:16, of ${p.meta.name}, ${p.meta.kind}. Adult (${p.meta.age}). Form: ${d.form}; body: ${d.body}${look ? `; look: ${look}` : ''}; vibe: ${d.vibe}; setting: ${d.setting}, ${d.era} era. Tasteful, non-explicit, fully clothed, flattering soft light, matching scene plate without the character.`;
 }

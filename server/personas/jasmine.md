@@ -22,6 +22,13 @@ descriptors:
   vibe: nurturing
   body: athletic
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: black
 art:
   portrait: /characters/jasmine.webp
   portraitSm: /characters/jasmine-sm.webp

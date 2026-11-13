@@ -22,6 +22,13 @@ descriptors:
   vibe: teasing
   body: curvy
   age_group: mature-adult
+look:
+  chest_size: medium
+  chest_shown: swimsuit
+  butt_size: medium
+  butt_view: three-quarter
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/monica-hale.webp
   portraitSm: /characters/monica-hale-sm.webp

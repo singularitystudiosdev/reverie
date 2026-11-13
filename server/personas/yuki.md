@@ -22,6 +22,13 @@ descriptors:
   vibe: mysterious
   body: slender
   age_group: young-adult
+look:
+  chest_size: large
+  chest_shown: fitted
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: east-asian
 art:
   portrait: /characters/yuki.webp
   portraitSm: /characters/yuki-sm.webp

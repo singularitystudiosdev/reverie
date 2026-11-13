@@ -24,6 +24,72 @@ export interface Descriptors {
 
 export const DESCRIPTOR_KEYS: (keyof Descriptors)[] = ['form', 'setting', 'era', 'aesthetic', 'vibe', 'body', 'age_group'];
 
+/**
+ * What the persona's portrait shows, read off the image itself (the starters were tagged from
+ * their portraits; personas the loop invents get the values their art is drawn to). Kept apart
+ * from `descriptors`, which are the MAP-Elites niche axes. The feed learns taste over these as
+ * tags (`chest:large`, `ethnicity:latino`...), so a user's swipes on bodies and ethnicities
+ * count; `unknown` (not tagged yet) and `unseen` (out of frame) say nothing and are skipped.
+ */
+export interface PersonaLook {
+  /** Breasts as drawn; `none` for men, flat chests and characters with no chest anatomy. */
+  chest_size: string;
+  /** How much of the chest the outfit shows (a man's open shirt counts as cleavage, a bare chest as swimsuit). */
+  chest_shown: string;
+  /** From the visible hips and butt; `unseen` when they are out of frame or hidden. */
+  butt_size: string;
+  /** Whether the butt faces the camera: front (body faces the viewer), three-quarter (turned, side profile included), back. */
+  butt_view: string;
+  muscle: string;
+  /** `mixed` also covers a group whose members differ; `non-human` an animal, creature, robot or non-human skin. */
+  ethnicity: string;
+}
+
+export const LOOK_VALUES: Record<keyof PersonaLook, string[]> = {
+  chest_size: ['none', 'small', 'medium', 'large', 'very-large'],
+  chest_shown: ['covered', 'fitted', 'cleavage', 'swimsuit'],
+  butt_size: ['unseen', 'small', 'medium', 'large', 'very-large'],
+  butt_view: ['front', 'three-quarter', 'back'],
+  muscle: ['soft', 'toned', 'athletic', 'muscular', 'very-muscular'],
+  ethnicity: [
+    'white', 'east-asian', 'south-asian', 'southeast-asian', 'black', 'latino', 'middle-eastern', 'indigenous', 'pacific-islander',
+    'mixed', 'ambiguous', 'non-human',
+  ],
+};
+
+export const LOOK_KEYS = Object.keys(LOOK_VALUES) as (keyof PersonaLook)[];
+
+/** Values that carry no taste signal: not tagged yet, or out of frame. */
+const SILENT_LOOK = new Set(['unknown', 'unseen']);
+
+/** The feed tag for each look value the persona has: `chest:large`, `shown:cleavage`, `butt:medium`, `view:front`, `muscle:toned`, `ethnicity:white`. */
+const LOOK_TAG: Record<keyof PersonaLook, string> = {
+  chest_size: 'chest',
+  chest_shown: 'shown',
+  butt_size: 'butt',
+  butt_view: 'view',
+  muscle: 'muscle',
+  ethnicity: 'ethnicity',
+};
+
+const LOOK_PREFIXES = Object.values(LOOK_TAG).map((t) => `${t}:`);
+
+/** A feed tag that came from the look block (`chest:large`), not a theme or the gender. */
+export function isLookTag(tag: string): boolean {
+  return LOOK_PREFIXES.some((x) => tag.startsWith(x));
+}
+
+export function lookTags(look: PersonaLook | undefined): string[] {
+  if (!look) return [];
+  return LOOK_KEYS.filter((k) => look[k] && !SILENT_LOOK.has(look[k])).map((k) => `${LOOK_TAG[k]}:${look[k]}`);
+}
+
+/** Problems with a look block: a value outside LOOK_VALUES (a typo would otherwise become a tag of its own). */
+export function lookProblems(look: PersonaLook | undefined): string[] {
+  if (!look) return [];
+  return LOOK_KEYS.filter((k) => look[k] !== 'unknown' && !LOOK_VALUES[k].includes(look[k])).map((k) => `look.${k} "${look[k]}" is not one of ${LOOK_VALUES[k].join(', ')}`);
+}
+
 export interface PersonaArt {
   portrait?: string;
   portraitSm?: string;
@@ -52,6 +118,8 @@ export interface PersonaMeta {
   tagline: string;
   categories: string[];   // feed categories: 2-6 short tags
   descriptors: Descriptors;
+  /** What the portrait shows; every value `unknown` until tagged. */
+  look: PersonaLook;
   art: PersonaArt;
 }
 
@@ -115,7 +183,8 @@ export function lockedBoundaries(name: string, gender: PersonaGender = 'female')
   ].join('\n');
 }
 
-/** The tags the feed learns taste over: the persona's categories plus its gender, so "prefers men" is learnable. */
-export function feedTags(p: { meta: { categories: string[]; gender: PersonaGender } }): string[] {
-  return [...p.meta.categories, `gender:${p.meta.gender}`];
+/** The tags the feed learns taste over: the persona's categories, its gender (so "prefers men" is
+ *  learnable) and what its portrait shows (chest, butt, muscle, ethnicity; see PersonaLook). */
+export function feedTags(p: { meta: { categories: string[]; gender: PersonaGender; look?: PersonaLook } }): string[] {
+  return [...p.meta.categories, `gender:${p.meta.gender}`, ...lookTags(p.meta.look)];
 }

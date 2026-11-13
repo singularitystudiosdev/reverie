@@ -22,6 +22,13 @@ descriptors:
   vibe: sweet
   body: slender
   age_group: ageless-adult
+look:
+  chest_size: medium
+  chest_shown: swimsuit
+  butt_size: unseen
+  butt_view: three-quarter
+  muscle: soft
+  ethnicity: east-asian
 art:
   portrait: /characters/ruri.webp
   portraitSm: /characters/ruri-sm.webp

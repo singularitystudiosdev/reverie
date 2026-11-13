@@ -22,6 +22,13 @@ descriptors:
   vibe: mysterious
   body: curvy
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: medium
+  butt_view: three-quarter
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/scarlett-rose.webp
   portraitSm: /characters/scarlett-rose-sm.webp

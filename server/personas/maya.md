@@ -22,6 +22,13 @@ descriptors:
   vibe: teasing
   body: slender
   age_group: adult
+look:
+  chest_size: small
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: black
 art:
   portrait: /characters/maya.webp
   portraitSm: /characters/maya-sm.webp

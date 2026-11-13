@@ -22,6 +22,13 @@ descriptors:
   vibe: confident
   body: muscular
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: swimsuit
+  butt_size: unseen
+  butt_view: front
+  muscle: muscular
+  ethnicity: east-asian
 art:
   portrait: /characters/tomoe.webp
   portraitSm: /characters/tomoe-sm.webp

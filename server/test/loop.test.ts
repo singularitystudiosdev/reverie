@@ -18,7 +18,8 @@ import { makeRng } from '../src/stats/random.ts';
 import { buildFeed, combineScore } from '../src/feed/ranker.ts';
 import { getFeedModel } from '../src/feed/model.ts';
 import { planExplore, spawnGeneration } from '../src/lifecycle/evolve.ts';
-import { descriptorSpace, growVocabulary, MIN_UNTRIED, occupiedOrTried, untried } from '../src/lifecycle/niches.ts';
+import { descriptorSpace, growVocabulary, lookFor, lookPhrase, MIN_UNTRIED, occupiedOrTried, SPAWN_ETHNICITIES, untried } from '../src/lifecycle/niches.ts';
+import { LOOK_KEYS, LOOK_VALUES } from '../src/personas/schema.ts';
 import { computeGate } from '../src/lifecycle/gate.ts';
 import { fadeTick } from '../src/lifecycle/fade.ts';
 import { offlineLlm } from '../src/llm/claude.ts';
@@ -297,6 +298,29 @@ test('the explore branch keeps finding untried niches at the full roster: the vo
   // Spawning writes them as valid persona files.
   const created = await spawnGeneration(ctx, stats, new Set(stats.map((s) => s.personaId)));
   assert.ok(created.filter((p) => p.meta.branch === 'explore').length >= 1);
+  // Each carries the look its art will be drawn with, written into its file.
+  for (const p of created) {
+    const back = parsePersona(fs.readFileSync(ctx.personas.file(p.meta.id), 'utf8'));
+    assert.deepEqual(back.meta.look, p.meta.look, `${p.meta.id} look round-trips`);
+    assert.ok(LOOK_KEYS.every((k) => LOOK_VALUES[k].includes(p.meta.look[k])), `${p.meta.id} look ${JSON.stringify(p.meta.look)}`);
+    assert.equal(p.meta.look.chest_shown, 'covered', 'the server draws its personas modestly clothed');
+    if (p.meta.gender === 'male') assert.equal(p.meta.look.chest_size, 'none');
+  }
+});
+
+test('a spawned persona is drawn with a look that fits its body and form, and a variation keeps its parent ethnicity', () => {
+  const rng = makeRng(3);
+  const base = { form: 'human', setting: 'bakery', era: 'modern', aesthetic: 'realistic', vibe: 'sweet', body: 'very-curvy', age_group: 'adult' };
+  const woman = lookFor('female', base, rng);
+  assert.equal(woman.chest_size, 'very-large');
+  assert.equal(woman.butt_size, 'very-large');
+  assert.ok(SPAWN_ETHNICITIES.includes(woman.ethnicity));
+  assert.equal(lookFor('male', { ...base, body: 'muscular' }, rng).chest_size, 'none');
+  assert.equal(lookFor('male', { ...base, body: 'muscular' }, rng).muscle, 'muscular');
+  assert.equal(lookFor('female', { ...base, form: 'dinosaur' }, rng).ethnicity, 'non-human');
+  const parent = parsePersona(fs.readFileSync(path.join(SERVER_ROOT, 'personas', 'valentina-cruz.md'), 'utf8'));
+  for (let i = 0; i < 5; i++) assert.equal(lookFor('female', { ...base, body: 'athletic' }, rng, parent).ethnicity, 'latino');
+  assert.equal(lookPhrase(lookFor('female', { ...base, body: 'athletic' }, rng, parent), 'female'), 'Latina, athletic');
 });
 
 test('a dud with its like sample in fades even with almost no chats; a liked persona is not faded on thin random-slot data', () => {
@@ -454,7 +478,10 @@ test('people who liked one persona and liked another more than the ranker predic
     insert.run(2, `c${i}`, 'luna', 'exploit', 0.5, i < 32 ? 'like' : 'pass', 0.2);
   }
   ingest(ctx, { type: 'swipe', user_id: 'fan', persona_id: 'vesper', props: { dir: 'like' }, ts: clock.t });
-  const card = (u: string) => buildFeed(ctx, u, { limit: 50, dryRun: true }).cards.find((c) => c.personaId === 'luna');
+  // Luna is the only candidate: the term is read off its card, and whether it made a 50-card deck
+  // among the ties at the uncalibrated 0.99 cap was a coin toss.
+  const exclude = ctx.personas.servable().map((p) => p.meta.id).filter((id) => id !== 'luna');
+  const card = (u: string) => buildFeed(ctx, u, { limit: 50, exclude, dryRun: true }).cards.find((c) => c.personaId === 'luna');
   const fan = card('fan');
   assert.ok(fan && fan.why.cf > 2, `cf for a vesper fan: ${fan?.why.cf}`);
   assert.equal(card('stranger')?.why.cf ?? 1, 1, 'no likes, no collaborative term');
@@ -642,8 +669,13 @@ test('EASE as the persona-to-persona term lifts what the fans of a liked persona
   for (let i = 0; i < 60; i++) insert.run(4, `m${i}`, 'maya', 'exploit', 0.5, 'like');
   served(ctx, 'fan', 'vesper', clock.t);
   ingest(ctx, { type: 'swipe', user_id: 'fan', persona_id: 'vesper', props: { dir: 'like' }, ts: clock.t });
-  const cards = buildFeed(ctx, 'fan', { limit: 50, dryRun: true }).cards;
+  // Only the two personas under test are candidates: the term is read off their cards, and with
+  // three personas carrying all the data most of the roster sits at the uncalibrated 0.99 cap, so
+  // whether luna made a 50-card deck was a coin toss on the ties.
+  const exclude = ctx.personas.servable().map((p) => p.meta.id).filter((id) => id !== 'luna' && id !== 'maya');
+  const cards = buildFeed(ctx, 'fan', { limit: 50, exclude, dryRun: true }).cards;
   const cf = (id: string) => cards.find((c) => c.personaId === id)?.why.cf ?? 1;
+  assert.deepEqual(cards.map((c) => c.personaId).sort(), ['luna', 'maya']);
   assert.ok(cf('luna') > 1.5, `luna ${cf('luna')}`);
   assert.ok(cf('luna') > cf('maya'), `luna ${cf('luna')} vs maya ${cf('maya')}`);
 });

@@ -22,6 +22,13 @@ descriptors:
   vibe: bold
   body: athletic
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: toned
+  ethnicity: white
 art:
   portrait: /characters/ravenna.webp
   portraitSm: /characters/ravenna-sm.webp

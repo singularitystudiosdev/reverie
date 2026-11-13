@@ -22,6 +22,13 @@ descriptors:
   vibe: mysterious
   body: curvy
   age_group: ageless-adult
+look:
+  chest_size: medium
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: middle-eastern
 art:
   portrait: /characters/zahra.webp
   portraitSm: /characters/zahra-sm.webp

@@ -22,6 +22,13 @@ descriptors:
   vibe: chaotic
   body: slender
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: east-asian
 art:
   portrait: /characters/stella.webp
   portraitSm: /characters/stella-sm.webp

@@ -22,6 +22,13 @@ descriptors:
   vibe: confident
   body: tall
   age_group: adult
+look:
+  chest_size: none
+  chest_shown: covered
+  butt_size: small
+  butt_view: three-quarter
+  muscle: toned
+  ethnicity: white
 art:
   portrait: /characters/damien.webp
   portraitSm: /characters/damien-sm.webp

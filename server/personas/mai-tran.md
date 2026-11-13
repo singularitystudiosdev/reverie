@@ -22,6 +22,13 @@ descriptors:
   vibe: sweet
   body: slender
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: medium
+  butt_view: front
+  muscle: soft
+  ethnicity: southeast-asian
 art:
   portrait: /characters/mai-tran.webp
   portraitSm: /characters/mai-tran-sm.webp

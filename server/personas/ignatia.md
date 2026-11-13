@@ -22,6 +22,13 @@ descriptors:
   vibe: intellectual
   body: tall
   age_group: ageless-adult
+look:
+  chest_size: none
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: toned
+  ethnicity: non-human
 art:
   portrait: /characters/ignatia.webp
   portraitSm: /characters/ignatia-sm.webp

@@ -52,7 +52,26 @@ the gate is open, then open new experiments, then write `data/report.md`.
 Frontmatter: `id, name, version, status (draft|active|fading|retired), branch
 (seed|explore|exploit), parent, created, kind, style, theme, age, gender
 (female|male|group|nonbinary), flirt_level (0-10), tagline, categories,
-descriptors (form, setting, era, aesthetic, vibe, body, age_group), art`.
+descriptors (form, setting, era, aesthetic, vibe, body, age_group), look, art`.
+
+`look` is what the portrait shows (`src/personas/schema.ts`, `LOOK_VALUES`):
+
+| Field | Values |
+|---|---|
+| `chest_size` | none, small, medium, large, very-large (`none`: men, flat chests, no chest anatomy) |
+| `chest_shown` | covered, fitted, cleavage, swimsuit (a man's open shirt is cleavage, a bare chest swimsuit) |
+| `butt_size` | unseen, small, medium, large, very-large (`unseen`: out of frame or hidden) |
+| `butt_view` | front, three-quarter, back (whether the butt faces the camera) |
+| `muscle` | soft, toned, athletic, muscular, very-muscular |
+| `ethnicity` | white, east-asian, south-asian, southeast-asian, black, latino, middle-eastern, indigenous, pacific-islander, mixed (also a group whose members differ), ambiguous, non-human |
+
+The 154 starters were tagged from their portraits (`public/characters/<id>-sm.webp`)
+on 2026-11-13; a value outside the lists fails validation. A file without a
+`look` block reads as all `unknown` and gets no look tags. Personas the loop
+invents get the look their art is drawn with (`lookFor` in
+`src/lifecycle/niches.ts`: physique from `body`, modestly clothed, facing the
+viewer, the parent's ethnicity for a variation, a uniform draw for a new one),
+and the art prompt says it.
 
 Sections, in order: Base persona, Backstory, Personality, Voice and style,
 Flirting, Preferred partner, Interests and world, Reactions (11 situations:
@@ -116,8 +135,11 @@ its frontmatter), `export.mjs` (writes `src/data/starters.generated.ts`, the
 app's built-in roster entries, in a mixed deck order).
 
 Personas have a `gender` (female, male, group, nonbinary). The feed learns taste
-over each persona's categories plus `gender:<x>`, so a user who keeps choosing
-men, women or groups sees more of them.
+over each persona's categories plus `gender:<x>` and its look (`chest:<x>`,
+`shown:<x>`, `butt:<x>`, `view:<x>`, `muscle:<x>`, `ethnicity:<x>`; `unknown`
+and `unseen` are skipped), so a user who keeps choosing men, women or groups, a
+bust size or an ethnicity sees more of them. The look values are also features
+in the roster prior that ranks a new user's first cards.
 
 ## Automatic art (optional, default off)
 
@@ -396,11 +418,13 @@ estimate (raw, IPW, random-slot) comes to the hidden truth. Flags:
 `--launch-only` keeps just the 14 launch personas. Results:
 [SIMULATION.md](SIMULATION.md).
 
-`npm run bench:feed -- --seed 7 [--latent 1] [--warm 1000] [--test 300] [--cfg '{"feed":{...}}']`
+`npm run bench:feed -- --seed 7 [--latent 1] [--look 1.5] [--nolook 1] [--warm 1000] [--test 300] [--cfg '{"feed":{...}}']`
 runs the feed alone (no lifecycle, no chats) against the same hidden user model
 and scores every card served by its true like probability, next to each user's
 oracle and a static deck in true-popularity order; `--cfg` overrides any config
-value, so ranker settings compare in minutes.
+value, so ranker settings compare in minutes. `--look W` gives users hidden
+tastes over the portraits (a bust size, an ethnicity) and reports how often
+their cards match; `--nolook 1` serves without the look blocks, the control.
 
 ## API
 

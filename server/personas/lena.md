@@ -22,6 +22,13 @@ descriptors:
   vibe: wholesome
   body: curvy
   age_group: mature-adult
+look:
+  chest_size: medium
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/lena.webp
   portraitSm: /characters/lena-sm.webp

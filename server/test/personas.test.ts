@@ -6,7 +6,7 @@ import { SERVER_ROOT } from '../src/config.ts';
 import { bumpVersion, ensureBoundaries, getSection, parsePersona, serializePersona, setSection } from '../src/personas/markdown.ts';
 import { validate } from '../src/personas/registry.ts';
 import { ageIsAdult, lintText } from '../src/personas/safety.ts';
-import { EDITABLE_SECTIONS, lockedBoundaries } from '../src/personas/schema.ts';
+import { EDITABLE_SECTIONS, feedTags, lockedBoundaries, LOOK_KEYS, LOOK_VALUES, lookTags } from '../src/personas/schema.ts';
 
 const dir = path.join(SERVER_ROOT, 'personas');
 const files = fs.readdirSync(dir).filter((f) => f.endsWith('.md'));
@@ -50,6 +50,32 @@ test('the 140 starters match their roster entry and carry only a still, a profil
     const extra = Object.keys(p.meta.art).filter((k) => !['portrait', 'portraitSm', 'loop', 'scene', 'sceneSm'].includes(k));
     assert.deepEqual(extra, [], `${r.id} has no clip or scene loop`);
   }
+});
+
+test('every seed persona has its portrait tagged on all six look fields, and the feed learns them as tags', () => {
+  for (const f of files) {
+    const p = parsePersona(fs.readFileSync(path.join(dir, f), 'utf8'));
+    for (const k of LOOK_KEYS) assert.ok(LOOK_VALUES[k].includes(p.meta.look[k]), `${f} look.${k} = ${p.meta.look[k]}`);
+    if (p.meta.gender === 'male') assert.equal(p.meta.look.chest_size, 'none', `${f} is a man`);
+  }
+  const megumi = parsePersona(fs.readFileSync(path.join(dir, 'megumi.md'), 'utf8'));
+  assert.deepEqual(lookTags(megumi.meta.look), ['chest:very-large', 'shown:fitted', 'butt:very-large', 'view:three-quarter', 'muscle:soft', 'ethnicity:east-asian']);
+  assert.deepEqual(feedTags(megumi).slice(-7), ['gender:female', ...lookTags(megumi.meta.look)]);
+  // Out of frame says nothing about taste: no `butt:unseen` tag.
+  const aiko = parsePersona(fs.readFileSync(path.join(dir, 'aiko.md'), 'utf8'));
+  assert.equal(aiko.meta.look.butt_size, 'unseen');
+  assert.ok(!lookTags(aiko.meta.look).some((t) => t.startsWith('butt:')));
+});
+
+test('an untagged persona keeps a file without a look block and no look tags; a misspelt value fails validation', () => {
+  const md = fs.readFileSync(path.join(dir, 'aiko.md'), 'utf8').replace(/^look:\n(?: {2}.*\n)+/m, '');
+  const p = parsePersona(md);
+  assert.ok(LOOK_KEYS.every((k) => p.meta.look[k] === 'unknown'));
+  assert.equal(serializePersona(p), md);
+  assert.deepEqual(lookTags(p.meta.look), []);
+  assert.deepEqual(validate(p), []);
+  const typo = { ...p, meta: { ...p.meta, look: { ...p.meta.look, chest_size: 'huge' } } };
+  assert.match(validate(typo).join('\n'), /look\.chest_size "huge"/);
 });
 
 test('locked sections cannot be edited, editable ones can, and versions bump with a changelog line', () => {

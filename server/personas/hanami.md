@@ -22,6 +22,13 @@ descriptors:
   vibe: shy
   body: petite
   age_group: young-adult
+look:
+  chest_size: small
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: three-quarter
+  muscle: soft
+  ethnicity: east-asian
 art:
   portrait: /characters/hanami.webp
   portraitSm: /characters/hanami-sm.webp

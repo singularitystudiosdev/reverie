@@ -22,6 +22,13 @@ descriptors:
   vibe: playful
   body: tall
   age_group: ageless-adult
+look:
+  chest_size: large
+  chest_shown: cleavage
+  butt_size: unseen
+  butt_view: three-quarter
+  muscle: toned
+  ethnicity: east-asian
 art:
   portrait: /characters/ibuki.webp
   portraitSm: /characters/ibuki-sm.webp

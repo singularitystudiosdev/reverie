@@ -22,6 +22,13 @@ descriptors:
   vibe: bold
   body: athletic
   age_group: young-adult
+look:
+  chest_size: small
+  chest_shown: covered
+  butt_size: small
+  butt_view: front
+  muscle: toned
+  ethnicity: white
 art:
   portrait: /characters/dakota.webp
   portraitSm: /characters/dakota-sm.webp

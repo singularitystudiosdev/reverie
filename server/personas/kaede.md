@@ -22,6 +22,13 @@ descriptors:
   vibe: teasing
   body: athletic
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: medium
+  butt_view: three-quarter
+  muscle: toned
+  ethnicity: east-asian
 art:
   portrait: /characters/kaede.webp
   portraitSm: /characters/kaede-sm.webp

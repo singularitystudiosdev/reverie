@@ -22,6 +22,13 @@ descriptors:
   vibe: bold
   body: curvy
   age_group: adult
+look:
+  chest_size: small
+  chest_shown: fitted
+  butt_size: unseen
+  butt_view: front
+  muscle: toned
+  ethnicity: middle-eastern
 art:
   portrait: /characters/ines-duval.webp
   portraitSm: /characters/ines-duval-sm.webp

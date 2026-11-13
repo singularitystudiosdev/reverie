@@ -22,6 +22,13 @@ descriptors:
   vibe: bold
   body: curvy
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: cleavage
+  butt_size: medium
+  butt_view: three-quarter
+  muscle: toned
+  ethnicity: latino
 art:
   portrait: /characters/valentina-cruz.webp
   portraitSm: /characters/valentina-cruz-sm.webp

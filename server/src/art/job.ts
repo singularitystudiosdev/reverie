@@ -13,6 +13,7 @@
  */
 import type { Ctx } from '../context.ts';
 import { artBrief } from '../lifecycle/evolve.ts';
+import { lookPhrase } from '../lifecycle/niches.ts';
 import type { Persona } from '../personas/schema.ts';
 import { attachArt } from './attach.ts';
 import { processArt, artPaths } from './process.ts';
@@ -89,7 +90,8 @@ export function subjectFromPersona(p: Persona): ArtSubject {
     age: clean(p.meta.age, 30),
     gender: p.meta.gender,
     form: d.form,
-    look: `${words(d.body)} build, ${words(d.form)}, ${words(d.vibe)} expression, a modest outfit that fits the ${words(d.era)} era, ${scene}`,
+    // The look block's ethnicity and muscle first, so the portrait matches the tags the feed learns from.
+    look: `${[clean(lookPhrase(p.meta.look, p.meta.gender), 60), `${words(d.body)} build`].filter(Boolean).join(', ')}, ${words(d.form)}, ${words(d.vibe)} expression, a modest outfit that fits the ${words(d.era)} era, ${scene}`,
     scene,
     strict: true,
     brief: clean(artBrief(p), 600),

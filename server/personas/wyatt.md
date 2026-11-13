@@ -22,6 +22,13 @@ descriptors:
   vibe: wholesome
   body: muscular
   age_group: adult
+look:
+  chest_size: none
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: three-quarter
+  muscle: toned
+  ethnicity: white
 art:
   portrait: /characters/wyatt.webp
   portraitSm: /characters/wyatt-sm.webp

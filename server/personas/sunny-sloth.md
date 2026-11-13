@@ -22,6 +22,13 @@ descriptors:
   vibe: nurturing
   body: furry
   age_group: adult
+look:
+  chest_size: none
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: non-human
 art:
   portrait: /characters/sunny-sloth.webp
   portraitSm: /characters/sunny-sloth-sm.webp

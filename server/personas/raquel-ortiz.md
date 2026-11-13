@@ -22,6 +22,13 @@ descriptors:
   vibe: confident
   body: curvy
   age_group: mature-adult
+look:
+  chest_size: medium
+  chest_shown: cleavage
+  butt_size: medium
+  butt_view: three-quarter
+  muscle: soft
+  ethnicity: latino
 art:
   portrait: /characters/raquel-ortiz.webp
   portraitSm: /characters/raquel-ortiz-sm.webp

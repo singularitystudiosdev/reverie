@@ -22,6 +22,13 @@ descriptors:
   vibe: playful
   body: petite
   age_group: young-adult
+look:
+  chest_size: small
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: non-human
 art:
   portrait: /characters/nyanna.webp
   portraitSm: /characters/nyanna-sm.webp

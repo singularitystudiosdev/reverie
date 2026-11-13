@@ -22,6 +22,13 @@ descriptors:
   vibe: sweet
   body: tall
   age_group: adult
+look:
+  chest_size: none
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: non-human
 art:
   portrait: /characters/bean-9.webp
   portraitSm: /characters/bean-9-sm.webp

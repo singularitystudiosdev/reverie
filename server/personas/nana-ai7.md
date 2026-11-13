@@ -22,6 +22,13 @@ descriptors:
   vibe: sweet
   body: slender
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: non-human
 art:
   portrait: /characters/nana-ai7.webp
   portraitSm: /characters/nana-ai7-sm.webp

@@ -22,6 +22,13 @@ descriptors:
   vibe: adventurous
   body: athletic
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: medium
+  butt_view: front
+  muscle: toned
+  ethnicity: pacific-islander
 art:
   portrait: /characters/kai.webp
   portraitSm: /characters/kai-sm.webp

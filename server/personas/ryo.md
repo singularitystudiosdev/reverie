@@ -22,6 +22,13 @@ descriptors:
   vibe: bold
   body: athletic
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: toned
+  ethnicity: east-asian
 art:
   portrait: /characters/ryo.webp
   portraitSm: /characters/ryo-sm.webp

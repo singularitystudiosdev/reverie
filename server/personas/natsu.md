@@ -22,6 +22,13 @@ descriptors:
   vibe: playful
   body: athletic
   age_group: young-adult
+look:
+  chest_size: small
+  chest_shown: fitted
+  butt_size: unseen
+  butt_view: front
+  muscle: athletic
+  ethnicity: east-asian
 art:
   portrait: /characters/natsu.webp
   portraitSm: /characters/natsu-sm.webp

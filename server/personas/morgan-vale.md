@@ -22,6 +22,13 @@ descriptors:
   vibe: deadpan
   body: slender
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: cleavage
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/morgan-vale.webp
   portraitSm: /characters/morgan-vale-sm.webp

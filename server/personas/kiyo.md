@@ -22,6 +22,13 @@ descriptors:
   vibe: teasing
   body: slender
   age_group: ageless-adult
+look:
+  chest_size: medium
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: non-human
 art:
   portrait: /characters/kiyo.webp
   portraitSm: /characters/kiyo-sm.webp

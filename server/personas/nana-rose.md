@@ -22,6 +22,13 @@ descriptors:
   vibe: wholesome
   body: curvy
   age_group: senior-adult
+look:
+  chest_size: medium
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/nana-rose.webp
   portraitSm: /characters/nana-rose-sm.webp

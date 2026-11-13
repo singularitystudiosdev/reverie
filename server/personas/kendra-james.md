@@ -22,6 +22,13 @@ descriptors:
   vibe: teasing
   body: curvy
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: cleavage
+  butt_size: medium
+  butt_view: front
+  muscle: soft
+  ethnicity: mixed
 art:
   portrait: /characters/kendra-james.webp
   portraitSm: /characters/kendra-james-sm.webp

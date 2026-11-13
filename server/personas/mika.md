@@ -22,6 +22,13 @@ descriptors:
   vibe: chaotic
   body: petite
   age_group: young-adult
+look:
+  chest_size: small
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: east-asian
 art:
   portrait: /characters/mika.webp
   portraitSm: /characters/mika-sm.webp

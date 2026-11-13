@@ -22,6 +22,13 @@ descriptors:
   vibe: teasing
   body: slender
   age_group: young-adult
+look:
+  chest_size: medium
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/maddie.webp
   portraitSm: /characters/maddie-sm.webp

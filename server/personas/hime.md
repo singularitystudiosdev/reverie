@@ -22,6 +22,13 @@ descriptors:
   vibe: teasing
   body: slender
   age_group: young-adult
+look:
+  chest_size: large
+  chest_shown: cleavage
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: east-asian
 art:
   portrait: /characters/hime.webp
   portraitSm: /characters/hime-sm.webp

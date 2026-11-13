@@ -22,6 +22,13 @@ descriptors:
   vibe: chaotic
   body: slender
   age_group: adult
+look:
+  chest_size: small
+  chest_shown: fitted
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/dolly.webp
   portraitSm: /characters/dolly-sm.webp

@@ -8,7 +8,7 @@
  */
 import type { Config } from '../config.ts';
 import type { Ctx } from '../context.ts';
-import { feedTags, type Persona } from '../personas/schema.ts';
+import { feedTags, isLookTag, lookTags, type Persona } from '../personas/schema.ts';
 import { dynamicPrior, type BetaParams } from '../stats/dynamicPrior.ts';
 import { twoProportionN } from '../stats/inference.ts';
 import { fitKey, fitSettings } from './experiment.ts';
@@ -56,6 +56,8 @@ export interface FeedModel {
   gateImpressions: number;
   conversations: Map<string, number>;
   categories: string[];
+  /** The categories the co-like boost spreads over: every one but the look tags. */
+  liftCategories: number;
   /** Mean deep-chat and negative rates across the roster (the feed's self-calibrated weights read these). */
   meanDeep: number;
   meanNeg: number;
@@ -195,8 +197,10 @@ export function buildFeedModel(ctx: Ctx): FeedModel {
   const categories = [...new Set(personas.flatMap((p) => feedTags(p)))].sort();
   // The kernel leaves out every art-style value (anime, realistic, cartoon...), which 142 of the 154
   // starters also carry as a theme tag: art style is a trait the user is scored on, not variety.
+  // The prefixed tags (gender:, chest:, ethnicity:...) are no theme either: never in a persona's
+  // categories, they would only be empty dimensions.
   const styles = new Set(personas.map((p) => p.meta.descriptors.aesthetic));
-  const kernelCategories = categories.filter((c) => !styles.has(c));
+  const kernelCategories = categories.filter((c) => !styles.has(c) && !c.includes(':'));
   const vectors = new Map<string, number[]>();
   for (const p of personas) vectors.set(p.meta.id, featureVector(p, kernelCategories));
 
@@ -222,6 +226,7 @@ export function buildFeedModel(ctx: Ctx): FeedModel {
     ...fitsFor(ctx, centeredLogits(featurePrior)),
     conversations,
     categories,
+    liftCategories: categories.filter((c) => !isLookTag(c)).length,
   };
 }
 
@@ -250,6 +255,8 @@ function personaFeaturePrior(personas: Persona[], imp: Map<string, { n: number; 
   for (const p of personas) {
     const keys = [...new Set(p.meta.categories)].map((c) => `tag:${c}`);
     keys.push(`gender:${p.meta.gender}`, `age:${p.meta.descriptors.age_group}`, `style:${p.meta.descriptors.aesthetic}`);
+    // What the portrait shows (chest, butt, muscle, ethnicity), so the roster prior can say how much those draw.
+    keys.push(...lookTags(p.meta.look).map((t) => `look:${t}`));
     rowsOf.set(
       p.meta.id,
       keys.map((k) => {

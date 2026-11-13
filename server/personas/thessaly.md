@@ -22,6 +22,13 @@ descriptors:
   vibe: regal
   body: tall
   age_group: ageless-adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: unseen
+  butt_view: three-quarter
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/thessaly.webp
   portraitSm: /characters/thessaly-sm.webp

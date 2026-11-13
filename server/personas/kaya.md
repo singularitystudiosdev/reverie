@@ -22,6 +22,13 @@ descriptors:
   vibe: chaotic
   body: curvy
   age_group: ageless-adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: medium
+  butt_view: front
+  muscle: soft
+  ethnicity: ambiguous
 art:
   portrait: /characters/kaya.webp
   portraitSm: /characters/kaya-sm.webp

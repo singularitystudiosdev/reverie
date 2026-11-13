@@ -22,6 +22,13 @@ descriptors:
   vibe: teasing
   body: very-curvy
   age_group: ageless-adult
+look:
+  chest_size: large
+  chest_shown: fitted
+  butt_size: large
+  butt_view: three-quarter
+  muscle: soft
+  ethnicity: ambiguous
 art:
   portrait: /characters/mirelle.webp
   portraitSm: /characters/mirelle-sm.webp

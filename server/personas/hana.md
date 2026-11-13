@@ -22,6 +22,13 @@ descriptors:
   vibe: mysterious
   body: slender
   age_group: adult
+look:
+  chest_size: small
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: east-asian
 art:
   portrait: /characters/hana.webp
   portraitSm: /characters/hana-sm.webp

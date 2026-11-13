@@ -22,6 +22,13 @@ descriptors:
   vibe: chaotic
   body: slender
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: medium
+  butt_view: front
+  muscle: soft
+  ethnicity: mixed
 art:
   portrait: /characters/vegas-bridesmaids.webp
   portraitSm: /characters/vegas-bridesmaids-sm.webp

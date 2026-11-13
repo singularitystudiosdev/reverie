@@ -22,6 +22,13 @@ descriptors:
   vibe: bold
   body: athletic
   age_group: young-adult
+look:
+  chest_size: small
+  chest_shown: swimsuit
+  butt_size: medium
+  butt_view: front
+  muscle: athletic
+  ethnicity: white
 art:
   portrait: /characters/kayla.webp
   portraitSm: /characters/kayla-sm.webp

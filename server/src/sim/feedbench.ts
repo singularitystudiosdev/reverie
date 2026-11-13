@@ -26,7 +26,8 @@ import { SERVER_ROOT } from '../config.ts';
 import { getFeedModel } from '../feed/model.ts';
 import { buildFeed } from '../feed/ranker.ts';
 import { offlineLlm } from '../llm/claude.ts';
-import { feedTags, type Persona } from '../personas/schema.ts';
+import { parsePersona } from '../personas/markdown.ts';
+import { feedTags, type Persona, type PersonaLook } from '../personas/schema.ts';
 import { makeRng } from '../stats/random.ts';
 import { ingest } from '../telemetry/ingest.ts';
 import { computeAllStats } from '../telemetry/rollups.ts';
@@ -48,6 +49,13 @@ const SESSIONS = arg('sessions', 5);
 const DECK = arg('deck', 6);
 const PAGE = arg('page', 0);
 const CFG = JSON.parse(sarg('cfg') ?? '{}');
+// --look W: users also have hidden tastes over what the portraits show (a bust size, an ethnicity),
+// W log-odds toward a match and W/2 away from a miss. --nolook 1: the ranker gets the personas
+// without their look blocks (no look tags), the control for what the tags buy. The hidden tastes
+// always read the real look values, and come from their own random stream, so every arm and
+// every --look setting meets the same users.
+const LOOK = arg('look', 0);
+const NOLOOK = arg('nolook', 0) > 0;
 
 const CLUSTERS: Record<string, string[]> = {
   anime: ['anime', 'japanese-folklore', 'cozy', 'sweet', 'playful'],
@@ -68,7 +76,14 @@ const sig = (x: number) => 1 / (1 + Math.exp(-x));
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'feedbench-'));
 const personasDir = path.join(dir, 'personas');
 fs.mkdirSync(personasDir);
-for (const f of fs.readdirSync(path.join(SERVER_ROOT, 'personas'))) if (f.endsWith('.md')) fs.copyFileSync(path.join(SERVER_ROOT, 'personas', f), path.join(personasDir, f));
+const trueLook = new Map<string, PersonaLook>();
+for (const f of fs.readdirSync(path.join(SERVER_ROOT, 'personas'))) {
+  if (!f.endsWith('.md')) continue;
+  const md = fs.readFileSync(path.join(SERVER_ROOT, 'personas', f), 'utf8');
+  const p = parsePersona(md);
+  trueLook.set(p.meta.id, p.meta.look);
+  fs.writeFileSync(path.join(personasDir, f), NOLOOK ? md.replace(/^look:\n(?: {2}.*\n)+/m, '') : md);
+}
 let now = Date.UTC(2026, 10, 12);
 const ctx = createContext(
   { dbPath: path.join(dir, 'b.db'), personasDir, ...CFG, lifecycle: { requireArt: false, ...(CFG.lifecycle ?? {}) } },
@@ -91,7 +106,10 @@ for (const p of personas) {
   truth.set(p.meta.id, { quality: q, v: [world.normal(), world.normal(), world.normal(), world.normal()] });
 }
 
-interface U { id: string; taste: Map<string, number>; g: string; maxAge: number; style: string | null; v: number[] }
+interface U { id: string; taste: Map<string, number>; g: string; maxAge: number; style: string | null; v: number[]; chest: 'big' | 'small' | null; eth: string | null }
+// Look tastes come from their own stream: the world's draws, and so its users, stay what they were.
+const lookRng = makeRng(SEED * 31 + 5);
+const LOOK_ETHNICITIES = ['white', 'east-asian', 'black', 'latino'];
 function makeUser(id: string): U {
   const taste = new Map<string, number>();
   const k = world() < 0.6 ? 1 : 2;
@@ -100,6 +118,7 @@ function makeUser(id: string): U {
   for (const c of picks) for (const cat of CLUSTERS[c]) taste.set(cat, (taste.get(cat) ?? 0) + 2.2 + world.normal() * 0.4);
   const r = world();
   const s = world();
+  const c = lookRng();
   return {
     id,
     taste,
@@ -107,7 +126,23 @@ function makeUser(id: string): U {
     maxAge: world() < 0.65 ? 1 : 3,
     style: s < 0.45 ? 'anime' : s < 0.75 ? 'realistic' : null,
     v: [world.normal(), world.normal(), world.normal(), world.normal()],
+    chest: c < 0.35 ? 'big' : c < 0.5 ? 'small' : null,
+    eth: lookRng() < 0.45 ? lookRng.pick(LOOK_ETHNICITIES) : null,
   };
+}
+/** Whether a persona matches the user's hidden look tastes (null: no taste on that axis). */
+function chestMatch(u: U, pid: string): boolean | null {
+  if (!u.chest) return null;
+  const c = trueLook.get(pid)?.chest_size;
+  return u.chest === 'big' ? c === 'large' || c === 'very-large' : c === 'small';
+}
+function ethMatch(u: U, pid: string): boolean | null {
+  return u.eth ? trueLook.get(pid)?.ethnicity === u.eth : null;
+}
+function lookTerm(u: U, pid: string): number {
+  let x = 0;
+  for (const m of [chestMatch(u, pid), ethMatch(u, pid)]) if (m !== null) x += m ? LOOK : -LOOK / 2;
+  return x;
 }
 function likeP(u: U, pid: string): number {
   const p = ctx.personas.get(pid)!;
@@ -124,9 +159,17 @@ function likeP(u: U, pid: string): number {
     const v = truth.get(pid)!.v;
     x += (LATENT * (u.v[0] * v[0] + u.v[1] * v[1] + u.v[2] * v[2] + u.v[3] * v[3])) / 2;
   }
+  if (LOOK) x += lookTerm(u, pid);
   return sig(x);
 }
 
+interface Rec {
+  p: number[][];
+  s: number;
+  wrongGender: number[];
+  bad: number[];
+  look: { chestHit: number; chestN: number; ethHit: number; ethN: number };
+}
 const ms: number[] = [];
 const slots: Record<string, number> = {};
 // Diversity of what the user actually sees: mean pairwise cosine of the DPP's theme vectors over
@@ -152,7 +195,7 @@ function page(u: U, n: number) {
   windowSim(cards.slice(0, PAGE || 3).map((c) => c.personaId));
   return cards;
 }
-function session(u: U, rec?: { p: number[][]; s: number; wrongGender: number[]; bad: number[] }) {
+function session(u: U, rec?: Rec) {
   const cards = [];
   while (cards.length < DECK) {
     const got = page(u, DECK - cards.length);
@@ -164,7 +207,7 @@ function session(u: U, rec?: { p: number[][]; s: number; wrongGender: number[]; 
   if (!PAGE) swipe(u, cards, rec);
   now += 60_000;
 }
-function swipe(u: U, cards: { personaId: string; slot: string }[], rec?: { p: number[][]; s: number; wrongGender: number[]; bad: number[] }) {
+function swipe(u: U, cards: { personaId: string; slot: string }[], rec?: Rec) {
   for (const c of cards) {
     slots[c.slot] = (slots[c.slot] ?? 0) + 1;
     if (c.slot === 'random') randomByPersona.set(c.personaId, (randomByPersona.get(c.personaId) ?? 0) + 1);
@@ -176,6 +219,10 @@ function swipe(u: U, cards: { personaId: string; slot: string }[], rec?: { p: nu
       const g = ctx.personas.get(c.personaId)!.meta.gender;
       rec.wrongGender[rec.s] += u.g !== 'any' && g !== u.g ? 1 : 0;
       rec.bad[rec.s] += p < 0.1 ? 1 : 0;
+      const cm = chestMatch(u, c.personaId);
+      const em = ethMatch(u, c.personaId);
+      if (cm !== null) (rec.look.chestN++, (rec.look.chestHit += cm ? 1 : 0));
+      if (em !== null) (rec.look.ethN++, (rec.look.ethHit += em ? 1 : 0));
     }
     const like = outcome() < p;
     ingest(ctx, { type: 'swipe', user_id: u.id, persona_id: c.personaId, props: { dir: like ? 'like' : 'pass' }, ts: now });
@@ -188,7 +235,15 @@ for (let i = 0; i < WARM; i++) {
   session(u);
   session(u);
 }
-const rec = { p: Array.from({ length: SESSIONS }, () => [] as number[]), s: 0, wrongGender: new Array(SESSIONS).fill(0), bad: new Array(SESSIONS).fill(0) };
+const rec: Rec = {
+  p: Array.from({ length: SESSIONS }, () => [] as number[]),
+  s: 0,
+  wrongGender: new Array(SESSIONS).fill(0),
+  bad: new Array(SESSIONS).fill(0),
+  look: { chestHit: 0, chestN: 0, ethHit: 0, ethN: 0 },
+};
+// The share of the roster each test user's look taste matches: what a feed blind to looks would show them.
+const lookBase = { chest: [] as number[], eth: [] as number[] };
 // Yardsticks per session: the oracle (each user's own best personas, in order) and a popularity
 // deck (one global order by the population's mean true like rate), both without repeats.
 const popUsers = Array.from({ length: 2000 }, (_, i) => makeUser(`pop${i}`));
@@ -237,6 +292,8 @@ const oracleBy = new Array(SESSIONS).fill(0);
 const popBy = new Array(SESSIONS).fill(0);
 for (let i = 0; i < TEST; i++) {
   const u = makeUser(`t${i}`);
+  if (u.chest) lookBase.chest.push(personas.filter((p) => chestMatch(u, p.meta.id)).length / personas.length);
+  if (u.eth) lookBase.eth.push(personas.filter((p) => ethMatch(u, p.meta.id)).length / personas.length);
   const ps = personas.map((p) => likeP(u, p.meta.id)).sort((a: number, b: number) => b - a);
   oracle += ps.slice(0, DECK * SESSIONS).reduce((a: number, b: number) => a + b, 0) / (DECK * SESSIONS);
   for (let s = 0; s < SESSIONS; s++) {
@@ -273,6 +330,13 @@ const out = {
   windowSim: +mean(windowSims).toFixed(4),
   slotShare: Object.fromEntries(Object.entries(slots).map(([k, v]) => [k, +(v / Object.values(slots).reduce((a, b) => a + b, 0)).toFixed(4)])),
   personasWith30Random: [...randomByPersona.values()].filter((v) => v >= 30).length,
+  // Cards matching the user's hidden bust / ethnicity taste, among users who have one, against the roster's share.
+  look: LOOK,
+  nolook: NOLOOK,
+  chestMatchShare: +(rec.look.chestHit / Math.max(rec.look.chestN, 1)).toFixed(4),
+  chestMatchRoster: +mean(lookBase.chest).toFixed(4),
+  ethMatchShare: +(rec.look.ethHit / Math.max(rec.look.ethN, 1)).toFixed(4),
+  ethMatchRoster: +mean(lookBase.eth).toFixed(4),
   ...est,
 };
 console.log(JSON.stringify(out));

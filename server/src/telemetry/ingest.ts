@@ -8,7 +8,7 @@ import type { Ctx } from '../context.ts';
 import { json } from '../db.ts';
 import { assignArm } from '../experiments/engine.ts';
 import { detect } from '../personas/safety.ts';
-import { feedTags } from '../personas/schema.ts';
+import { feedTags, isLookTag, type Persona } from '../personas/schema.ts';
 import { messageFeatures } from './features.ts';
 
 export const EVENT_TYPES = [
@@ -307,15 +307,18 @@ function updateColike(ctx: Ctx, userId: string, personaId: string): void {
       "SELECT persona_id FROM impressions WHERE user_id = ? AND outcome = 'like' AND persona_id != ? AND slot != 'unranked' GROUP BY persona_id ORDER BY MAX(ts) DESC LIMIT 30",
     )
     .all(userId, personaId) as { persona_id: string }[];
+  // Themes and gender only: the look tags (chest:, ethnicity:...) are learned from the user's own
+  // swipes; a handful of near-universal values (view:front, muscle:soft) would take most of every row.
+  const tagsOf = (q: Persona) => feedTags(q).filter((t) => !isLookTag(t));
   const before = new Set<string>();
   for (const r of prior) {
     const q = ctx.personas.get(r.persona_id);
-    if (q) for (const c of feedTags(q)) before.add(c);
+    if (q) for (const c of tagsOf(q)) before.add(c);
   }
   const stmt = ctx.db.prepare(
     `INSERT INTO colike (cat_a, cat_b, n) VALUES (?, ?, 1) ON CONFLICT(cat_a, cat_b) DO UPDATE SET n = n + 1`,
   );
-  for (const a of before) for (const b of feedTags(p)) {
+  for (const a of before) for (const b of tagsOf(p)) {
     stmt.run(a, b);
     if (a !== b) stmt.run(b, a);
   }

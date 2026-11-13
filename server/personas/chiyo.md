@@ -22,6 +22,13 @@ descriptors:
   vibe: nurturing
   body: slender
   age_group: young-adult
+look:
+  chest_size: small
+  chest_shown: fitted
+  butt_size: small
+  butt_view: three-quarter
+  muscle: soft
+  ethnicity: east-asian
 art:
   portrait: /characters/chiyo.webp
   portraitSm: /characters/chiyo-sm.webp

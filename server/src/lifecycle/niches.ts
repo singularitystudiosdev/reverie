@@ -13,7 +13,8 @@
 import type { Ctx } from '../context.ts';
 import { json } from '../db.ts';
 import { lintText } from '../personas/safety.ts';
-import type { Descriptors, Persona } from '../personas/schema.ts';
+import { LOOK_VALUES, type Descriptors, type Persona, type PersonaGender, type PersonaLook } from '../personas/schema.ts';
+import type { Rng } from '../stats/random.ts';
 import type { PersonaStats } from '../telemetry/rollups.ts';
 
 export const DESCRIPTOR_SPACE: Record<keyof Descriptors, string[]> = {
@@ -155,6 +156,61 @@ export function categoriesFor(d: Descriptors): string[] {
 }
 
 /** Rebuild the archive from the current roster and its scores. */
+/** Forms drawn with human skin, so a human ethnicity applies (the starters were tagged the same way). */
+const HUMAN_SKIN_FORMS = new Set(['human', 'elf-fae', 'undead', 'witch', 'angel', 'demon', 'goddess', 'mermaid-siren', 'elemental-mage', 'djinn', 'ghost']);
+/** The physique each body descriptor is drawn with (a man's chest is always `none`). */
+const BODY_LOOK: Record<string, Pick<PersonaLook, 'chest_size' | 'butt_size' | 'muscle'>> = {
+  slender: { chest_size: 'small', butt_size: 'small', muscle: 'soft' },
+  petite: { chest_size: 'small', butt_size: 'small', muscle: 'soft' },
+  athletic: { chest_size: 'medium', butt_size: 'medium', muscle: 'athletic' },
+  tall: { chest_size: 'medium', butt_size: 'medium', muscle: 'toned' },
+  curvy: { chest_size: 'large', butt_size: 'large', muscle: 'soft' },
+  'very-curvy': { chest_size: 'very-large', butt_size: 'very-large', muscle: 'soft' },
+  'plus-size': { chest_size: 'large', butt_size: 'large', muscle: 'soft' },
+  muscular: { chest_size: 'medium', butt_size: 'medium', muscle: 'muscular' },
+  furry: { chest_size: 'none', butt_size: 'medium', muscle: 'soft' },
+};
+/** Ethnicities a new explore persona draws from, uniformly: the starters are mostly white and East Asian. */
+export const SPAWN_ETHNICITIES = LOOK_VALUES.ethnicity.filter((e) => e !== 'ambiguous' && e !== 'non-human');
+
+/**
+ * The look a persona the loop invents is drawn with (its art prompt says it, so its tags are true
+ * of its portrait): physique from the body descriptor, a modest outfit (the server's art is always
+ * fully and modestly clothed), facing the viewer (the portrait framing), and an ethnicity kept from
+ * the parent when the form still has human skin, else drawn.
+ */
+export function lookFor(gender: PersonaGender, d: Descriptors, rng: Rng, parent?: Persona | null): PersonaLook {
+  const body = BODY_LOOK[d.body] ?? BODY_LOOK.slender;
+  const humanSkin = HUMAN_SKIN_FORMS.has(d.form);
+  const inherited = parent?.meta.look?.ethnicity;
+  const ethnicity = !humanSkin
+    ? 'non-human'
+    : inherited && SPAWN_ETHNICITIES.includes(inherited)
+      ? inherited
+      : rng.pick(SPAWN_ETHNICITIES);
+  return {
+    chest_size: gender === 'male' ? 'none' : body.chest_size,
+    chest_shown: 'covered',
+    butt_size: body.butt_size,
+    butt_view: 'front',
+    muscle: body.muscle,
+    ethnicity,
+  };
+}
+
+const ETHNICITY_WORDS: Record<string, string> = {
+  white: 'white', 'east-asian': 'East Asian', 'south-asian': 'South Asian', 'southeast-asian': 'Southeast Asian', black: 'Black',
+  'middle-eastern': 'Middle Eastern', indigenous: 'Indigenous', 'pacific-islander': 'Pacific Islander', mixed: 'mixed-heritage',
+};
+const MUSCLE_WORDS: Record<string, string> = { toned: 'toned', athletic: 'athletic', muscular: 'muscular', 'very-muscular': 'very muscular' };
+
+/** The look in words for an image or writing prompt ("Latina, athletic"); empty when nothing applies. */
+export function lookPhrase(look: PersonaLook | undefined, gender: PersonaGender): string {
+  if (!look) return '';
+  const e = look.ethnicity === 'latino' ? (gender === 'female' ? 'Latina' : 'Latino') : ETHNICITY_WORDS[look.ethnicity];
+  return [e, MUSCLE_WORDS[look.muscle]].filter(Boolean).join(', ');
+}
+
 export function rebuildArchive(ctx: Ctx, stats: PersonaStats[]): void {
   const score = new Map(stats.map((s) => [s.personaId, s.score?.score ?? null]));
   const cells = new Map<string, { descriptors: Descriptors; ids: string[]; best: number | null }>();

@@ -22,6 +22,13 @@ descriptors:
   vibe: teasing
   body: curvy
   age_group: young-adult
+look:
+  chest_size: large
+  chest_shown: fitted
+  butt_size: medium
+  butt_view: front
+  muscle: soft
+  ethnicity: east-asian
 art:
   portrait: /characters/kurumi.webp
   portraitSm: /characters/kurumi-sm.webp

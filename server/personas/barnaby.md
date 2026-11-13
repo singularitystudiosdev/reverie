@@ -22,6 +22,13 @@ descriptors:
   vibe: wholesome
   body: furry
   age_group: adult
+look:
+  chest_size: none
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: non-human
 art:
   portrait: /characters/barnaby.webp
   portraitSm: /characters/barnaby-sm.webp

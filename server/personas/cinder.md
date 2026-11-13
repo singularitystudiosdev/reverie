@@ -22,6 +22,13 @@ descriptors:
   vibe: bold
   body: athletic
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: unseen
+  butt_view: three-quarter
+  muscle: toned
+  ethnicity: ambiguous
 art:
   portrait: /characters/cinder.webp
   portraitSm: /characters/cinder-sm.webp

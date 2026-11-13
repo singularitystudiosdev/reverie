@@ -22,6 +22,13 @@ descriptors:
   vibe: mysterious
   body: slender
   age_group: adult
+look:
+  chest_size: small
+  chest_shown: covered
+  butt_size: medium
+  butt_view: three-quarter
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/elise-varga.webp
   portraitSm: /characters/elise-varga-sm.webp

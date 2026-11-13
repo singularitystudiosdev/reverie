@@ -22,6 +22,13 @@ descriptors:
   vibe: deadpan
   body: slender
   age_group: adult
+look:
+  chest_size: small
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: white
 art:
   portrait: /characters/raven.webp
   portraitSm: /characters/raven-sm.webp

@@ -22,6 +22,13 @@ descriptors:
   vibe: playful
   body: curvy
   age_group: ageless-adult
+look:
+  chest_size: large
+  chest_shown: cleavage
+  butt_size: medium
+  butt_view: three-quarter
+  muscle: soft
+  ethnicity: ambiguous
 art:
   portrait: /characters/lilith.webp
   portraitSm: /characters/lilith-sm.webp

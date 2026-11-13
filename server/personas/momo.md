@@ -22,6 +22,13 @@ descriptors:
   vibe: sweet
   body: petite
   age_group: young-adult
+look:
+  chest_size: small
+  chest_shown: fitted
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: east-asian
 art:
   portrait: /characters/momo.webp
   portraitSm: /characters/momo-sm.webp

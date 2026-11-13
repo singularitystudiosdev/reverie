@@ -22,6 +22,13 @@ descriptors:
   vibe: intellectual
   body: curvy
   age_group: adult
+look:
+  chest_size: large
+  chest_shown: fitted
+  butt_size: medium
+  butt_view: front
+  muscle: soft
+  ethnicity: east-asian
 art:
   portrait: /characters/kiriko.webp
   portraitSm: /characters/kiriko-sm.webp

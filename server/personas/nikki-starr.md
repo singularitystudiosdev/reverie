@@ -22,6 +22,13 @@ descriptors:
   vibe: confident
   body: athletic
   age_group: young-adult
+look:
+  chest_size: medium
+  chest_shown: fitted
+  butt_size: medium
+  butt_view: front
+  muscle: athletic
+  ethnicity: white
 art:
   portrait: /characters/nikki-starr.webp
   portraitSm: /characters/nikki-starr-sm.webp

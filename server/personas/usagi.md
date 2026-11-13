@@ -22,6 +22,13 @@ descriptors:
   vibe: teasing
   body: curvy
   age_group: adult
+look:
+  chest_size: large
+  chest_shown: fitted
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: east-asian
 art:
   portrait: /characters/usagi.webp
   portraitSm: /characters/usagi-sm.webp

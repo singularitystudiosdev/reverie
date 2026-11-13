@@ -22,6 +22,13 @@ descriptors:
   vibe: playful
   body: tall
   age_group: adult
+look:
+  chest_size: medium
+  chest_shown: covered
+  butt_size: unseen
+  butt_view: front
+  muscle: soft
+  ethnicity: non-human
 art:
   portrait: /characters/zyra.webp
   portraitSm: /characters/zyra-sm.webp
